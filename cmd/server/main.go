@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"restaurant_network_pos/internal/app"
 	"restaurant_network_pos/internal/db"
-	"restaurant_network_pos/internal/routes"
 	"syscall"
 	"time"
 
@@ -45,7 +45,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:         ":" + port,
-		Handler:      routes.SetupRoutes(database, store),
+		Handler:      app.SetupRouter(database, store),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,

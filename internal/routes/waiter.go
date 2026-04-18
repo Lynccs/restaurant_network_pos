@@ -9,7 +9,7 @@ import (
 	"github.com/gorilla/sessions"
 )
 
-func mountWaiter(r *chi.Mux, store sessions.Store) {
+func SetupWaiterRoutes(r chi.Router, store sessions.Store) {
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.RequireAuth(store))
 		r.Use(middleware.RequireRole(store, "waiter"))

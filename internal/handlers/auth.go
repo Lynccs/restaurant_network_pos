@@ -1,17 +1,21 @@
 package handlers
 
 import (
-	"database/sql"
+	"errors"
 	"net/http"
-	"restaurant_network_pos/internal/auth"
 	"restaurant_network_pos/internal/models"
+	"restaurant_network_pos/internal/service"
 	"restaurant_network_pos/templates/pages"
 
 	"github.com/gorilla/sessions"
 )
 
+type AuthServicer interface {
+	Login(phone, pin string) (*models.User, error)
+}
+
 type AuthHandler struct {
-	DB    *sql.DB
+	Auth  AuthServicer
 	Store sessions.Store
 }
 
@@ -23,10 +27,14 @@ func (h *AuthHandler) LoginPost(w http.ResponseWriter, r *http.Request) {
 	phone := r.FormValue("phone")
 	pin := r.FormValue("pin")
 
-	user, err := auth.LoginByPhone(h.DB, phone, pin)
+	user, err := h.Auth.Login(phone, pin)
 	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		pages.Login("Невірний номер телефону або PIN-код.").Render(r.Context(), w)
+		if errors.Is(err, service.ErrInvalidCredentials) {
+			w.WriteHeader(http.StatusUnauthorized)
+			pages.Login("Невірний номер телефону або PIN-код.").Render(r.Context(), w)
+			return
+		}
+		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
