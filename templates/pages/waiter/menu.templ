@@ -1,0 +1,259 @@
+package waiter
+
+import (
+	"fmt"
+	"strconv"
+
+	waiterservice "restaurant_network_pos/internal/service/waiter"
+)
+
+// MenuPage renders the full POS page — a standalone HTML document (no WaiterLayout sidebar).
+templ MenuPage(tableNumber int, categories []string, activeCat string, dishes []waiterservice.DishView, cart []waiterservice.CartItemView, total float64) {
+	<!DOCTYPE html>
+	<html lang="uk">
+	<head>
+		<meta charset="UTF-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+		<title>{ fmt.Sprintf("RestaurantOS — Стіл №%d", tableNumber) }</title>
+		<script src="https://cdn.tailwindcss.com"></script>
+		<script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
+		<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+		<style>
+			* { font-family: 'IBM Plex Sans', sans-serif; }
+			.mono { font-family: 'IBM Plex Mono', monospace; }
+
+			.dish-card { position: relative; cursor: pointer; transition: box-shadow 0.15s, transform 0.15s, border-color 0.15s; }
+			.dish-card:not(.stopped):hover { box-shadow: 0 4px 16px rgba(59,130,246,0.18); transform: translateY(-2px); border-color: #93c5fd !important; }
+			.dish-card.stopped { cursor: not-allowed; }
+
+			.cat-btn { transition: all 0.12s; }
+			.cat-btn.active { background: #1e3a8a; color: white; }
+
+			.scrollbar-thin::-webkit-scrollbar { width: 4px; }
+			.scrollbar-thin::-webkit-scrollbar-track { background: #f1f5f9; }
+			.scrollbar-thin::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+
+			@keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+			.fade-in { animation: fadeIn 0.2s ease; }
+
+			@keyframes slideUp { from { opacity:0; transform:translateY(20px) scale(0.98); } to { opacity:1; transform:translateY(0) scale(1); } }
+			.slide-up { animation: slideUp 0.22s ease; }
+		</style>
+	</head>
+	<body class="h-screen flex flex-col bg-slate-100 overflow-hidden">
+		<!-- Top bar -->
+		<div class="bg-slate-900 text-white px-5 py-3 flex items-center gap-4 flex-shrink-0 border-b border-slate-700">
+			<button
+				hx-delete={ fmt.Sprintf("/waiter/tables/%d/menu/cart", tableNumber) }
+				hx-swap="none"
+				hx-on:htmx:after-request="window.location.href='/waiter/tables'"
+				class="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm transition-colors"
+			>
+				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+				</svg>
+				Назад до залу
+			</button>
+			<div class="w-px h-5 bg-slate-700"></div>
+			<span class="text-slate-400 text-sm">Замовлення —</span>
+			<span class="text-white font-semibold text-sm">Стіл №{ strconv.Itoa(tableNumber) }</span>
+			<span id="posTime" class="ml-auto text-slate-400 text-xs mono"></span>
+		</div>
+
+		<!-- 3-column body -->
+		<div class="flex flex-1 overflow-hidden">
+
+			<!-- Left: categories -->
+			<div class="w-40 bg-slate-800 flex-shrink-0 flex flex-col p-2 gap-1 overflow-y-auto scrollbar-thin">
+				for _, cat := range categories {
+					<button
+						hx-get={ fmt.Sprintf("/waiter/tables/%d/menu/dishes?cat=%s", tableNumber, cat) }
+						hx-target="#dish-grid"
+						hx-swap="innerHTML"
+						class={ "cat-btn w-full text-left px-3 py-3.5 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-700 mb-0.5", templ.KV("active", cat == activeCat) }
+					>{ cat }</button>
+				}
+			</div>
+
+			<!-- Center: dish grid -->
+			<div id="dish-grid" class="flex-1 overflow-y-auto scrollbar-thin p-5 bg-slate-100">
+				@DishGrid(tableNumber, activeCat, dishes)
+			</div>
+
+			<!-- Right: cart panel -->
+			<div id="cart-panel" class="w-72 bg-white flex-shrink-0 flex flex-col border-l border-slate-200">
+				@CartPanel(tableNumber, cart, total)
+			</div>
+		</div>
+
+		<script>
+			// Elapsed-time stopwatch — resets to 00:00 on every page load.
+			(function() {
+				var start = Date.now();
+				function tick() {
+					var s = Math.floor((Date.now() - start) / 1000);
+					var mm = String(Math.floor(s / 60)).padStart(2, '0');
+					var ss = String(s % 60).padStart(2, '0');
+					var el = document.getElementById('posTime');
+					if (el) el.textContent = mm + ':' + ss;
+					setTimeout(tick, 1000);
+				}
+				tick();
+			})();
+
+			// Keep active category button highlighted after HTMX dish-grid swap.
+			document.body.addEventListener('htmx:afterRequest', function(e) {
+				const path = (e.detail.requestConfig && e.detail.requestConfig.path) || '';
+				if (path.includes('/dishes')) {
+					document.querySelectorAll('.cat-btn').forEach(function(b) { b.classList.remove('active'); });
+					e.detail.elt.classList.add('active');
+				}
+			});
+		</script>
+	</body>
+	</html>
+}
+
+// DishGrid renders the scrollable grid of dish cards for a given category.
+// This is the HTMX swap target when switching categories.
+templ DishGrid(tableNumber int, category string, dishes []waiterservice.DishView) {
+	<h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{ category }</h3>
+	<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+		for _, d := range dishes {
+			@DishCard(tableNumber, d)
+		}
+	</div>
+}
+
+// DishCard renders a single menu item card.
+// Stopped dishes show the СТОП-ЛИСТ overlay and are not clickable.
+templ DishCard(tableNumber int, d waiterservice.DishView) {
+	<div
+		id={ fmt.Sprintf("dish-card-%d", d.ID) }
+		class={ "dish-card border-2 rounded-xl p-4 fade-in overflow-hidden", templ.KV("stopped bg-slate-100 border-slate-300", d.Stopped), templ.KV("bg-white border-slate-200", !d.Stopped) }
+		if !d.Stopped {
+			hx-post={ fmt.Sprintf("/waiter/tables/%d/menu/cart/add", tableNumber) }
+			hx-vals={ fmt.Sprintf(`{"dish_id":"%d","dish_name":"%s","price":"%.2f"}`, d.ID, d.Name, d.Price) }
+			hx-target="#cart-panel"
+			hx-swap="innerHTML"
+		}
+	>
+		<div class="text-sm font-semibold text-slate-800 leading-snug mb-1 min-h-[2.5rem]">{ d.Name }</div>
+		<div class="text-xs text-slate-400 mb-2">{ strconv.Itoa(d.PortionSize) } г · { strconv.Itoa(d.CookingTime) } хв</div>
+		<div class="flex items-center justify-between mt-auto pt-1">
+			<span class="text-base font-bold mono text-blue-600">{ fmt.Sprintf("%.0f ₴", d.Price) }</span>
+			<span
+				id={ fmt.Sprintf("dish-badge-%d", d.ID) }
+				class={ "w-6 h-6 bg-blue-600 text-white text-xs font-bold rounded-full flex items-center justify-center", templ.KV("hidden", d.Stopped || d.CartQty == 0) }
+			>{ strconv.Itoa(d.CartQty) }</span>
+		</div>
+		if d.Stopped {
+			<div class="absolute inset-0 flex items-center justify-center bg-slate-200/80 pointer-events-none">
+				<span class="text-xs font-bold text-red-500 tracking-widest bg-white/95 border border-red-200 px-2 py-0.5 rounded">СТОП-ЛИСТ</span>
+			</div>
+		}
+	</div>
+}
+
+// DishCardOOB replaces an entire dish card out-of-band (used when stopped state changes).
+templ DishCardOOB(tableNumber int, d waiterservice.DishView) {
+	<div hx-swap-oob={ fmt.Sprintf("outerHTML:#dish-card-%d", d.ID) }>
+		@DishCard(tableNumber, d)
+	</div>
+}
+
+// DishBadgeOOB updates only the quantity badge on a dish card out-of-band.
+// Used on normal add/remove to avoid re-rendering the whole card (prevents flicker).
+templ DishBadgeOOB(dishID, qty int) {
+	<span
+		id={ fmt.Sprintf("dish-badge-%d", dishID) }
+		hx-swap-oob="outerHTML"
+		class={ "w-6 h-6 bg-blue-600 text-white text-xs font-bold rounded-full flex items-center justify-center", templ.KV("hidden", qty == 0) }
+	>{ strconv.Itoa(qty) }</span>
+}
+
+// CartPanel is the right-side receipt pane — the primary HTMX swap target for cart mutations.
+templ CartPanel(tableNumber int, cart []waiterservice.CartItemView, total float64) {
+	<div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
+		<p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Чек</p>
+		if len(cart) > 0 {
+			<span class="text-xs text-slate-400 mono">
+				{ strconv.Itoa(cartTotalQty(cart)) } поз.
+			</span>
+		}
+	</div>
+	<div class="flex-1 overflow-y-auto scrollbar-thin px-3 py-3 space-y-2">
+		if len(cart) == 0 {
+			<div class="text-center py-10 text-slate-300 text-sm">Оберіть страви з меню</div>
+		} else {
+			for _, item := range cart {
+				@CartItem(tableNumber, item)
+			}
+		}
+	</div>
+	<div class="border-t border-slate-200 px-4 py-4 space-y-3 bg-slate-50 flex-shrink-0">
+		<div class="flex justify-between items-center">
+			<span class="text-slate-500 text-sm font-medium">Разом:</span>
+			<span class="text-2xl font-bold mono text-slate-900">{ fmt.Sprintf("%.0f ₴", total) }</span>
+		</div>
+		<button
+			hx-post={ fmt.Sprintf("/waiter/tables/%d/menu/submit", tableNumber) }
+			hx-swap="none"
+			if len(cart) == 0 {
+				disabled
+			}
+			class="w-full bg-blue-600 text-white font-semibold py-3.5 rounded-xl text-sm transition-all hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
+		>
+			Створити Замовлення
+		</button>
+	</div>
+}
+
+// CartItem renders one line in the cart.
+templ CartItem(tableNumber int, item waiterservice.CartItemView) {
+	<div class="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2.5">
+		<div class="flex-1 min-w-0">
+			<p class="text-xs font-medium text-slate-700 leading-tight">{ item.Name }</p>
+			<p class="text-xs text-slate-400 mono mt-0.5">
+				{ fmt.Sprintf("%.0f ₴ × %d = %.0f ₴", item.Price, item.Qty, item.Subtotal) }
+			</p>
+		</div>
+		<div class="flex items-center gap-1 flex-shrink-0">
+			<!-- Minus button -->
+			<button
+				hx-post={ fmt.Sprintf("/waiter/tables/%d/menu/cart/remove", tableNumber) }
+				hx-vals={ fmt.Sprintf(`{"dish_id":"%d"}`, item.DishID) }
+				hx-target="#cart-panel"
+				hx-swap="innerHTML"
+				class="w-6 h-6 rounded-full border border-slate-300 text-slate-500 hover:bg-slate-200 flex items-center justify-center text-base leading-none font-bold transition-colors"
+			>−</button>
+			<span class="w-5 text-center text-xs font-bold mono text-slate-800">{ strconv.Itoa(item.Qty) }</span>
+			<!-- Plus button -->
+			<button
+				if item.CanPlus {
+					hx-post={ fmt.Sprintf("/waiter/tables/%d/menu/cart/add", tableNumber) }
+					hx-vals={ fmt.Sprintf(`{"dish_id":"%d","dish_name":"%s","price":"%.2f"}`, item.DishID, item.Name, item.Price) }
+					hx-target="#cart-panel"
+					hx-swap="innerHTML"
+				}
+				class={ "w-6 h-6 rounded-full border border-slate-300 text-slate-500 flex items-center justify-center text-base leading-none font-bold transition-colors", templ.KV("hover:bg-slate-200", item.CanPlus), templ.KV("opacity-40 cursor-not-allowed", !item.CanPlus) }
+			>+</button>
+		</div>
+	</div>
+}
+
+// CartError renders a small error toast fragment (409 response target).
+templ CartError(msg string) {
+	<div class="fixed bottom-5 right-5 z-50 bg-red-600 text-white text-sm px-4 py-2.5 rounded-xl shadow-lg slide-up">
+		{ msg }
+	</div>
+}
+
+// cartTotalQty sums quantities across all cart items (Go helper, not a templ component).
+func cartTotalQty(cart []waiterservice.CartItemView) int {
+	total := 0
+	for _, it := range cart {
+		total += it.Qty
+	}
+	return total
+}

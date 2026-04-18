@@ -18,13 +18,19 @@ type WaiterServicer interface {
 	GetRestaurantName(restaurantID int) (string, error)
 }
 
-type WaiterHandler struct {
-	Svc   WaiterServicer
-	Store sessions.Store
+// CacheWarmer is satisfied by CartManager; used for background warm-up on the tables page.
+type CacheWarmer interface {
+	WarmUpCache(restaurantID int) error
 }
 
-func NewWaiterHandler(svc WaiterServicer, store sessions.Store) *WaiterHandler {
-	return &WaiterHandler{Svc: svc, Store: store}
+type WaiterHandler struct {
+	Svc     WaiterServicer
+	Store   sessions.Store
+	CartMgr CacheWarmer
+}
+
+func NewWaiterHandler(svc WaiterServicer, store sessions.Store, cartMgr CacheWarmer) *WaiterHandler {
+	return &WaiterHandler{Svc: svc, Store: store, CartMgr: cartMgr}
 }
 
 func (h *WaiterHandler) TablesPage(w http.ResponseWriter, r *http.Request) {
@@ -39,6 +45,10 @@ func (h *WaiterHandler) TablesPage(w http.ResponseWriter, r *http.Request) {
 	name, _ := sess.Values["full_name"].(string)
 
 	handlerLog.Printf("TablesPage: restaurantID=%d name=%s", restaurantID, name)
+
+	// Background warm-up: pre-loads the ingredient stock cache so the menu
+	// page renders without the heavy SQL query on the critical path.
+	go h.CartMgr.WarmUpCache(restaurantID) //nolint:errcheck
 
 	tables, err := h.Svc.GetTables(restaurantID)
 	if err != nil {

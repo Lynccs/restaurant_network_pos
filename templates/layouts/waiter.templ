@@ -8,15 +8,18 @@ templ WaiterLayout(name string, activePage string, content templ.Component) {
 		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 		<title>RestaurantOS — Офіціант</title>
 		<script src="https://cdn.tailwindcss.com"></script>
+		<script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
 		<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
 		<style>
-			{ `* { font-family: 'IBM Plex Sans', sans-serif; }` }
-			{ `.mono { font-family: 'IBM Plex Mono', monospace; }` }
-			{ `.sidebar-item { transition: all 0.15s ease; }` }
-			{ `.sidebar-item:hover { background: rgba(255,255,255,0.08); }` }
-			{ `.sidebar-item.active { background: rgba(255,255,255,0.12); border-left: 2px solid #60a5fa; }` }
-			{ `@keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }` }
-			{ `.fade-in { animation: fadeIn 0.2s ease; }` }
+			* { font-family: 'IBM Plex Sans', sans-serif; }
+			.mono { font-family: 'IBM Plex Mono', monospace; }
+			.sidebar-item { transition: all 0.15s ease; }
+			.sidebar-item:hover { background: rgba(255,255,255,0.08); }
+			.sidebar-item.active { background: rgba(255,255,255,0.12); border-left: 2px solid #60a5fa; }
+			@keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+			.fade-in { animation: fadeIn 0.2s ease; }
+			@keyframes slideUp { from { opacity:0; transform:translateY(20px) scale(0.98); } to { opacity:1; transform:translateY(0) scale(1); } }
+			.slide-up { animation: slideUp 0.22s ease; }
 		</style>
 	</head>
 	<body class="bg-slate-50 overflow-hidden h-screen flex">

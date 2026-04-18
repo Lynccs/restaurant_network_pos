@@ -33,11 +33,16 @@ func SetupRouter(db *sql.DB, store sessions.Store) *chi.Mux {
 
 	waiterRepo := waiterrepo.NewWaiterRepo(db)
 	waiterSvc := waiterservice.NewWaiterService(waiterRepo)
-	waiterH := waiterhandler.NewWaiterHandler(waiterSvc, store)
+
+	menuRepo := waiterrepo.NewMenuRepo(db)
+	cartMgr := waiterservice.NewCartManager(menuRepo)
+
+	waiterH := waiterhandler.NewWaiterHandler(waiterSvc, store, cartMgr)
+	menuH := waiterhandler.NewMenuHandler(cartMgr, menuRepo, store)
 
 	routes.SetupAuthRoutes(r, authH)
 	routes.SetupAdminRoutes(r, store)
-	routes.SetupWaiterRoutes(r, waiterH)
+	routes.SetupWaiterRoutes(r, waiterH, menuH)
 	routes.SetupChefRoutes(r, store)
 
 	return r

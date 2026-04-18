@@ -1,6 +1,7 @@
 package waiter
 
 import (
+	"fmt"
 	"strconv"
 	waiterservice "restaurant_network_pos/internal/service/waiter"
 )
@@ -29,18 +30,68 @@ templ TablesPage(tables []waiterservice.TableView, restaurantName string) {
 				@tableCard(t)
 			}
 		</div>
+		<!-- Floating action button (injected by JS) -->
+		<div id="tableAction"></div>
 	</div>
+	<script>
+		var selectedTable = null;
+		var selectedStatus = null;
+
+		function selectTable(number, status) {
+			if (selectedTable === number) {
+				selectedTable = null;
+				selectedStatus = null;
+			} else {
+				selectedTable = number;
+				selectedStatus = status;
+			}
+			renderTableSelection();
+		}
+
+		function renderTableSelection() {
+			document.querySelectorAll('.table-card').forEach(function(el) {
+				el.classList.remove('ring-2', 'ring-blue-500', 'scale-105', 'shadow-xl', 'z-10');
+			});
+
+			var actionEl = document.getElementById('tableAction');
+			if (!selectedTable) {
+				actionEl.innerHTML = '';
+				return;
+			}
+
+			var card = document.getElementById('table-card-' + selectedTable);
+			if (card) card.classList.add('ring-2', 'ring-blue-500', 'scale-105', 'shadow-xl', 'z-10');
+
+			var isOccupied = selectedStatus === 'occupied';
+			var btnText  = isOccupied ? 'Дозамовити' : 'Зробити замовлення';
+			var bgClass  = isOccupied ? 'bg-blue-600 hover:bg-blue-500' : 'bg-green-600 hover:bg-green-500';
+			var url      = '/waiter/tables/' + selectedTable + '/menu';
+
+			actionEl.innerHTML =
+				'<div class="fixed bottom-8 left-56 right-0 flex justify-center z-50 pointer-events-none">' +
+				'<a href="' + url + '" class="pointer-events-auto shadow-2xl px-10 py-3.5 ' + bgClass + ' text-white font-semibold rounded-2xl text-base transition-all hover:-translate-y-1 slide-up">' +
+				btnText + '</a></div>';
+		}
+	</script>
 }
 
 templ tableCard(t waiterservice.TableView) {
 	if t.Status == "free" {
-		<a href={ templ.URL("/waiter/tables/" + strconv.Itoa(t.Number) + "/menu") } class="block border-2 border-green-400 bg-green-50 rounded-2xl p-4 cursor-pointer transition-all duration-150 hover:shadow-xl hover:-translate-y-1 select-none">
+		<div
+			id={ fmt.Sprintf("table-card-%d", t.Number) }
+			onclick={ templ.ComponentScript{Call: fmt.Sprintf("selectTable(%d,'free')", t.Number)} }
+			class="table-card relative border-2 border-green-400 bg-green-50 rounded-2xl p-4 cursor-pointer transition-all duration-150 hover:shadow-xl hover:-translate-y-1 select-none"
+		>
 			@tableCardContent(t)
-		</a>
+		</div>
 	} else {
-		<a href={ templ.URL("/waiter/tables/" + strconv.Itoa(t.Number) + "/menu") } class="block border-2 border-red-300 bg-red-50 rounded-2xl p-4 cursor-pointer transition-all duration-150 hover:shadow-xl hover:-translate-y-1 select-none">
+		<div
+			id={ fmt.Sprintf("table-card-%d", t.Number) }
+			onclick={ templ.ComponentScript{Call: fmt.Sprintf("selectTable(%d,'occupied')", t.Number)} }
+			class="table-card relative border-2 border-red-300 bg-red-50 rounded-2xl p-4 cursor-pointer transition-all duration-150 hover:shadow-xl hover:-translate-y-1 select-none"
+		>
 			@tableCardContent(t)
-		</a>
+		</div>
 	}
 }
 
