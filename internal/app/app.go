@@ -4,9 +4,12 @@ import (
 	"database/sql"
 	"net/http"
 	"restaurant_network_pos/internal/handlers"
+	waiterhandler "restaurant_network_pos/internal/handlers/waiter"
 	"restaurant_network_pos/internal/repository"
+	waiterrepo "restaurant_network_pos/internal/repository/waiter"
 	"restaurant_network_pos/internal/routes"
 	"restaurant_network_pos/internal/service"
+	waiterservice "restaurant_network_pos/internal/service/waiter"
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
@@ -28,9 +31,13 @@ func SetupRouter(db *sql.DB, store sessions.Store) *chi.Mux {
 	})
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 
+	waiterRepo := waiterrepo.NewWaiterRepo(db)
+	waiterSvc := waiterservice.NewWaiterService(waiterRepo)
+	waiterH := waiterhandler.NewWaiterHandler(waiterSvc, store)
+
 	routes.SetupAuthRoutes(r, authH)
 	routes.SetupAdminRoutes(r, store)
-	routes.SetupWaiterRoutes(r, store)
+	routes.SetupWaiterRoutes(r, waiterH)
 	routes.SetupChefRoutes(r, store)
 
 	return r

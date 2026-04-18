@@ -1,0 +1,67 @@
+package waiter
+
+import (
+	"strconv"
+	waiterservice "restaurant_network_pos/internal/service/waiter"
+)
+
+templ TablesPage(tables []waiterservice.TableView, restaurantName string) {
+	<div class="p-6 max-w-6xl mx-auto fade-in">
+		<!-- Header -->
+		<div class="mb-6">
+			<h1 class="text-xl font-semibold text-slate-900">План залу</h1>
+			<p class="text-slate-500 text-sm mt-0.5">Ресторан { restaurantName }</p>
+		</div>
+		<!-- Legend -->
+		<div class="flex gap-4 mb-5 flex-wrap">
+			<div class="flex items-center gap-1.5 text-xs text-slate-500">
+				<span class="w-2.5 h-2.5 rounded-full bg-green-400 inline-block"></span>
+				Вільний — натисніть, щоб створити замовлення
+			</div>
+			<div class="flex items-center gap-1.5 text-xs text-slate-500">
+				<span class="w-2.5 h-2.5 rounded-full bg-red-400 inline-block"></span>
+				Зайнятий — натисніть, щоб додати позиції
+			</div>
+		</div>
+		<!-- Grid -->
+		<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+			for _, t := range tables {
+				@tableCard(t)
+			}
+		</div>
+	</div>
+}
+
+templ tableCard(t waiterservice.TableView) {
+	if t.Status == "free" {
+		<a href={ templ.URL("/waiter/tables/" + strconv.Itoa(t.Number) + "/menu") } class="block border-2 border-green-400 bg-green-50 rounded-2xl p-4 cursor-pointer transition-all duration-150 hover:shadow-xl hover:-translate-y-1 select-none">
+			@tableCardContent(t)
+		</a>
+	} else {
+		<a href={ templ.URL("/waiter/tables/" + strconv.Itoa(t.Number) + "/menu") } class="block border-2 border-red-300 bg-red-50 rounded-2xl p-4 cursor-pointer transition-all duration-150 hover:shadow-xl hover:-translate-y-1 select-none">
+			@tableCardContent(t)
+		</a>
+	}
+}
+
+templ tableCardContent(t waiterservice.TableView) {
+	<div class="flex items-start justify-between mb-3">
+		<span class="text-[1.75rem] font-bold text-slate-700 mono leading-none">№{ strconv.Itoa(t.Number) }</span>
+		if t.Status == "free" {
+			<span class="w-2.5 h-2.5 rounded-full bg-green-400 mt-1 flex-shrink-0"></span>
+		} else {
+			<span class="w-2.5 h-2.5 rounded-full bg-red-400 mt-1 flex-shrink-0"></span>
+		}
+	</div>
+	<div class="text-sm text-slate-400 mb-1.5">{ strconv.Itoa(t.Capacity) } місця</div>
+	if t.Status == "free" {
+		<div class="text-xs font-medium text-green-700">Натисніть для замовлення</div>
+	} else {
+		<div class="text-xs font-medium text-slate-600">Зайнятий</div>
+		if t.SeatTime != "" {
+			<div class="mt-2 pt-2 border-t border-slate-200/70 text-xs text-slate-500 font-medium">
+				Час посадки: <span class="mono font-bold">{ t.SeatTime }</span>
+			</div>
+		}
+	}
+}
