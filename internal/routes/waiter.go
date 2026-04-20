@@ -22,6 +22,7 @@ func SetupWaiterRoutes(r chi.Router, h *waiterhandler.WaiterHandler, menuH *wait
 		r.Get("/waiter/tables/{number}/menu/dishes", menuH.GetDishes)
 		r.Post("/waiter/tables/{number}/menu/cart/add", menuH.CartAdd)
 		r.Post("/waiter/tables/{number}/menu/cart/remove", menuH.CartRemove)
+		r.Post("/waiter/tables/{number}/menu/cart/uncancel", menuH.CartUnCancel)
 		r.Delete("/waiter/tables/{number}/menu/cart", menuH.CartDestroy)
 		r.Post("/waiter/tables/{number}/menu/submit", menuH.SubmitOrder)
 	})

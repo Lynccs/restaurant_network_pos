@@ -49,7 +49,7 @@ func (s *WaiterService) GetTables(restaurantID int) ([]TableView, error) {
 		if r.HasActiveOrder {
 			v.Status = "occupied"
 			if r.OrderCreatedAt.Valid {
-				v.SeatTime = r.OrderCreatedAt.Time.Format("15:04")
+				v.SeatTime = r.OrderCreatedAt.Time.Format("2006-01-02 15:04")
 			}
 		}
 		views = append(views, v)

@@ -19,12 +19,16 @@ var menuLog = log.New(log.Writer(), "[MenuHandler] ", log.LstdFlags|log.Lshortfi
 type MenuCartManager interface {
 	WarmUpCache(restaurantID int) error
 	GetMenuForPage(restaurantID, tableID int) ([]waiterservice.DishView, error)
+	LoadActiveOrder(restaurantID, tableID int) error
 	AddItem(restaurantID, tableID, dishID int, name string, price float64) error
 	RemoveItem(restaurantID, tableID, dishID int) error
+	RemoveDBItem(restaurantID, tableID, orderItemID int) error
+	UnCancelDBItem(restaurantID, tableID, orderItemID int) error
 	GetPortions(restaurantID, dishID int) int
 	DestroyCart(restaurantID, tableID int)
 	SubmitOrder(restaurantID, tableID, waiterID int) (string, error)
-	BuildCartViews(restaurantID, tableID int) ([]waiterservice.CartItemView, float64)
+	GetFullCartView(restaurantID, tableID int) ([]waiterservice.CartItemView, float64)
+	HasExistingOrder(tableID int) bool
 }
 
 // MenuRepoForHandler exposes only the table-lookup needed by the handler.
@@ -79,6 +83,13 @@ func (h *MenuHandler) MenuPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Load existing DB order into draft (no-op for free tables).
+	if err := h.CartMgr.LoadActiveOrder(restaurantID, tableID); err != nil {
+		menuLog.Printf("MenuPage: LoadActiveOrder error: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
 	dishes, err := h.CartMgr.GetMenuForPage(restaurantID, tableID)
 	if err != nil {
 		menuLog.Printf("MenuPage: GetMenuForPage error: %v", err)
@@ -86,9 +97,9 @@ func (h *MenuHandler) MenuPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cart, total := h.CartMgr.BuildCartViews(restaurantID, tableID)
+	cart, total := h.CartMgr.GetFullCartView(restaurantID, tableID)
+	hasExistingOrder := h.CartMgr.HasExistingOrder(tableID)
 
-	// Determine active category from query or first available.
 	activeCat := r.URL.Query().Get("cat")
 	cats := categories(dishes)
 	if activeCat == "" && len(cats) > 0 {
@@ -96,7 +107,7 @@ func (h *MenuHandler) MenuPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filtered := filterByCategory(dishes, activeCat)
-	menupages.MenuPage(tNum, cats, activeCat, filtered, cart, total).Render(r.Context(), w)
+	menupages.MenuPage(tNum, cats, activeCat, filtered, cart, total, hasExistingOrder).Render(r.Context(), w)
 }
 
 // GetDishes returns the dish grid fragment for HTMX category switching
@@ -131,7 +142,6 @@ func (h *MenuHandler) GetDishes(w http.ResponseWriter, r *http.Request) {
 }
 
 // CartAdd adds a dish to the cart (POST /waiter/tables/{number}/menu/cart/add).
-// Returns updated CartPanel HTML; appends an OOB DishCard if the dish just hit 0 portions.
 func (h *MenuHandler) CartAdd(w http.ResponseWriter, r *http.Request) {
 	restaurantID, _, err := h.sessionInts(r)
 	if err != nil {
@@ -165,12 +175,12 @@ func (h *MenuHandler) CartAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cart, total := h.CartMgr.BuildCartViews(restaurantID, tableID)
-	menupages.CartPanel(tNum, cart, total).Render(r.Context(), w)
+	cart, total := h.CartMgr.GetFullCartView(restaurantID, tableID)
+	hasExistingOrder := h.CartMgr.HasExistingOrder(tableID)
+	menupages.CartPanel(tNum, cart, total, hasExistingOrder).Render(r.Context(), w)
 
 	portionsLeft := h.CartMgr.GetPortions(restaurantID, dishID)
 	if portionsLeft == 0 {
-		// Dish just hit stop-list — replace the whole card to show grey overlay.
 		if dishes, err := h.CartMgr.GetMenuForPage(restaurantID, tableID); err == nil {
 			for _, d := range dishes {
 				if d.ID == dishID {
@@ -180,19 +190,12 @@ func (h *MenuHandler) CartAdd(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	} else {
-		// Normal add — update only the badge to avoid full card re-render (prevents flicker).
-		var cartQty int
-		for _, item := range cart {
-			if item.DishID == dishID {
-				cartQty = item.Qty
-				break
-			}
-		}
-		menupages.DishBadgeOOB(dishID, cartQty).Render(r.Context(), w)
+		menupages.DishBadgeOOB(dishID, activeBadgeQty(cart, dishID)).Render(r.Context(), w)
 	}
 }
 
 // CartRemove removes one unit from the cart (POST /waiter/tables/{number}/menu/cart/remove).
+// Accepts optional order_item_id for DB draft items; falls back to in-memory removal.
 func (h *MenuHandler) CartRemove(w http.ResponseWriter, r *http.Request) {
 	restaurantID, _, err := h.sessionInts(r)
 	if err != nil {
@@ -211,17 +214,24 @@ func (h *MenuHandler) CartRemove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	orderItemID, _ := strconv.Atoi(r.FormValue("order_item_id"))
 	dishID, _ := strconv.Atoi(r.FormValue("dish_id"))
 
 	portionsBefore := h.CartMgr.GetPortions(restaurantID, dishID)
-	h.CartMgr.RemoveItem(restaurantID, tableID, dishID) //nolint:errcheck
+
+	if orderItemID > 0 {
+		h.CartMgr.RemoveDBItem(restaurantID, tableID, orderItemID) //nolint:errcheck
+	} else {
+		h.CartMgr.RemoveItem(restaurantID, tableID, dishID) //nolint:errcheck
+	}
+
 	portionsAfter := h.CartMgr.GetPortions(restaurantID, dishID)
 
-	cart, total := h.CartMgr.BuildCartViews(restaurantID, tableID)
-	menupages.CartPanel(tNum, cart, total).Render(r.Context(), w)
+	cart, total := h.CartMgr.GetFullCartView(restaurantID, tableID)
+	hasExistingOrder := h.CartMgr.HasExistingOrder(tableID)
+	menupages.CartPanel(tNum, cart, total, hasExistingOrder).Render(r.Context(), w)
 
 	if portionsBefore == 0 && portionsAfter > 0 {
-		// Card was on stop-list and is now re-enabled — replace whole card.
 		if dishes, err := h.CartMgr.GetMenuForPage(restaurantID, tableID); err == nil {
 			for _, d := range dishes {
 				if d.ID == dishID {
@@ -231,20 +241,40 @@ func (h *MenuHandler) CartRemove(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	} else {
-		// Normal remove — update only the badge.
-		var cartQty int
-		for _, item := range cart {
-			if item.DishID == dishID {
-				cartQty = item.Qty
-				break
-			}
-		}
-		menupages.DishBadgeOOB(dishID, cartQty).Render(r.Context(), w)
+		menupages.DishBadgeOOB(dishID, activeBadgeQty(cart, dishID)).Render(r.Context(), w)
 	}
 }
 
+// CartUnCancel restores one cancelled portion for a "cooking" item (POST /waiter/tables/{number}/menu/cart/uncancel).
+func (h *MenuHandler) CartUnCancel(w http.ResponseWriter, r *http.Request) {
+	restaurantID, _, err := h.sessionInts(r)
+	if err != nil {
+		http.Error(w, "session error", http.StatusInternalServerError)
+		return
+	}
+	tNum, err := tableNumber(r)
+	if err != nil {
+		http.Error(w, "invalid table", http.StatusBadRequest)
+		return
+	}
+
+	tableID, err := h.MenuRepo.GetTableID(restaurantID, tNum)
+	if err != nil {
+		http.Error(w, "table not found", http.StatusNotFound)
+		return
+	}
+
+	orderItemID, _ := strconv.Atoi(r.FormValue("order_item_id"))
+	if orderItemID > 0 {
+		h.CartMgr.UnCancelDBItem(restaurantID, tableID, orderItemID) //nolint:errcheck
+	}
+
+	cart, total := h.CartMgr.GetFullCartView(restaurantID, tableID)
+	hasExistingOrder := h.CartMgr.HasExistingOrder(tableID)
+	menupages.CartPanel(tNum, cart, total, hasExistingOrder).Render(r.Context(), w)
+}
+
 // CartDestroy releases all soft reservations (DELETE /waiter/tables/{number}/menu/cart).
-// The front-end JS then navigates to /waiter/tables.
 func (h *MenuHandler) CartDestroy(w http.ResponseWriter, r *http.Request) {
 	restaurantID, _, err := h.sessionInts(r)
 	if err != nil {
@@ -268,6 +298,7 @@ func (h *MenuHandler) CartDestroy(w http.ResponseWriter, r *http.Request) {
 }
 
 // SubmitOrder commits the cart to the database (POST /waiter/tables/{number}/menu/submit).
+// For occupied tables uses SyncOrderDraft; for free tables creates a new order.
 func (h *MenuHandler) SubmitOrder(w http.ResponseWriter, r *http.Request) {
 	restaurantID, waiterID, err := h.sessionInts(r)
 	if err != nil {
@@ -289,7 +320,7 @@ func (h *MenuHandler) SubmitOrder(w http.ResponseWriter, r *http.Request) {
 	_, err = h.CartMgr.SubmitOrder(restaurantID, tableID, waiterID)
 	if err != nil {
 		menuLog.Printf("SubmitOrder: error: %v", err)
-		http.Error(w, "failed to create order", http.StatusInternalServerError)
+		http.Error(w, "failed to submit order", http.StatusInternalServerError)
 		return
 	}
 
@@ -322,4 +353,16 @@ func filterByCategory(dishes []waiterservice.DishView, cat string) []waiterservi
 		}
 	}
 	return out
+}
+
+// activeBadgeQty sums the Qty of all "new" or in-memory items for a dish.
+// "cooking" and "done" items are excluded from the badge count.
+func activeBadgeQty(cart []waiterservice.CartItemView, dishID int) int {
+	qty := 0
+	for _, item := range cart {
+		if item.DishID == dishID && (item.Status == "new" || item.Status == "") {
+			qty += item.Qty
+		}
+	}
+	return qty
 }

@@ -58,7 +58,7 @@ func TablesPage(tables []waiterservice.TableView, restaurantName string) templ.C
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div><!-- Floating action button (injected by JS) --><div id=\"tableAction\"></div></div><script>\n\t\tvar selectedTable = null;\n\t\tvar selectedStatus = null;\n\n\t\tfunction selectTable(number, status) {\n\t\t\tif (selectedTable === number) {\n\t\t\t\tselectedTable = null;\n\t\t\t\tselectedStatus = null;\n\t\t\t} else {\n\t\t\t\tselectedTable = number;\n\t\t\t\tselectedStatus = status;\n\t\t\t}\n\t\t\trenderTableSelection();\n\t\t}\n\n\t\tfunction renderTableSelection() {\n\t\t\tdocument.querySelectorAll('.table-card').forEach(function(el) {\n\t\t\t\tel.classList.remove('ring-2', 'ring-blue-500', 'scale-105', 'shadow-xl', 'z-10');\n\t\t\t});\n\n\t\t\tvar actionEl = document.getElementById('tableAction');\n\t\t\tif (!selectedTable) {\n\t\t\t\tactionEl.innerHTML = '';\n\t\t\t\treturn;\n\t\t\t}\n\n\t\t\tvar card = document.getElementById('table-card-' + selectedTable);\n\t\t\tif (card) card.classList.add('ring-2', 'ring-blue-500', 'scale-105', 'shadow-xl', 'z-10');\n\n\t\t\tvar isOccupied = selectedStatus === 'occupied';\n\t\t\tvar btnText  = isOccupied ? 'Дозамовити' : 'Зробити замовлення';\n\t\t\tvar bgClass  = isOccupied ? 'bg-blue-600 hover:bg-blue-500' : 'bg-green-600 hover:bg-green-500';\n\t\t\tvar url      = '/waiter/tables/' + selectedTable + '/menu';\n\n\t\t\tactionEl.innerHTML =\n\t\t\t\t'<div class=\"fixed bottom-8 left-56 right-0 flex justify-center z-50 pointer-events-none\">' +\n\t\t\t\t'<a href=\"' + url + '\" class=\"pointer-events-auto shadow-2xl px-10 py-3.5 ' + bgClass + ' text-white font-semibold rounded-2xl text-base transition-all hover:-translate-y-1 slide-up\">' +\n\t\t\t\tbtnText + '</a></div>';\n\t\t}\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div><!-- Floating action button (injected by JS) --><div id=\"tableAction\"></div></div><script>\n\t\tvar selectedTable = null;\n\t\tvar selectedStatus = null;\n\n\t\tfunction selectTable(number, status) {\n\t\t\tif (selectedTable === number) {\n\t\t\t\tselectedTable = null;\n\t\t\t\tselectedStatus = null;\n\t\t\t} else {\n\t\t\t\tselectedTable = number;\n\t\t\t\tselectedStatus = status;\n\t\t\t}\n\t\t\trenderTableSelection();\n\t\t}\n\n\t\tfunction handleActionClick(e, el) {\n\t\t\tif (el.dataset.loading) { e.preventDefault(); return; }\n\t\t\tel.dataset.loading = '1';\n\t\t\tel.style.opacity = '0.6';\n\t\t\tel.style.pointerEvents = 'none';\n\t\t\tel.textContent = 'Завантаження...';\n\t\t}\n\n\t\tfunction renderTableSelection() {\n\t\t\tdocument.querySelectorAll('.table-card').forEach(function(el) {\n\t\t\t\tel.classList.remove('ring-2', 'ring-blue-500', 'scale-105', 'shadow-xl', 'z-10');\n\t\t\t});\n\n\t\t\tvar actionEl = document.getElementById('tableAction');\n\t\t\tif (!selectedTable) {\n\t\t\t\tactionEl.innerHTML = '';\n\t\t\t\treturn;\n\t\t\t}\n\n\t\t\tvar card = document.getElementById('table-card-' + selectedTable);\n\t\t\tif (card) card.classList.add('ring-2', 'ring-blue-500', 'scale-105', 'shadow-xl', 'z-10');\n\n\t\t\tvar isOccupied = selectedStatus === 'occupied';\n\t\t\tvar btnText  = isOccupied ? 'Дозамовити' : 'Зробити замовлення';\n\t\t\tvar bgClass  = isOccupied ? 'bg-blue-600 hover:bg-blue-500' : 'bg-green-600 hover:bg-green-500';\n\t\t\tvar url      = '/waiter/tables/' + selectedTable + '/menu';\n\n\t\t\tactionEl.innerHTML =\n\t\t\t\t'<div class=\"fixed bottom-8 left-56 right-0 flex justify-center z-50 pointer-events-none\">' +\n\t\t\t\t'<a href=\"' + url + '\" id=\"tableActionBtn\" onclick=\"handleActionClick(event,this)\" class=\"pointer-events-auto shadow-2xl px-10 py-3.5 ' + bgClass + ' text-white font-semibold rounded-2xl text-base transition-all hover:-translate-y-1 slide-up\">' +\n\t\t\t\tbtnText + '</a></div>';\n\t\t}\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -99,7 +99,7 @@ func tableCard(t waiterservice.TableView) templ.Component {
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("table-card-%d", t.Number))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/tables.templ`, Line: 81, Col: 46}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/tables.templ`, Line: 89, Col: 46}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -114,7 +114,7 @@ func tableCard(t waiterservice.TableView) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\" class=\"table-card relative border-2 border-green-400 bg-green-50 rounded-2xl p-4 cursor-pointer transition-all duration-150 hover:shadow-xl hover:-translate-y-1 select-none\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\" class=\"table-card relative border-2 border-green-400 bg-green-50 rounded-2xl p-4 cursor-pointer transition-all duration-150 hover:shadow-xl hover:-translate-y-1 select-none min-h-[8rem]\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -138,7 +138,7 @@ func tableCard(t waiterservice.TableView) templ.Component {
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("table-card-%d", t.Number))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/tables.templ`, Line: 89, Col: 46}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/tables.templ`, Line: 97, Col: 46}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -153,7 +153,7 @@ func tableCard(t waiterservice.TableView) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\" class=\"table-card relative border-2 border-red-300 bg-red-50 rounded-2xl p-4 cursor-pointer transition-all duration-150 hover:shadow-xl hover:-translate-y-1 select-none\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\" class=\"table-card relative border-2 border-red-300 bg-red-50 rounded-2xl p-4 cursor-pointer transition-all duration-150 hover:shadow-xl hover:-translate-y-1 select-none min-h-[8rem]\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -198,7 +198,7 @@ func tableCardContent(t waiterservice.TableView) templ.Component {
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(t.Number))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/tables.templ`, Line: 100, Col: 101}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/tables.templ`, Line: 108, Col: 101}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
@@ -226,7 +226,7 @@ func tableCardContent(t waiterservice.TableView) templ.Component {
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(t.Capacity))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/tables.templ`, Line: 107, Col: 70}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/tables.templ`, Line: 115, Col: 70}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
@@ -254,7 +254,7 @@ func tableCardContent(t waiterservice.TableView) templ.Component {
 				var templ_7745c5c3_Var11 string
 				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(t.SeatTime)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/tables.templ`, Line: 114, Col: 68}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/tables.templ`, Line: 122, Col: 68}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 				if templ_7745c5c3_Err != nil {
