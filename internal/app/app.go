@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"restaurant_network_pos/internal/handlers"
 	waiterhandler "restaurant_network_pos/internal/handlers/waiter"
+	"restaurant_network_pos/internal/middleware"
 	"restaurant_network_pos/internal/repository"
 	waiterrepo "restaurant_network_pos/internal/repository/waiter"
 	"restaurant_network_pos/internal/routes"
@@ -25,6 +26,7 @@ func SetupRouter(db *sql.DB, store sessions.Store) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(chimw.Logger)
 	r.Use(chimw.Recoverer)
+	r.Use(middleware.NewInflightGuard(store).Middleware)
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
@@ -40,9 +42,13 @@ func SetupRouter(db *sql.DB, store sessions.Store) *chi.Mux {
 	waiterH := waiterhandler.NewWaiterHandler(waiterSvc, store, cartMgr)
 	menuH := waiterhandler.NewMenuHandler(cartMgr, menuRepo, store)
 
+	ordersRepo := waiterrepo.NewOrdersRepo(db)
+	ordersSvc := waiterservice.NewOrdersService(ordersRepo)
+	ordersH := waiterhandler.NewOrdersHandler(ordersSvc, store)
+
 	routes.SetupAuthRoutes(r, authH)
 	routes.SetupAdminRoutes(r, store)
-	routes.SetupWaiterRoutes(r, waiterH, menuH)
+	routes.SetupWaiterRoutes(r, waiterH, menuH, ordersH)
 	routes.SetupChefRoutes(r, store)
 
 	return r

@@ -109,7 +109,7 @@ func WaiterLayout(name string, activePage string, content templ.Component) templ
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div><script>\n\t\tdocument.body.addEventListener('htmx:responseError', function(e) {\n\t\t\tif (e.detail.xhr.status === 429) e.preventDefault();\n\t\t});\n\t</script></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

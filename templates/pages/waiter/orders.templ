@@ -1,0 +1,322 @@
+package waiter
+
+import (
+	"fmt"
+	"sort"
+	"strconv"
+
+	waiterservice "restaurant_network_pos/internal/service/waiter"
+)
+
+func totalOrderQty(items []waiterservice.OrderItemView) int {
+	n := 0
+	for _, it := range items {
+		n += it.Qty
+	}
+	return n
+}
+
+func uniqueTableNumbers(orders []waiterservice.OrderView) []int {
+	seen := make(map[int]struct{})
+	for _, o := range orders {
+		seen[o.TableNumber] = struct{}{}
+	}
+	result := make([]int, 0, len(seen))
+	for t := range seen {
+		result = append(result, t)
+	}
+	sort.Ints(result)
+	return result
+}
+
+func orderStatusBadgeClass(statusName string) string {
+	switch statusName {
+	case "Готується":
+		return "bg-amber-100 text-amber-700"
+	case "Готове":
+		return "bg-green-100 text-green-700"
+	default:
+		return "bg-slate-100 text-slate-600"
+	}
+}
+
+
+templ OrdersPage(orders []waiterservice.OrderView) {
+	<div class="p-6 max-w-5xl mx-auto fade-in">
+		<style>
+			.accordion-body { max-height: 0; overflow: hidden; transition: max-height 0.28s ease; }
+			.accordion-body.open { max-height: 800px; }
+			.chevron-icon { transition: transform 0.22s ease; }
+			.chevron-icon.rotated { transform: rotate(180deg); }
+		</style>
+		<!-- Header -->
+		<div class="mb-6">
+			<h1 class="text-xl font-semibold text-slate-900">Реєстр замовлень</h1>
+			<p class="text-slate-500 text-sm mt-0.5">Всі активні замовлення зміни</p>
+		</div>
+		<!-- Filters -->
+		<form
+			hx-get="/waiter/orders/list"
+			hx-target="#orders-list-wrapper"
+			hx-trigger="change, keyup delay:300ms from:input[name='search']"
+			hx-swap="innerHTML"
+			class="w-full flex gap-3 mb-5 flex-wrap items-center"
+		>
+			<select
+				name="status"
+				class="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600 bg-white focus:outline-none focus:border-blue-400"
+			>
+				<option value="">Всі статуси</option>
+				<option value="Нове">Нове</option>
+				<option value="Готується">Готується</option>
+				<option value="Готове">Готове</option>
+			</select>
+			<select
+				name="table_number"
+				class="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600 bg-white focus:outline-none focus:border-blue-400"
+			>
+				<option value="0">Всі столики</option>
+				for _, t := range uniqueTableNumbers(orders) {
+					<option value={ strconv.Itoa(t) }>Стіл №{ strconv.Itoa(t) }</option>
+				}
+			</select>
+			<div class="flex items-center gap-2">
+				<input
+					type="time"
+					name="time_from"
+					class="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-blue-400"
+				/>
+				<span class="text-slate-400 text-sm">—</span>
+				<input
+					type="time"
+					name="time_to"
+					class="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-blue-400"
+				/>
+			</div>
+			<input
+				type="number"
+				name="search"
+				min="1"
+				placeholder="№ замовлення..."
+				oninput="this.value=this.value.replace(/[^0-9]/g,''); if(this.value<1&&this.value!='') this.value='';"
+				class="flex-1 min-w-36 border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-blue-400"
+			/>
+			<button
+				type="button"
+				onclick="this.closest('form').reset(); htmx.trigger(this.closest('form'), 'change');"
+				class="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors whitespace-nowrap font-medium"
+			>
+				Скинути фільтри
+			</button>
+		</form>
+		<!-- List -->
+		<div id="orders-list-wrapper">
+			@OrdersList(orders)
+		</div>
+		<!-- Cancel confirmation modal -->
+		<div id="cancel-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+			<div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="closeCancelModal()"></div>
+			<div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 slide-up">
+				<div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+					<svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+					</svg>
+				</div>
+				<h3 class="text-slate-900 font-semibold text-lg text-center mb-1">Скасувати замовлення?</h3>
+				<p class="text-slate-500 text-sm text-center mb-5">Ця дія незворотна — замовлення буде скасовано</p>
+				<div class="bg-slate-50 rounded-xl px-4 py-3 mb-5 space-y-2">
+					<div class="flex justify-between text-sm">
+						<span class="text-slate-500">Замовлення</span>
+						<span class="font-semibold mono text-slate-800" id="modal-order-num"></span>
+					</div>
+					<div class="flex justify-between text-sm">
+						<span class="text-slate-500">Столик</span>
+						<span class="font-semibold text-slate-800" id="modal-table"></span>
+					</div>
+					<div class="flex justify-between text-sm border-t border-slate-200 pt-2">
+						<span class="text-slate-500">Сума</span>
+						<span class="font-semibold mono text-red-600" id="modal-total"></span>
+					</div>
+				</div>
+				<div class="flex gap-3">
+					<button
+						onclick="closeCancelModal()"
+						class="flex-1 border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm py-2.5 rounded-xl font-medium transition-colors"
+					>
+						Назад
+					</button>
+					<button
+						onclick="confirmCancel()"
+						class="flex-1 bg-red-600 hover:bg-red-700 text-white text-sm py-2.5 rounded-xl font-semibold transition-colors"
+					>
+						Скасувати
+					</button>
+				</div>
+			</div>
+		</div>
+		<script>
+			function toggleAccordion(id) {
+				var body    = document.getElementById('body-'    + id);
+				var chevron = document.getElementById('chevron-' + id);
+				body.classList.toggle('open');
+				chevron.classList.toggle('rotated');
+			}
+
+			var _pendingCancelEvt = null;
+
+			document.body.addEventListener('htmx:confirm', function(e) {
+				if (e.detail.question !== 'cancel') return;
+				e.preventDefault();
+				_pendingCancelEvt = e;
+				var el = e.detail.elt;
+				document.getElementById('modal-order-num').textContent = '№' + el.dataset.orderNum;
+				document.getElementById('modal-table').textContent = 'Стіл №' + el.dataset.table;
+				document.getElementById('modal-total').textContent = el.dataset.total + ' ₴';
+				document.getElementById('cancel-modal').classList.remove('hidden');
+			});
+
+			function closeCancelModal() {
+				document.getElementById('cancel-modal').classList.add('hidden');
+				_pendingCancelEvt = null;
+			}
+
+			function confirmCancel() {
+				document.getElementById('cancel-modal').classList.add('hidden');
+				if (_pendingCancelEvt) {
+					_pendingCancelEvt.detail.issueRequest(true);
+					_pendingCancelEvt = null;
+				}
+			}
+		</script>
+	</div>
+}
+
+templ OrdersList(orders []waiterservice.OrderView) {
+	if len(orders) == 0 {
+		<div class="text-center py-16 text-slate-400">
+			<svg class="w-12 h-12 mx-auto mb-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+			</svg>
+			<p class="text-sm">Немає активних замовлень</p>
+		</div>
+	} else {
+		<div class="space-y-2">
+			for _, o := range orders {
+				@orderCard(o)
+			}
+		</div>
+	}
+}
+
+templ orderCard(o waiterservice.OrderView) {
+	<div
+		id={ fmt.Sprintf("order-%d", o.OrderID) }
+		class={ "bg-white rounded-xl overflow-hidden", templ.KV("border-2 border-red-400 shadow-[0_0_15px_rgba(248,113,113,0.15)]", o.HasIssue), templ.KV("border border-slate-200", !o.HasIssue) }
+	>
+		<!-- Header -->
+		<div
+			onclick={ templ.ComponentScript{Call: fmt.Sprintf("toggleAccordion(%d)", o.OrderID)} }
+			class="flex items-center gap-3 px-5 py-4 cursor-pointer hover:bg-slate-50/80 transition-colors select-none"
+		>
+			<!-- Total qty badge -->
+			<div class="w-9 h-9 bg-slate-100 rounded-lg flex items-center justify-center mono font-bold text-slate-600 text-sm flex-shrink-0">
+				{ strconv.Itoa(totalOrderQty(o.Items)) }
+			</div>
+			<!-- Order info -->
+			<div class="flex-1 min-w-0">
+				<div class="flex items-center gap-2 mb-0.5 flex-wrap">
+					<span class="font-semibold text-slate-800 text-sm mono">№{ o.OrderNumber }</span>
+					<span class={ "status-badge px-2 py-0.5 rounded-full font-medium text-xs", orderStatusBadgeClass(o.StatusName) }>
+						{ o.StatusName }
+					</span>
+					if o.HasIssue {
+						<span class="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-red-200">
+							<span class="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>
+							Проблема на кухні
+						</span>
+					}
+				</div>
+				<p class="text-xs text-slate-400">
+					{ fmt.Sprintf("Стіл №%d · %s · %s", o.TableNumber, o.WaiterName, o.CreatedAt) }
+				</p>
+			</div>
+			<!-- Total + chevron -->
+			<div class="flex items-center gap-3 flex-shrink-0">
+				<span class="font-bold text-slate-900 mono text-sm">{ fmt.Sprintf("%.2f ₴", o.TotalAmount) }</span>
+				<svg
+					id={ fmt.Sprintf("chevron-%d", o.OrderID) }
+					class="w-4 h-4 text-slate-400 chevron-icon"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+				>
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+				</svg>
+			</div>
+		</div>
+		<!-- Accordion body -->
+		<div id={ fmt.Sprintf("body-%d", o.OrderID) } class="accordion-body">
+			<div class="px-5 pt-1 pb-5 border-t border-slate-100">
+				<!-- Items list -->
+				<div class="space-y-1.5 mb-4 mt-3">
+					for _, item := range o.Items {
+						<div class="flex justify-between items-center text-sm py-1 border-b border-slate-50 last:border-0">
+							<div class="flex items-center gap-2">
+								<span class="text-slate-700">{ item.DishName }</span>
+							</div>
+							<span class="text-slate-500 mono text-[13px]">
+								{ strconv.Itoa(item.Qty) } × { fmt.Sprintf("%.2f", item.DishPrice) } ₴ = <span class="font-semibold text-slate-700">{ fmt.Sprintf("%.2f ₴", item.Subtotal) }</span>
+							</span>
+						</div>
+					}
+				</div>
+				<!-- Footer: total + actions -->
+				<div class="flex items-center justify-between pt-3 border-t border-slate-100">
+					<div class="text-sm text-slate-600">
+						Сума замовлення: <span class="font-bold mono text-slate-800">{ fmt.Sprintf("%.2f ₴", o.TotalAmount) }</span>
+					</div>
+					<div class="flex gap-2 items-center">
+						if o.HasIssue {
+							<a
+								href={ templ.SafeURL(fmt.Sprintf("/waiter/tables/%d/menu", o.TableNumber)) }
+								class="bg-red-500 hover:bg-red-600 text-white text-sm px-4 py-2 rounded-lg font-bold transition-all border border-red-600 flex items-center gap-1.5"
+							>
+								Редагувати чек
+							</a>
+						}
+						if o.StatusName == "Нове" {
+							<button
+								hx-post={ fmt.Sprintf("/waiter/orders/%d/cancel", o.OrderID) }
+								hx-target="#orders-list-wrapper"
+								hx-swap="innerHTML"
+								hx-confirm="cancel"
+								hx-disabled-elt="this"
+								data-order-num={ o.OrderNumber }
+								data-table={ strconv.Itoa(o.TableNumber) }
+								data-total={ fmt.Sprintf("%.2f", o.TotalAmount) }
+								class="bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 text-sm px-4 py-2 rounded-lg font-medium transition-colors"
+							>
+								Скасувати
+							</button>
+						}
+						<button
+							if o.StatusName == "Готове" {
+								hx-post={ fmt.Sprintf("/waiter/orders/%d/pay", o.OrderID) }
+								hx-target="#orders-list-wrapper"
+								hx-swap="innerHTML"
+								hx-confirm="Підтвердити оплату готівкою?"
+								hx-disabled-elt="this"
+							}
+							disabled?={ o.StatusName != "Готове" }
+							class={ "text-sm px-4 py-2 rounded-lg font-bold transition-colors shadow-sm",
+								templ.KV("bg-green-600 hover:bg-green-700 text-white", o.StatusName == "Готове"),
+								templ.KV("bg-slate-100 text-slate-400 cursor-not-allowed", o.StatusName != "Готове") }
+						>
+							Оплатити
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+}

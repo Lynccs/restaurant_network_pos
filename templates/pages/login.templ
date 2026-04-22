@@ -47,6 +47,8 @@ templ Login(errMsg string) {
 								name="phone"
 								type="text"
 								placeholder="+380XXXXXXXXX"
+								inputmode="tel"
+								oninput="this.value=this.value.replace(/[^+0-9]/g,'').replace(/(?!^)\+/g,'');"
 								class="input-field mono w-full bg-slate-700 border border-slate-600 rounded-lg px-3.5 py-2.5 text-white placeholder-slate-500 text-sm"
 								required
 								autofocus
@@ -63,6 +65,7 @@ templ Login(errMsg string) {
 								placeholder="••••"
 								maxlength="4"
 								inputmode="numeric"
+								oninput="this.value=this.value.replace(/[^0-9]/g,'');"
 								class="input-field mono w-full bg-slate-700 border border-slate-600 rounded-lg px-3.5 py-2.5 text-white placeholder-slate-500 text-sm"
 								required
 							/>

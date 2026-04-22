@@ -134,6 +134,7 @@ templ DishCard(tableNumber int, d waiterservice.DishView) {
 			hx-vals={ fmt.Sprintf(`{"dish_id":"%d","dish_name":"%s","price":"%.2f"}`, d.ID, d.Name, d.Price) }
 			hx-target="#cart-panel"
 			hx-swap="innerHTML"
+			hx-disabled-elt="this"
 		}
 	>
 		<div class="text-sm font-semibold text-slate-800 leading-snug mb-1 min-h-[2.5rem]">{ d.Name }</div>
@@ -196,6 +197,7 @@ templ CartPanel(tableNumber int, cart []waiterservice.CartItemView, total float6
 		<button
 			hx-post={ fmt.Sprintf("/waiter/tables/%d/menu/submit", tableNumber) }
 			hx-swap="none"
+			hx-disabled-elt="this"
 			if len(cart) == 0 {
 				disabled
 			}
@@ -238,6 +240,7 @@ templ CartItem(tableNumber int, item waiterservice.CartItemView) {
 						hx-vals={ fmt.Sprintf(`{"order_item_id":"%d","dish_id":"%d"}`, item.OrderItemID, item.DishID) }
 						hx-target="#cart-panel"
 						hx-swap="innerHTML"
+						hx-disabled-elt="this"
 						class="w-6 h-6 rounded-full border border-amber-300 text-amber-600 hover:bg-amber-100 flex items-center justify-center text-base leading-none font-bold transition-colors"
 					>−</button>
 				} else {
@@ -254,6 +257,7 @@ templ CartItem(tableNumber int, item waiterservice.CartItemView) {
 						hx-vals={ fmt.Sprintf(`{"order_item_id":"%d","dish_id":"%d"}`, item.OrderItemID, item.DishID) }
 						hx-target="#cart-panel"
 						hx-swap="innerHTML"
+						hx-disabled-elt="this"
 						class="w-6 h-6 rounded-full border border-amber-300 text-amber-600 hover:bg-amber-100 flex items-center justify-center text-base leading-none font-bold transition-colors"
 					>+</button>
 				} else {
@@ -303,6 +307,7 @@ templ CartItem(tableNumber int, item waiterservice.CartItemView) {
 					}
 					hx-target="#cart-panel"
 					hx-swap="innerHTML"
+					hx-disabled-elt="this"
 					class="w-6 h-6 rounded-full border border-slate-300 text-slate-500 hover:bg-slate-200 flex items-center justify-center text-base leading-none font-bold transition-colors"
 				>−</button>
 				<span class="w-5 text-center text-xs font-bold mono text-slate-800">{ strconv.Itoa(item.Qty) }</span>
@@ -313,6 +318,7 @@ templ CartItem(tableNumber int, item waiterservice.CartItemView) {
 						hx-vals={ fmt.Sprintf(`{"dish_id":"%d","dish_name":"%s","price":"%.2f"}`, item.DishID, item.Name, item.Price) }
 						hx-target="#cart-panel"
 						hx-swap="innerHTML"
+						hx-disabled-elt="this"
 					}
 					class={ "w-6 h-6 rounded-full border border-slate-300 text-slate-500 flex items-center justify-center text-base leading-none font-bold transition-colors", templ.KV("hover:bg-slate-200", item.CanPlus), templ.KV("opacity-40 cursor-not-allowed", !item.CanPlus) }
 				>+</button>

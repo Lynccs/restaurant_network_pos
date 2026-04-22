@@ -8,7 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func SetupWaiterRoutes(r chi.Router, h *waiterhandler.WaiterHandler, menuH *waiterhandler.MenuHandler) {
+func SetupWaiterRoutes(r chi.Router, h *waiterhandler.WaiterHandler, menuH *waiterhandler.MenuHandler, ordersH *waiterhandler.OrdersHandler) {
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.RequireAuth(h.Store))
 		r.Use(middleware.RequireRole(h.Store, "waiter"))
@@ -25,5 +25,10 @@ func SetupWaiterRoutes(r chi.Router, h *waiterhandler.WaiterHandler, menuH *wait
 		r.Post("/waiter/tables/{number}/menu/cart/uncancel", menuH.CartUnCancel)
 		r.Delete("/waiter/tables/{number}/menu/cart", menuH.CartDestroy)
 		r.Post("/waiter/tables/{number}/menu/submit", menuH.SubmitOrder)
+
+		r.Get("/waiter/orders",              ordersH.OrdersPage)
+		r.Get("/waiter/orders/list",         ordersH.OrdersList)
+		r.Post("/waiter/orders/{id}/cancel", ordersH.CancelOrder)
+		r.Post("/waiter/orders/{id}/pay",    ordersH.PayOrder)
 	})
 }
