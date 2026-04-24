@@ -44,7 +44,7 @@ func MenuPage(tableNumber int, categories []string, activeCat string, dishes []w
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("RestaurantOS — Стіл №%d", tableNumber))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 17, Col: 70}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 17, Col: 70}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -57,7 +57,7 @@ func MenuPage(tableNumber int, categories []string, activeCat string, dishes []w
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/waiter/tables/%d/menu/cart", tableNumber))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 47, Col: 71}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 47, Col: 71}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
@@ -70,7 +70,7 @@ func MenuPage(tableNumber int, categories []string, activeCat string, dishes []w
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(tableNumber))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 59, Col: 89}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 59, Col: 89}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
@@ -93,7 +93,7 @@ func MenuPage(tableNumber int, categories []string, activeCat string, dishes []w
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/waiter/tables/%d/menu/dishes?cat=%s", tableNumber, cat))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 70, Col: 84}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 70, Col: 84}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -106,7 +106,7 @@ func MenuPage(tableNumber int, categories []string, activeCat string, dishes []w
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var5).String())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 1, Col: 0}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 1, Col: 0}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
@@ -119,7 +119,7 @@ func MenuPage(tableNumber int, categories []string, activeCat string, dishes []w
 			var templ_7745c5c3_Var8 string
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(cat)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 74, Col: 11}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 74, Col: 11}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 			if templ_7745c5c3_Err != nil {
@@ -183,7 +183,7 @@ func DishGrid(tableNumber int, category string, dishes []waiterservice.DishView)
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(category)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 119, Col: 90}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 119, Col: 90}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
@@ -241,7 +241,7 @@ func DishCard(tableNumber int, d waiterservice.DishView) templ.Component {
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("dish-card-%d", d.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 130, Col: 40}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 130, Col: 40}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 		if templ_7745c5c3_Err != nil {
@@ -254,7 +254,7 @@ func DishCard(tableNumber int, d waiterservice.DishView) templ.Component {
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var12).String())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 1, Col: 0}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 1, Col: 0}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 		if templ_7745c5c3_Err != nil {
@@ -272,7 +272,7 @@ func DishCard(tableNumber int, d waiterservice.DishView) templ.Component {
 			var templ_7745c5c3_Var15 string
 			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/waiter/tables/%d/menu/cart/add", tableNumber))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 133, Col: 72}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 133, Col: 72}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 			if templ_7745c5c3_Err != nil {
@@ -285,7 +285,7 @@ func DishCard(tableNumber int, d waiterservice.DishView) templ.Component {
 			var templ_7745c5c3_Var16 string
 			templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf(`{"dish_id":"%d","dish_name":"%s","price":"%.2f"}`, d.ID, d.Name, d.Price))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 134, Col: 99}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 134, Col: 99}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 			if templ_7745c5c3_Err != nil {
@@ -303,7 +303,7 @@ func DishCard(tableNumber int, d waiterservice.DishView) templ.Component {
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(d.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 140, Col: 93}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 140, Col: 93}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
@@ -316,7 +316,7 @@ func DishCard(tableNumber int, d waiterservice.DishView) templ.Component {
 		var templ_7745c5c3_Var18 string
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(d.PortionSize))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 141, Col: 72}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 141, Col: 72}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 		if templ_7745c5c3_Err != nil {
@@ -329,7 +329,7 @@ func DishCard(tableNumber int, d waiterservice.DishView) templ.Component {
 		var templ_7745c5c3_Var19 string
 		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(d.CookingTime))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 141, Col: 110}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 141, Col: 110}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 		if templ_7745c5c3_Err != nil {
@@ -342,7 +342,7 @@ func DishCard(tableNumber int, d waiterservice.DishView) templ.Component {
 		var templ_7745c5c3_Var20 string
 		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.0f ₴", d.Price))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 143, Col: 90}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 143, Col: 90}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 		if templ_7745c5c3_Err != nil {
@@ -364,7 +364,7 @@ func DishCard(tableNumber int, d waiterservice.DishView) templ.Component {
 		var templ_7745c5c3_Var22 string
 		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("dish-badge-%d", d.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 145, Col: 43}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 145, Col: 43}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 		if templ_7745c5c3_Err != nil {
@@ -377,7 +377,7 @@ func DishCard(tableNumber int, d waiterservice.DishView) templ.Component {
 		var templ_7745c5c3_Var23 string
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var21).String())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 1, Col: 0}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 1, Col: 0}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 		if templ_7745c5c3_Err != nil {
@@ -390,7 +390,7 @@ func DishCard(tableNumber int, d waiterservice.DishView) templ.Component {
 		var templ_7745c5c3_Var24 string
 		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(d.CartQty))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 147, Col: 29}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 147, Col: 29}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 		if templ_7745c5c3_Err != nil {
@@ -443,7 +443,7 @@ func DishCardOOB(tableNumber int, d waiterservice.DishView) templ.Component {
 		var templ_7745c5c3_Var26 string
 		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("outerHTML:#dish-card-%d", d.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 159, Col: 64}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 159, Col: 64}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 		if templ_7745c5c3_Err != nil {
@@ -499,7 +499,7 @@ func DishBadgeOOB(dishID, qty int) templ.Component {
 		var templ_7745c5c3_Var29 string
 		templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("dish-badge-%d", dishID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 167, Col: 43}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 167, Col: 43}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 		if templ_7745c5c3_Err != nil {
@@ -512,7 +512,7 @@ func DishBadgeOOB(dishID, qty int) templ.Component {
 		var templ_7745c5c3_Var30 string
 		templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var28).String())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 1, Col: 0}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 1, Col: 0}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 		if templ_7745c5c3_Err != nil {
@@ -525,7 +525,7 @@ func DishBadgeOOB(dishID, qty int) templ.Component {
 		var templ_7745c5c3_Var31 string
 		templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(qty))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 170, Col: 21}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 170, Col: 21}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 		if templ_7745c5c3_Err != nil {
@@ -573,7 +573,7 @@ func CartPanel(tableNumber int, cart []waiterservice.CartItemView, total float64
 			var templ_7745c5c3_Var33 string
 			templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(cartTotalQty(cart)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 179, Col: 38}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 179, Col: 38}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 			if templ_7745c5c3_Err != nil {
@@ -608,7 +608,7 @@ func CartPanel(tableNumber int, cart []waiterservice.CartItemView, total float64
 		var templ_7745c5c3_Var34 string
 		templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.0f ₴", total))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 195, Col: 88}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 195, Col: 88}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 		if templ_7745c5c3_Err != nil {
@@ -621,7 +621,7 @@ func CartPanel(tableNumber int, cart []waiterservice.CartItemView, total float64
 		var templ_7745c5c3_Var35 string
 		templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/waiter/tables/%d/menu/submit", tableNumber))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 198, Col: 70}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 198, Col: 70}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 		if templ_7745c5c3_Err != nil {
@@ -691,7 +691,7 @@ func CartItem(tableNumber int, item waiterservice.CartItemView) templ.Component 
 			var templ_7745c5c3_Var37 string
 			templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(item.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 226, Col: 76}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 226, Col: 76}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 			if templ_7745c5c3_Err != nil {
@@ -709,7 +709,7 @@ func CartItem(tableNumber int, item waiterservice.CartItemView) templ.Component 
 				var templ_7745c5c3_Var38 string
 				templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(item.CancelledQty))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 228, Col: 91}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 228, Col: 91}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 				if templ_7745c5c3_Err != nil {
@@ -727,7 +727,7 @@ func CartItem(tableNumber int, item waiterservice.CartItemView) templ.Component 
 			var templ_7745c5c3_Var39 string
 			templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.0f ₴ × %d = %.0f ₴", item.Price, item.Qty, item.Subtotal))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 232, Col: 84}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 232, Col: 84}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 			if templ_7745c5c3_Err != nil {
@@ -745,7 +745,7 @@ func CartItem(tableNumber int, item waiterservice.CartItemView) templ.Component 
 				var templ_7745c5c3_Var40 string
 				templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/waiter/tables/%d/menu/cart/remove", tableNumber))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 239, Col: 78}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 239, Col: 78}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 				if templ_7745c5c3_Err != nil {
@@ -758,7 +758,7 @@ func CartItem(tableNumber int, item waiterservice.CartItemView) templ.Component 
 				var templ_7745c5c3_Var41 string
 				templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf(`{"order_item_id":"%d","dish_id":"%d"}`, item.OrderItemID, item.DishID))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 240, Col: 99}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 240, Col: 99}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 				if templ_7745c5c3_Err != nil {
@@ -781,7 +781,7 @@ func CartItem(tableNumber int, item waiterservice.CartItemView) templ.Component 
 			var templ_7745c5c3_Var42 string
 			templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(item.Qty))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 252, Col: 96}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 252, Col: 96}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
 			if templ_7745c5c3_Err != nil {
@@ -799,7 +799,7 @@ func CartItem(tableNumber int, item waiterservice.CartItemView) templ.Component 
 				var templ_7745c5c3_Var43 string
 				templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/waiter/tables/%d/menu/cart/uncancel", tableNumber))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 256, Col: 80}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 256, Col: 80}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 				if templ_7745c5c3_Err != nil {
@@ -812,7 +812,7 @@ func CartItem(tableNumber int, item waiterservice.CartItemView) templ.Component 
 				var templ_7745c5c3_Var44 string
 				templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf(`{"order_item_id":"%d","dish_id":"%d"}`, item.OrderItemID, item.DishID))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 257, Col: 99}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 257, Col: 99}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
 				if templ_7745c5c3_Err != nil {
@@ -840,7 +840,7 @@ func CartItem(tableNumber int, item waiterservice.CartItemView) templ.Component 
 			var templ_7745c5c3_Var45 string
 			templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(item.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 278, Col: 75}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 278, Col: 75}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 			if templ_7745c5c3_Err != nil {
@@ -853,7 +853,7 @@ func CartItem(tableNumber int, item waiterservice.CartItemView) templ.Component 
 			var templ_7745c5c3_Var46 string
 			templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.0f ₴ × %d = %.0f ₴", item.Price, item.Qty, item.Subtotal))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 280, Col: 84}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 280, Col: 84}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
 			if templ_7745c5c3_Err != nil {
@@ -866,7 +866,7 @@ func CartItem(tableNumber int, item waiterservice.CartItemView) templ.Component 
 			var templ_7745c5c3_Var47 string
 			templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(item.Qty))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 285, Col: 96}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 285, Col: 96}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var47))
 			if templ_7745c5c3_Err != nil {
@@ -884,7 +884,7 @@ func CartItem(tableNumber int, item waiterservice.CartItemView) templ.Component 
 			var templ_7745c5c3_Var48 string
 			templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinStringErrs(item.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 293, Col: 75}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 293, Col: 75}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
 			if templ_7745c5c3_Err != nil {
@@ -897,7 +897,7 @@ func CartItem(tableNumber int, item waiterservice.CartItemView) templ.Component 
 			var templ_7745c5c3_Var49 string
 			templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.0f ₴ × %d = %.0f ₴", item.Price, item.Qty, item.Subtotal))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 295, Col: 84}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 295, Col: 84}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var49))
 			if templ_7745c5c3_Err != nil {
@@ -915,7 +915,7 @@ func CartItem(tableNumber int, item waiterservice.CartItemView) templ.Component 
 				var templ_7745c5c3_Var50 string
 				templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/waiter/tables/%d/menu/cart/remove", tableNumber))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 302, Col: 78}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 302, Col: 78}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
 				if templ_7745c5c3_Err != nil {
@@ -928,7 +928,7 @@ func CartItem(tableNumber int, item waiterservice.CartItemView) templ.Component 
 				var templ_7745c5c3_Var51 string
 				templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf(`{"order_item_id":"%d","dish_id":"%d"}`, item.OrderItemID, item.DishID))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 303, Col: 99}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 303, Col: 99}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 				if templ_7745c5c3_Err != nil {
@@ -946,7 +946,7 @@ func CartItem(tableNumber int, item waiterservice.CartItemView) templ.Component 
 				var templ_7745c5c3_Var52 string
 				templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/waiter/tables/%d/menu/cart/remove", tableNumber))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 305, Col: 78}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 305, Col: 78}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var52))
 				if templ_7745c5c3_Err != nil {
@@ -959,7 +959,7 @@ func CartItem(tableNumber int, item waiterservice.CartItemView) templ.Component 
 				var templ_7745c5c3_Var53 string
 				templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf(`{"order_item_id":"0","dish_id":"%d"}`, item.DishID))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 306, Col: 80}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 306, Col: 80}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var53))
 				if templ_7745c5c3_Err != nil {
@@ -977,7 +977,7 @@ func CartItem(tableNumber int, item waiterservice.CartItemView) templ.Component 
 			var templ_7745c5c3_Var54 string
 			templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(item.Qty))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 313, Col: 96}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 313, Col: 96}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
 			if templ_7745c5c3_Err != nil {
@@ -1004,7 +1004,7 @@ func CartItem(tableNumber int, item waiterservice.CartItemView) templ.Component 
 				var templ_7745c5c3_Var56 string
 				templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/waiter/tables/%d/menu/cart/add", tableNumber))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 317, Col: 75}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 317, Col: 75}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var56))
 				if templ_7745c5c3_Err != nil {
@@ -1017,7 +1017,7 @@ func CartItem(tableNumber int, item waiterservice.CartItemView) templ.Component 
 				var templ_7745c5c3_Var57 string
 				templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf(`{"dish_id":"%d","dish_name":"%s","price":"%.2f"}`, item.DishID, item.Name, item.Price))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 318, Col: 115}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 318, Col: 115}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
 				if templ_7745c5c3_Err != nil {
@@ -1035,7 +1035,7 @@ func CartItem(tableNumber int, item waiterservice.CartItemView) templ.Component 
 			var templ_7745c5c3_Var58 string
 			templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var55).String())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 1, Col: 0}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 1, Col: 0}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var58))
 			if templ_7745c5c3_Err != nil {
@@ -1079,7 +1079,7 @@ func CartError(msg string) templ.Component {
 		var templ_7745c5c3_Var60 string
 		templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.JoinStringErrs(msg)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/menu.templ`, Line: 333, Col: 7}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/menu.templ`, Line: 333, Col: 7}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var60))
 		if templ_7745c5c3_Err != nil {

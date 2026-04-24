@@ -40,8 +40,30 @@ func orderStatusBadgeClass(statusName string) string {
 	}
 }
 
+func orderCardClass(hasIssue bool) string {
+	if hasIssue {
+		return "bg-white rounded-xl overflow-hidden border-2 border-red-400 shadow-[0_0_15px_rgba(248,113,113,0.15)]"
+	}
+	return "bg-white rounded-xl overflow-hidden border border-slate-200"
+}
 
-templ OrdersPage(orders []waiterservice.OrderView) {
+func orderCardHeaderClass(statusName string, hasIssue bool) string {
+	base := "flex items-center gap-3 px-5 py-4 cursor-pointer transition-colors select-none "
+	if hasIssue {
+		return base + "bg-red-50 hover:bg-red-100/60"
+	}
+	switch statusName {
+	case "Готується":
+		return base + "bg-amber-50 hover:bg-amber-100/60"
+	case "Готове":
+		return base + "bg-green-50 hover:bg-green-100/60"
+	default:
+		return base + "hover:bg-slate-50/80"
+	}
+}
+
+
+templ OrdersPage(activeOrders []waiterservice.OrderView, archiveOrders []waiterservice.OrderView, dateFrom, dateTo string) {
 	<div class="p-6 max-w-5xl mx-auto fade-in">
 		<style>
 			.accordion-body { max-height: 0; overflow: hidden; transition: max-height 0.28s ease; }
@@ -50,68 +72,230 @@ templ OrdersPage(orders []waiterservice.OrderView) {
 			.chevron-icon.rotated { transform: rotate(180deg); }
 		</style>
 		<!-- Header -->
-		<div class="mb-6">
-			<h1 class="text-xl font-semibold text-slate-900">Реєстр замовлень</h1>
-			<p class="text-slate-500 text-sm mt-0.5">Всі активні замовлення зміни</p>
+		<div class="mb-5">
+			<h1 class="text-xl font-semibold text-slate-900">Замовлення</h1>
 		</div>
-		<!-- Filters -->
-		<form
-			hx-get="/waiter/orders/list"
-			hx-target="#orders-list-wrapper"
-			hx-trigger="change, keyup delay:300ms from:input[name='search']"
-			hx-swap="innerHTML"
-			class="w-full flex gap-3 mb-5 flex-wrap items-center"
-		>
-			<select
-				name="status"
-				class="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600 bg-white focus:outline-none focus:border-blue-400"
-			>
-				<option value="">Всі статуси</option>
-				<option value="Нове">Нове</option>
-				<option value="Готується">Готується</option>
-				<option value="Готове">Готове</option>
-			</select>
-			<select
-				name="table_number"
-				class="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600 bg-white focus:outline-none focus:border-blue-400"
-			>
-				<option value="0">Всі столики</option>
-				for _, t := range uniqueTableNumbers(orders) {
-					<option value={ strconv.Itoa(t) }>Стіл №{ strconv.Itoa(t) }</option>
-				}
-			</select>
-			<div class="flex items-center gap-2">
-				<input
-					type="time"
-					name="time_from"
-					class="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-blue-400"
-				/>
-				<span class="text-slate-400 text-sm">—</span>
-				<input
-					type="time"
-					name="time_to"
-					class="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-blue-400"
-				/>
-			</div>
-			<input
-				type="number"
-				name="search"
-				min="1"
-				placeholder="№ замовлення..."
-				oninput="this.value=this.value.replace(/[^0-9]/g,''); if(this.value<1&&this.value!='') this.value='';"
-				class="flex-1 min-w-36 border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-blue-400"
-			/>
+		<!-- Tabs -->
+		<div class="flex gap-1 mb-6 border-b border-slate-200">
 			<button
-				type="button"
-				onclick="this.closest('form').reset(); htmx.trigger(this.closest('form'), 'change');"
-				class="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors whitespace-nowrap font-medium"
+				id="tab-btn-active"
+				onclick="switchOrdersTab('active')"
+				class="px-4 py-2.5 text-sm font-medium text-blue-600 border-b-2 border-blue-600 -mb-px transition-colors"
 			>
-				Скинути фільтри
+				Реєстр активних замовлень
 			</button>
-		</form>
-		<!-- List -->
-		<div id="orders-list-wrapper">
-			@OrdersList(orders)
+			<button
+				id="tab-btn-archive"
+				onclick="switchOrdersTab('archive')"
+				class="px-4 py-2.5 text-sm font-medium text-slate-500 border-b-2 border-transparent -mb-px hover:text-slate-700 transition-colors"
+			>
+				Архівні замовлення
+			</button>
+		</div>
+		<!-- Tab 1: Active orders -->
+		<div id="tab-active">
+			<!-- Filters -->
+			<form
+				hx-get="/waiter/orders/list"
+				hx-target="#orders-list-wrapper"
+				hx-trigger="change, keyup delay:300ms from:input[name='search']"
+				hx-swap="innerHTML"
+				class="w-full flex gap-3 mb-5 flex-wrap items-center"
+			>
+				<select
+					name="status"
+					class="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600 bg-white focus:outline-none focus:border-blue-400"
+				>
+					<option value="">Всі статуси</option>
+					<option value="Нове">Нове</option>
+					<option value="Готується">Готується</option>
+					<option value="Готове">Готове</option>
+				</select>
+				<select
+					name="table_number"
+					class="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600 bg-white focus:outline-none focus:border-blue-400"
+				>
+					<option value="0">Всі столики</option>
+					for _, t := range uniqueTableNumbers(activeOrders) {
+						<option value={ strconv.Itoa(t) }>Стіл №{ strconv.Itoa(t) }</option>
+					}
+				</select>
+				<div class="flex items-center gap-2">
+					<input
+						type="time"
+						name="time_from"
+						class="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-blue-400"
+					/>
+					<span class="text-slate-400 text-sm">—</span>
+					<input
+						type="time"
+						name="time_to"
+						class="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-blue-400"
+					/>
+				</div>
+				<input
+					type="number"
+					name="search"
+					min="1"
+					placeholder="№ замовлення..."
+					oninput="this.value=this.value.replace(/[^0-9]/g,''); if(this.value<1&&this.value!='') this.value='';"
+					onkeydown="if(event.key==='Enter'){event.preventDefault(); htmx.trigger(this.form, 'change');}"
+					class="flex-1 min-w-36 border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-blue-400"
+				/>
+				<button
+					type="button"
+					onclick="this.closest('form').reset(); htmx.trigger(this.closest('form'), 'change');"
+					class="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors whitespace-nowrap font-medium"
+				>
+					Скинути фільтри
+				</button>
+			</form>
+			<!-- List -->
+			<div id="orders-list-wrapper">
+				@OrdersList(activeOrders)
+			</div>
+		</div>
+		<!-- Tab 2: Archive orders -->
+		<div id="tab-archive" class="hidden">
+			<!-- Reset button row above filters -->
+			<div class="flex justify-end mb-3">
+				<button
+					type="button"
+					onclick="var f=document.getElementById('archive-filter-form'); f.reset(); var ef=document.getElementById('fp-date-from'), et=document.getElementById('fp-date-to'); if(ef._fp) ef._fp.setDate(ef.getAttribute('value'),false); if(et._fp) et._fp.setDate(et.getAttribute('value'),false); htmx.trigger(f,'change');"
+					class="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors whitespace-nowrap font-medium"
+				>
+					Скинути фільтри
+				</button>
+			</div>
+			<!-- Filters -->
+			<form
+				id="archive-filter-form"
+				hx-get="/waiter/orders/archive/list"
+				hx-target="#archive-list-wrapper"
+				hx-trigger="change, keyup delay:300ms from:input[name='search']"
+				hx-swap="innerHTML"
+				class="w-full flex gap-3 mb-5 flex-wrap items-center"
+			>
+				<select
+					name="status"
+					class="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600 bg-white focus:outline-none focus:border-blue-400"
+				>
+					<option value="">Всі статуси</option>
+					<option value="Закрито">Закрито</option>
+					<option value="Скасовано">Скасовано</option>
+				</select>
+				<select
+					name="table_number"
+					class="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600 bg-white focus:outline-none focus:border-blue-400"
+				>
+					<option value="0">Всі столики</option>
+					for _, t := range uniqueTableNumbers(archiveOrders) {
+						<option value={ strconv.Itoa(t) }>Стіл №{ strconv.Itoa(t) }</option>
+					}
+				</select>
+				<div class="flex items-center gap-2">
+					<input
+						type="text"
+						id="fp-date-from"
+						name="date_from"
+						value={ dateFrom }
+						placeholder="дд.мм.рррр гг:хх"
+						readonly="readonly"
+						class="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-blue-400 cursor-pointer w-44"
+					/>
+					<span class="text-slate-400 text-sm">—</span>
+					<input
+						type="text"
+						id="fp-date-to"
+						name="date_to"
+						value={ dateTo }
+						placeholder="дд.мм.рррр гг:хх"
+						readonly="readonly"
+						class="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-blue-400 cursor-pointer w-44"
+					/>
+				</div>
+				<input
+					type="number"
+					name="search"
+					min="1"
+					placeholder="№ замовлення..."
+					oninput="this.value=this.value.replace(/[^0-9]/g,''); if(this.value<1&&this.value!='') this.value='';"
+					onkeydown="if(event.key==='Enter'){event.preventDefault(); htmx.trigger(this.form, 'change');}"
+					class="flex-1 min-w-36 border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-blue-400"
+				/>
+			</form>
+			<!-- List -->
+			<div id="archive-list-wrapper">
+				@ArchiveList(archiveOrders)
+			</div>
+		</div>
+		<!-- Payment modal -->
+		<div id="pay-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+			<div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="closePayModal()"></div>
+			<div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 slide-up">
+				<div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+					<svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+					</svg>
+				</div>
+				<h3 class="text-slate-900 font-semibold text-lg text-center mb-1">Оплата замовлення</h3>
+				<p class="text-slate-500 text-sm text-center mb-5">Оберіть метод оплати та підтвердіть</p>
+				<div class="bg-slate-50 rounded-xl px-4 py-3 mb-5 space-y-2">
+					<div class="flex justify-between text-sm">
+						<span class="text-slate-500">Замовлення</span>
+						<span class="font-semibold mono text-slate-800" id="pay-modal-order-num"></span>
+					</div>
+					<div class="flex justify-between text-sm">
+						<span class="text-slate-500">Столик</span>
+						<span class="font-semibold text-slate-800" id="pay-modal-table"></span>
+					</div>
+					<div class="flex justify-between text-sm border-t border-slate-200 pt-2">
+						<span class="text-slate-500">Сума</span>
+						<span class="font-semibold mono text-green-600" id="pay-modal-total"></span>
+					</div>
+				</div>
+				<p class="text-xs font-medium text-slate-500 mb-2">Метод оплати</p>
+				<div class="flex gap-2 mb-5">
+					<button
+						id="pay-method-cash"
+						onclick="selectPayMethod('Готівка')"
+						class="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 text-sm font-medium transition-colors border-green-500 bg-green-50 text-green-700"
+					>
+						<span class="text-lg">💵</span>
+						Готівка
+					</button>
+					<button
+						id="pay-method-card"
+						onclick="selectPayMethod('Карта')"
+						class="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 text-sm font-medium transition-colors border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+					>
+						<span class="text-lg">💳</span>
+						Карта
+					</button>
+					<button
+						id="pay-method-online"
+						onclick="selectPayMethod('Онлайн')"
+						class="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 text-sm font-medium transition-colors border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+					>
+						<span class="text-lg">📱</span>
+						Онлайн
+					</button>
+				</div>
+				<div class="flex gap-3">
+					<button
+						onclick="closePayModal()"
+						class="flex-1 border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm py-2.5 rounded-xl font-medium transition-colors"
+					>
+						Назад
+					</button>
+					<button
+						onclick="confirmPay()"
+						class="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm py-2.5 rounded-xl font-semibold transition-colors"
+					>
+						Підтвердити оплату
+					</button>
+				</div>
+			</div>
 		</div>
 		<!-- Cancel confirmation modal -->
 		<div id="cancel-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
@@ -155,11 +339,72 @@ templ OrdersPage(orders []waiterservice.OrderView) {
 			</div>
 		</div>
 		<script>
+			function switchOrdersTab(tab) {
+				var isActive = tab === 'active';
+				document.getElementById('tab-active').classList.toggle('hidden', !isActive);
+				document.getElementById('tab-archive').classList.toggle('hidden', isActive);
+				var btnActive  = document.getElementById('tab-btn-active');
+				var btnArchive = document.getElementById('tab-btn-archive');
+				btnActive.className  = isActive
+					? 'px-4 py-2.5 text-sm font-medium text-blue-600 border-b-2 border-blue-600 -mb-px transition-colors'
+					: 'px-4 py-2.5 text-sm font-medium text-slate-500 border-b-2 border-transparent -mb-px hover:text-slate-700 transition-colors';
+				btnArchive.className = isActive
+					? 'px-4 py-2.5 text-sm font-medium text-slate-500 border-b-2 border-transparent -mb-px hover:text-slate-700 transition-colors'
+					: 'px-4 py-2.5 text-sm font-medium text-blue-600 border-b-2 border-blue-600 -mb-px transition-colors';
+			}
+
 			function toggleAccordion(id) {
 				var body    = document.getElementById('body-'    + id);
 				var chevron = document.getElementById('chevron-' + id);
 				body.classList.toggle('open');
 				chevron.classList.toggle('rotated');
+			}
+
+			function toggleArchiveAccordion(id) {
+				var body    = document.getElementById('arc-body-'    + id);
+				var chevron = document.getElementById('arc-chevron-' + id);
+				body.classList.toggle('open');
+				chevron.classList.toggle('rotated');
+			}
+
+			var _pendingPayOrderID = null;
+			var _selectedPayMethod = 'Готівка';
+
+			var _payMethodMap = { 'Готівка': 'cash', 'Карта': 'card', 'Онлайн': 'online' };
+			var _payMethodActiveClass = 'flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 text-sm font-medium transition-colors border-green-500 bg-green-50 text-green-700';
+			var _payMethodInactiveClass = 'flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 text-sm font-medium transition-colors border-slate-200 bg-white text-slate-600 hover:border-slate-300';
+
+			function openPayModal(id, orderNum, tableNum, total) {
+				_pendingPayOrderID = id;
+				document.getElementById('pay-modal-order-num').textContent = '№' + orderNum;
+				document.getElementById('pay-modal-table').textContent = 'Стіл №' + tableNum;
+				document.getElementById('pay-modal-total').textContent = total + ' ₴';
+				selectPayMethod('Готівка');
+				document.getElementById('pay-modal').classList.remove('hidden');
+			}
+
+			function closePayModal() {
+				document.getElementById('pay-modal').classList.add('hidden');
+				_pendingPayOrderID = null;
+			}
+
+			function selectPayMethod(method) {
+				_selectedPayMethod = method;
+				Object.keys(_payMethodMap).forEach(function(m) {
+					var el = document.getElementById('pay-method-' + _payMethodMap[m]);
+					el.className = (m === method) ? _payMethodActiveClass : _payMethodInactiveClass;
+				});
+			}
+
+			function confirmPay() {
+				if (!_pendingPayOrderID) return;
+				var id = _pendingPayOrderID;
+				closePayModal();
+				htmx.ajax('POST', '/waiter/orders/' + id + '/pay', {
+					target: '#orders-list-wrapper',
+					swap: 'innerHTML',
+					values: { payment_method: _selectedPayMethod }
+				});
 			}
 
 			var _pendingCancelEvt = null;
@@ -188,6 +433,27 @@ templ OrdersPage(orders []waiterservice.OrderView) {
 				}
 			}
 		</script>
+		<script>
+			(function() {
+				if (typeof flatpickr !== 'undefined' && flatpickr.l10ns && flatpickr.l10ns.uk) {
+					flatpickr.localize(flatpickr.l10ns.uk);
+				}
+				var cfg = {
+					enableTime: true,
+					dateFormat: 'Y-m-d\\TH:i',
+					time_24hr: true,
+					minuteIncrement: 1,
+					disableMobile: true,
+					onChange: function(_, dateStr, instance) {
+						instance.input.dispatchEvent(new Event('change', { bubbles: true }));
+					}
+				};
+				var fpFrom = flatpickr('#fp-date-from', Object.assign({}, cfg));
+				var fpTo   = flatpickr('#fp-date-to',   Object.assign({}, cfg));
+				document.getElementById('fp-date-from')._fp = fpFrom;
+				document.getElementById('fp-date-to')._fp   = fpTo;
+			})();
+		</script>
 	</div>
 }
 
@@ -211,12 +477,12 @@ templ OrdersList(orders []waiterservice.OrderView) {
 templ orderCard(o waiterservice.OrderView) {
 	<div
 		id={ fmt.Sprintf("order-%d", o.OrderID) }
-		class={ "bg-white rounded-xl overflow-hidden", templ.KV("border-2 border-red-400 shadow-[0_0_15px_rgba(248,113,113,0.15)]", o.HasIssue), templ.KV("border border-slate-200", !o.HasIssue) }
+		class={ orderCardClass(o.HasIssue) }
 	>
 		<!-- Header -->
 		<div
 			onclick={ templ.ComponentScript{Call: fmt.Sprintf("toggleAccordion(%d)", o.OrderID)} }
-			class="flex items-center gap-3 px-5 py-4 cursor-pointer hover:bg-slate-50/80 transition-colors select-none"
+			class={ orderCardHeaderClass(o.StatusName, o.HasIssue) }
 		>
 			<!-- Total qty badge -->
 			<div class="w-9 h-9 bg-slate-100 rounded-lg flex items-center justify-center mono font-bold text-slate-600 text-sm flex-shrink-0">
@@ -301,11 +567,7 @@ templ orderCard(o waiterservice.OrderView) {
 						}
 						<button
 							if o.StatusName == "Готове" {
-								hx-post={ fmt.Sprintf("/waiter/orders/%d/pay", o.OrderID) }
-								hx-target="#orders-list-wrapper"
-								hx-swap="innerHTML"
-								hx-confirm="Підтвердити оплату готівкою?"
-								hx-disabled-elt="this"
+								onclick={ templ.ComponentScript{Call: fmt.Sprintf("openPayModal(%d,'%s',%d,'%.2f')", o.OrderID, o.OrderNumber, o.TableNumber, o.TotalAmount)} }
 							}
 							disabled?={ o.StatusName != "Готове" }
 							class={ "text-sm px-4 py-2 rounded-lg font-bold transition-colors shadow-sm",

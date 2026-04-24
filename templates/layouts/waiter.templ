@@ -10,6 +10,7 @@ templ WaiterLayout(name string, activePage string, content templ.Component) {
 		<script src="https://cdn.tailwindcss.com"></script>
 		<script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
 		<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"/>
 		<style>
 			* { font-family: 'IBM Plex Sans', sans-serif; }
 			.mono { font-family: 'IBM Plex Mono', monospace; }
@@ -20,7 +21,32 @@ templ WaiterLayout(name string, activePage string, content templ.Component) {
 			.fade-in { animation: fadeIn 0.2s ease; }
 			@keyframes slideUp { from { opacity:0; transform:translateY(20px) scale(0.98); } to { opacity:1; transform:translateY(0) scale(1); } }
 			.slide-up { animation: slideUp 0.22s ease; }
+			/* Flatpickr overrides */
+			.flatpickr-calendar { font-family: 'IBM Plex Sans', sans-serif; border: 1px solid #e2e8f0; border-radius: 0.75rem; box-shadow: 0 10px 25px -5px rgba(15,23,42,0.10), 0 4px 10px -6px rgba(15,23,42,0.08); background: #ffffff; }
+			.flatpickr-months { background: #f8fafc; border-radius: 0.75rem 0.75rem 0 0; padding: 8px 4px 4px; border-bottom: 1px solid #e2e8f0; }
+			.flatpickr-month { color: #1e293b; height: 36px; }
+			.flatpickr-prev-month, .flatpickr-next-month { color: #64748b !important; fill: #64748b !important; }
+			.flatpickr-prev-month:hover, .flatpickr-next-month:hover { color: #1e293b !important; fill: #1e293b !important; }
+			.flatpickr-current-month { font-size: 0.875rem; font-weight: 600; color: #1e293b; }
+			.flatpickr-current-month .flatpickr-monthDropdown-months { font-weight: 600; color: #1e293b; background: transparent; }
+			.flatpickr-weekdays { background: #f8fafc; padding: 4px 0; }
+			span.flatpickr-weekday { color: #94a3b8; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; background: transparent; }
+			.flatpickr-day { border-radius: 0.5rem; color: #334155; font-size: 0.8125rem; border: none; height: 34px; line-height: 34px; max-width: 34px; }
+			.flatpickr-day:hover, .flatpickr-day:focus { background: #eff6ff; color: #2563eb; border: none; }
+			.flatpickr-day.today { background: #f1f5f9; color: #1e293b; font-weight: 600; border: none; }
+			.flatpickr-day.today:hover { background: #eff6ff; color: #2563eb; }
+			.flatpickr-day.selected, .flatpickr-day.selected:hover { background: #60a5fa; color: #fff; border: none; font-weight: 600; }
+			.flatpickr-day.flatpickr-disabled, .flatpickr-day.flatpickr-disabled:hover { color: #cbd5e1; }
+			.flatpickr-time { border-top: 1px solid #e2e8f0; background: #f8fafc; border-radius: 0 0 0.75rem 0.75rem; height: 44px; }
+			.flatpickr-time input, .flatpickr-time .flatpickr-time-separator { font-family: 'IBM Plex Mono', monospace; color: #334155; font-size: 0.875rem; font-weight: 500; background: transparent; }
+			.flatpickr-time input:hover, .flatpickr-time input:focus { background: #eff6ff; color: #2563eb; }
+			.numInputWrapper:hover { background: transparent; }
+			.numInputWrapper span.arrowUp:after { border-bottom-color: #64748b; }
+			.numInputWrapper span.arrowDown:after { border-top-color: #64748b; }
+			.flatpickr-input.active { border-color: #60a5fa !important; outline: none !important; }
 		</style>
+		<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+		<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/uk.js"></script>
 	</head>
 	<body class="bg-slate-50 overflow-hidden h-screen flex">
 		<!-- Sidebar -->

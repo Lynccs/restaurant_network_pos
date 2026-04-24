@@ -30,5 +30,7 @@ func SetupWaiterRoutes(r chi.Router, h *waiterhandler.WaiterHandler, menuH *wait
 		r.Get("/waiter/orders/list",         ordersH.OrdersList)
 		r.Post("/waiter/orders/{id}/cancel", ordersH.CancelOrder)
 		r.Post("/waiter/orders/{id}/pay",    ordersH.PayOrder)
+
+		r.Get("/waiter/orders/archive/list", ordersH.ArchiveList)
 	})
 }

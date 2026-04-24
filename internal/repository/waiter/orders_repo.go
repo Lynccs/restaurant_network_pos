@@ -85,7 +85,7 @@ func (r *OrdersRepo) GetActiveOrdersList(restaurantID int, f OrderListFilters) (
 	}
 	if f.Search != "" {
 		args = append(args, sql.Named("search", f.Search))
-		sb.WriteString("\n\t\t  AND o.order_number LIKE '%' + @search + '%'")
+		sb.WriteString("\n\t\t  AND RIGHT(o.order_number, CHARINDEX('-', REVERSE(o.order_number)) - 1) LIKE '%' + @search + '%'")
 	}
 	if f.TimeFrom != "" {
 		args = append(args, sql.Named("timeFrom", f.TimeFrom))
@@ -111,6 +111,7 @@ func (r *OrdersRepo) GetActiveOrdersList(restaurantID int, f OrderListFilters) (
 			oi.order_item_quantity
 		FROM FilteredOrders fo
 		JOIN order_items oi ON oi.order_id = fo.order_id
+		                   AND oi.order_item_quantity > oi.cancelled_quantity
 		JOIN dishes d       ON d.dish_id   = oi.dish_id
 		ORDER BY fo.order_created_at DESC, oi.order_item_id ASC`)
 
@@ -136,6 +137,105 @@ func (r *OrdersRepo) GetActiveOrdersList(restaurantID int, f OrderListFilters) (
 			&row.ItemQty,
 		); err != nil {
 			return nil, fmt.Errorf("GetActiveOrdersList scan: %w", err)
+		}
+		result = append(result, row)
+	}
+	return result, rows.Err()
+}
+
+type ArchiveFilters struct {
+	Search      string
+	StatusName  string // optional: "Закрито" or "Скасовано"
+	TableNumber int
+	DateFrom    string // "YYYY-MM-DDTHH:MM"
+	DateTo      string // "YYYY-MM-DDTHH:MM"
+}
+
+func (r *OrdersRepo) GetArchiveOrdersList(restaurantID, waiterID int, f ArchiveFilters) ([]OrderListRow, error) {
+	ordersRepoLog.Printf("GetArchiveOrdersList: restaurantID=%d waiterID=%d search=%q status=%q table=%d",
+		restaurantID, waiterID, f.Search, f.StatusName, f.TableNumber)
+
+	args := []any{
+		sql.Named("restaurantID", restaurantID),
+		sql.Named("waiterID", waiterID),
+		sql.Named("dateFrom", f.DateFrom),
+		sql.Named("dateTo", f.DateTo),
+	}
+
+	var sb strings.Builder
+	sb.WriteString(`
+		WITH FilteredOrders AS (
+			SELECT
+				o.order_id, o.order_number,
+				t.table_number,
+				w.waiter_full_name,
+				o.order_total_amount,
+				o.order_created_at,
+				os.order_status_name
+			FROM orders o
+			JOIN tables t          ON t.table_id         = o.table_id
+			JOIN waiters w         ON w.waiter_id         = o.waiter_id
+			JOIN order_statuses os ON os.order_status_id = o.order_status_id
+			WHERE t.restaurant_id = @restaurantID
+			  AND o.waiter_id = @waiterID
+			  AND os.order_status_name IN (N'Закрито', N'Скасовано')
+			  AND o.order_created_at >= @dateFrom
+			  AND o.order_created_at <= @dateTo`)
+
+	if f.StatusName != "" {
+		args = append(args, sql.Named("statusName", f.StatusName))
+		sb.WriteString("\n\t\t  AND os.order_status_name = @statusName")
+	}
+	if f.TableNumber != 0 {
+		args = append(args, sql.Named("tableNumber", f.TableNumber))
+		sb.WriteString("\n\t\t  AND t.table_number = @tableNumber")
+	}
+	if f.Search != "" {
+		args = append(args, sql.Named("search", f.Search))
+		sb.WriteString("\n\t\t  AND RIGHT(o.order_number, CHARINDEX('-', REVERSE(o.order_number)) - 1) LIKE '%' + @search + '%'")
+	}
+
+	sb.WriteString(`
+		)
+		SELECT
+			fo.order_id, fo.order_number,
+			fo.table_number,
+			fo.waiter_full_name,
+			fo.order_total_amount,
+			fo.order_created_at,
+			fo.order_status_name,
+			oi.order_item_id,
+			d.dish_name,
+			d.dish_price,
+			oi.order_item_quantity
+		FROM FilteredOrders fo
+		JOIN order_items oi ON oi.order_id = fo.order_id
+		                   AND oi.order_item_quantity > oi.cancelled_quantity
+		JOIN dishes d       ON d.dish_id   = oi.dish_id
+		ORDER BY fo.order_created_at DESC, oi.order_item_id ASC`)
+
+	rows, err := r.db.Query(sb.String(), args...)
+	if err != nil {
+		return nil, fmt.Errorf("GetArchiveOrdersList query: %w", err)
+	}
+	defer rows.Close()
+
+	var result []OrderListRow
+	for rows.Next() {
+		var row OrderListRow
+		if err := rows.Scan(
+			&row.OrderID, &row.OrderNumber,
+			&row.TableNumber,
+			&row.WaiterName,
+			&row.TotalAmount,
+			&row.CreatedAt,
+			&row.StatusName,
+			&row.ItemID,
+			&row.DishName,
+			&row.DishPrice,
+			&row.ItemQty,
+		); err != nil {
+			return nil, fmt.Errorf("GetArchiveOrdersList scan: %w", err)
 		}
 		result = append(result, row)
 	}
@@ -168,8 +268,8 @@ func (r *OrdersRepo) CancelOrder(orderID, restaurantID int) error {
 
 // PayOrder inserts a cash payment record. DB triggers automatically close the order.
 // The amount is taken directly from orders.order_total_amount — never from the caller.
-func (r *OrdersRepo) PayOrder(orderID, restaurantID int) error {
-	ordersRepoLog.Printf("PayOrder: orderID=%d restaurantID=%d", orderID, restaurantID)
+func (r *OrdersRepo) PayOrder(orderID, restaurantID int, paymentMethod string) error {
+	ordersRepoLog.Printf("PayOrder: orderID=%d restaurantID=%d method=%s", orderID, restaurantID, paymentMethod)
 
 	payNum := generatePaymentNumber()
 
@@ -178,7 +278,7 @@ func (r *OrdersRepo) PayOrder(orderID, restaurantID int) error {
 		SELECT
 			o.order_total_amount,
 			@payNum,
-			(SELECT payment_method_id FROM payment_methods  WHERE payment_method_name = N'Готівка'),
+			(SELECT payment_method_id FROM payment_methods  WHERE payment_method_name = @payMethod),
 			(SELECT payment_status_id FROM payment_statuses WHERE payment_status_name = N'Оплачено'),
 			@orderID
 		FROM orders o
@@ -188,6 +288,7 @@ func (r *OrdersRepo) PayOrder(orderID, restaurantID int) error {
 		sql.Named("payNum", payNum),
 		sql.Named("orderID", orderID),
 		sql.Named("restaurantID", restaurantID),
+		sql.Named("payMethod", paymentMethod),
 	)
 	if err != nil {
 		return fmt.Errorf("PayOrder exec: %w", err)

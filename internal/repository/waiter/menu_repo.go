@@ -318,6 +318,7 @@ func (r *MenuRepo) GetActiveOrderItems(tableID int) ([]ActiveOrderItemRow, error
 		  AND o.order_status_id NOT IN (
 			  SELECT order_status_id FROM order_statuses
 			  WHERE order_status_name IN ('Закрито', 'Скасовано'))
+		  AND oi.order_item_quantity > oi.cancelled_quantity
 		ORDER BY oi.order_item_id`
 
 	menuRepoLog.Printf("GetActiveOrderItems: tableID=%d", tableID)
@@ -440,18 +441,45 @@ func (r *MenuRepo) SyncOrderDraft(params SyncDraftParams) error {
 		return fmt.Errorf("recalc total: %w", err)
 	}
 
-	// If new items were added and the order was already 'Готове', reset to 'Нове'.
-	if len(params.NewItems) > 0 {
-		_, err = tx.Exec(`
-			UPDATE orders SET order_status_id =
-				(SELECT order_status_id FROM order_statuses WHERE order_status_name = N'Нове')
-			WHERE order_id = @orderID
-			  AND order_status_id = (SELECT order_status_id FROM order_statuses WHERE order_status_name = N'Готове')`,
-			sql.Named("orderID", params.ExistingOrderID),
+	// Recalculate order status based on remaining item statuses.
+	// Priority: all cancelled → Скасовано; any new → Нове; any cooking → Готується; all done → Готове.
+	// Does not touch orders that are already Закрито.
+	_, err = tx.Exec(`
+		UPDATE orders SET order_status_id = (
+			SELECT CASE
+				WHEN NOT EXISTS (
+					SELECT 1 FROM order_items oi2
+					WHERE oi2.order_id = @orderID
+					  AND oi2.order_item_quantity > oi2.cancelled_quantity
+				)
+				THEN (SELECT order_status_id FROM order_statuses WHERE order_status_name = N'Скасовано')
+				WHEN EXISTS (
+					SELECT 1 FROM order_items oi2
+					LEFT JOIN cooking_tasks ct ON ct.order_item_id = oi2.order_item_id
+					WHERE oi2.order_id = @orderID
+					  AND oi2.order_item_quantity > oi2.cancelled_quantity
+					  AND ct.cooking_task_id IS NULL
+				)
+				THEN (SELECT order_status_id FROM order_statuses WHERE order_status_name = N'Нове')
+				WHEN EXISTS (
+					SELECT 1 FROM order_items oi2
+					JOIN cooking_tasks ct ON ct.order_item_id = oi2.order_item_id
+					WHERE oi2.order_id = @orderID
+					  AND oi2.order_item_quantity > oi2.cancelled_quantity
+					  AND ct.cooking_task_end_time IS NULL
+				)
+				THEN (SELECT order_status_id FROM order_statuses WHERE order_status_name = N'Готується')
+				ELSE (SELECT order_status_id FROM order_statuses WHERE order_status_name = N'Готове')
+			END
 		)
-		if err != nil {
-			return fmt.Errorf("reset status: %w", err)
-		}
+		WHERE order_id = @orderID
+		  AND order_status_id NOT IN (
+			  SELECT order_status_id FROM order_statuses WHERE order_status_name = N'Закрито'
+		  )`,
+		sql.Named("orderID", params.ExistingOrderID),
+	)
+	if err != nil {
+		return fmt.Errorf("recalc status: %w", err)
 	}
 
 	if err = tx.Commit(); err != nil {

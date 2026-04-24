@@ -1,0 +1,109 @@
+package waiter
+
+import (
+	"fmt"
+	"strconv"
+
+	waiterservice "restaurant_network_pos/internal/service/waiter"
+)
+
+func archiveStatusBadgeClass(statusName string) string {
+	switch statusName {
+	case "Скасовано":
+		return "bg-red-100 text-red-600"
+	default: // "Закрито"
+		return "bg-slate-100 text-slate-600"
+	}
+}
+
+func archiveCardHeaderClass(statusName string) string {
+	base := "flex items-center gap-3 px-5 py-4 cursor-pointer transition-colors select-none "
+	switch statusName {
+	case "Скасовано":
+		return base + "bg-red-50 hover:bg-red-100/60"
+	default: // "Закрито"
+		return base + "bg-slate-50 hover:bg-slate-100/60"
+	}
+}
+
+templ ArchiveList(orders []waiterservice.OrderView) {
+	if len(orders) == 0 {
+		<div class="text-center py-16 text-slate-400">
+			<svg class="w-12 h-12 mx-auto mb-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path>
+			</svg>
+			<p class="text-sm">Немає замовлень за обраними фільтрами</p>
+		</div>
+	} else {
+		<div class="space-y-2">
+			for _, o := range orders {
+				@archiveCard(o)
+			}
+		</div>
+	}
+}
+
+templ archiveCard(o waiterservice.OrderView) {
+	<div
+		id={ fmt.Sprintf("arc-order-%d", o.OrderID) }
+		class="bg-white rounded-xl overflow-hidden border border-slate-200"
+	>
+		<!-- Header -->
+		<div
+			onclick={ templ.ComponentScript{Call: fmt.Sprintf("toggleArchiveAccordion(%d)", o.OrderID)} }
+			class={ archiveCardHeaderClass(o.StatusName) }
+		>
+			<!-- Total qty badge -->
+			<div class="w-9 h-9 bg-slate-100 rounded-lg flex items-center justify-center mono font-bold text-slate-600 text-sm flex-shrink-0">
+				{ strconv.Itoa(totalOrderQty(o.Items)) }
+			</div>
+			<!-- Order info -->
+			<div class="flex-1 min-w-0">
+				<div class="flex items-center gap-2 mb-0.5 flex-wrap">
+					<span class="font-semibold text-slate-800 text-sm mono">{ o.OrderNumber }</span>
+					<span class={ "status-badge px-2 py-0.5 rounded-full font-medium text-xs", archiveStatusBadgeClass(o.StatusName) }>
+						{ o.StatusName }
+					</span>
+				</div>
+				<p class="text-xs text-slate-400">
+					{ fmt.Sprintf("Стіл №%d · %s · %s", o.TableNumber, o.WaiterName, o.CreatedAt) }
+				</p>
+			</div>
+			<!-- Total + chevron -->
+			<div class="flex items-center gap-3 flex-shrink-0">
+				<span class="font-bold text-slate-900 mono text-sm">{ fmt.Sprintf("%.2f ₴", o.TotalAmount) }</span>
+				<svg
+					id={ fmt.Sprintf("arc-chevron-%d", o.OrderID) }
+					class="w-4 h-4 text-slate-400 chevron-icon"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+				>
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+				</svg>
+			</div>
+		</div>
+		<!-- Accordion body -->
+		<div id={ fmt.Sprintf("arc-body-%d", o.OrderID) } class="accordion-body">
+			<div class="px-5 pt-1 pb-5 border-t border-slate-100">
+				<!-- Items list -->
+				<div class="space-y-1.5 mb-4 mt-3">
+					for _, item := range o.Items {
+						<div class="flex justify-between items-center text-sm py-1 border-b border-slate-50 last:border-0">
+							<span class="text-slate-700">{ item.DishName }</span>
+							<span class="text-slate-500 mono text-[13px]">
+								{ strconv.Itoa(item.Qty) } × { fmt.Sprintf("%.2f", item.DishPrice) } ₴ = <span class="font-semibold text-slate-700">{ fmt.Sprintf("%.2f ₴", item.Subtotal) }</span>
+							</span>
+						</div>
+					}
+				</div>
+				<!-- Footer: total only, no action buttons -->
+				<div class="flex items-center justify-between pt-3 border-t border-slate-100">
+					<div class="text-sm text-slate-600">
+						Сума замовлення: <span class="font-bold mono text-slate-800">{ fmt.Sprintf("%.2f ₴", o.TotalAmount) }</span>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+}
