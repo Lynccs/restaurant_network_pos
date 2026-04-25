@@ -4,12 +4,16 @@ import (
 	"database/sql"
 	"net/http"
 	"restaurant_network_pos/internal/handlers"
+	chefhandler "restaurant_network_pos/internal/handlers/chef"
 	waiterhandler "restaurant_network_pos/internal/handlers/waiter"
 	"restaurant_network_pos/internal/middleware"
 	"restaurant_network_pos/internal/repository"
+	chefrepo "restaurant_network_pos/internal/repository/chef"
 	waiterrepo "restaurant_network_pos/internal/repository/waiter"
 	"restaurant_network_pos/internal/routes"
 	"restaurant_network_pos/internal/service"
+	chefservice "restaurant_network_pos/internal/service/chef"
+	"restaurant_network_pos/internal/sse"
 	waiterservice "restaurant_network_pos/internal/service/waiter"
 
 	"github.com/go-chi/chi/v5"
@@ -33,6 +37,8 @@ func SetupRouter(db *sql.DB, store sessions.Store) *chi.Mux {
 	})
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 
+	broadcaster := sse.NewBroadcaster()
+
 	waiterRepo := waiterrepo.NewWaiterRepo(db)
 	waiterSvc := waiterservice.NewWaiterService(waiterRepo)
 
@@ -40,16 +46,20 @@ func SetupRouter(db *sql.DB, store sessions.Store) *chi.Mux {
 	cartMgr := waiterservice.NewCartManager(menuRepo)
 
 	waiterH := waiterhandler.NewWaiterHandler(waiterSvc, store, cartMgr)
-	menuH := waiterhandler.NewMenuHandler(cartMgr, menuRepo, store)
+	menuH := waiterhandler.NewMenuHandler(cartMgr, menuRepo, store, broadcaster)
 
 	ordersRepo := waiterrepo.NewOrdersRepo(db)
 	ordersSvc := waiterservice.NewOrdersService(ordersRepo)
-	ordersH := waiterhandler.NewOrdersHandler(ordersSvc, store)
+	ordersH := waiterhandler.NewOrdersHandler(ordersSvc, store, broadcaster)
+
+	kitchenRepo := chefrepo.NewKitchenRepo(db)
+	kitchenSvc := chefservice.NewKitchenService(kitchenRepo)
+	kitchenH := chefhandler.NewKitchenHandler(kitchenSvc, store, broadcaster)
 
 	routes.SetupAuthRoutes(r, authH)
 	routes.SetupAdminRoutes(r, store)
 	routes.SetupWaiterRoutes(r, waiterH, menuH, ordersH)
-	routes.SetupChefRoutes(r, store)
+	routes.SetupChefRoutes(r, kitchenH)
 
 	return r
 }

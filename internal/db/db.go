@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"time"
 
 	_ "github.com/microsoft/go-mssqldb"
 )
@@ -28,6 +29,13 @@ func New() (*sql.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
+
+	// Пул з'єднань: без цих налаштувань Go тримає лише 2 idle-з'єднання
+	// і встановлює нове TCP-з'єднання до MS SQL Server (~300-500мс) для кожного запиту.
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(10)
+	db.SetConnMaxLifetime(5 * time.Minute)
+	db.SetConnMaxIdleTime(10 * time.Minute)
 
 	if err = db.Ping(); err != nil {
 		return nil, fmt.Errorf("ping db: %w", err)

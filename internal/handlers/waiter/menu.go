@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"restaurant_network_pos/internal/sse"
 	waiterservice "restaurant_network_pos/internal/service/waiter"
 	menupages "restaurant_network_pos/templates/pages/waiter"
 
@@ -38,13 +39,14 @@ type MenuRepoForHandler interface {
 
 // MenuHandler handles all POS/menu endpoints.
 type MenuHandler struct {
-	CartMgr  MenuCartManager
-	MenuRepo MenuRepoForHandler
-	Store    sessions.Store
+	CartMgr     MenuCartManager
+	MenuRepo    MenuRepoForHandler
+	Store       sessions.Store
+	Broadcaster *sse.Broadcaster
 }
 
-func NewMenuHandler(cartMgr MenuCartManager, repo MenuRepoForHandler, store sessions.Store) *MenuHandler {
-	return &MenuHandler{CartMgr: cartMgr, MenuRepo: repo, Store: store}
+func NewMenuHandler(cartMgr MenuCartManager, repo MenuRepoForHandler, store sessions.Store, bc *sse.Broadcaster) *MenuHandler {
+	return &MenuHandler{CartMgr: cartMgr, MenuRepo: repo, Store: store, Broadcaster: bc}
 }
 
 // sessionInts extracts restaurantID and waiterID from the session.
@@ -323,6 +325,8 @@ func (h *MenuHandler) SubmitOrder(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to submit order", http.StatusInternalServerError)
 		return
 	}
+
+	h.Broadcaster.Notify(restaurantID)
 
 	w.Header().Set("HX-Redirect", "/waiter/tables")
 	w.WriteHeader(http.StatusOK)

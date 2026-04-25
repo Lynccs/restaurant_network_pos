@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"restaurant_network_pos/internal/sse"
 	waiterservice "restaurant_network_pos/internal/service/waiter"
 	"restaurant_network_pos/templates/layouts"
 	waiterpages "restaurant_network_pos/templates/pages/waiter"
@@ -36,12 +37,13 @@ type OrdersServicer interface {
 }
 
 type OrdersHandler struct {
-	svc   OrdersServicer
-	store sessions.Store
+	svc         OrdersServicer
+	store       sessions.Store
+	broadcaster *sse.Broadcaster
 }
 
-func NewOrdersHandler(svc OrdersServicer, store sessions.Store) *OrdersHandler {
-	return &OrdersHandler{svc: svc, store: store}
+func NewOrdersHandler(svc OrdersServicer, store sessions.Store, bc *sse.Broadcaster) *OrdersHandler {
+	return &OrdersHandler{svc: svc, store: store, broadcaster: bc}
 }
 
 func (h *OrdersHandler) sessionRestaurant(r *http.Request) (restaurantID int, name string, err error) {
@@ -136,6 +138,8 @@ func (h *OrdersHandler) CancelOrder(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+
+	h.broadcaster.Notify(restaurantID)
 
 	orders, err := h.svc.GetActiveOrders(restaurantID, "", "", 0, "", "")
 	if err != nil {

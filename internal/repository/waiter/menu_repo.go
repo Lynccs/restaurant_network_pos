@@ -212,10 +212,12 @@ func (r *MenuRepo) CreateOrder(tableID, waiterID int, items []CartEntryForOrder)
 	defer tx.Rollback() //nolint:errcheck
 
 	// Get today's sequential number.
+	// Range predicate is sargable (no function on column side) — uses idx_orders_table_id or any covering index.
 	var seq int
 	err = tx.QueryRow(`
 		SELECT COUNT(*) + 1 FROM orders
-		WHERE CAST(order_created_at AS DATE) = CAST(GETDATE() AS DATE)`).Scan(&seq)
+		WHERE order_created_at >= CONVERT(date, GETUTCDATE())
+		  AND order_created_at <  DATEADD(day, 1, CONVERT(date, GETUTCDATE()))`).Scan(&seq)
 	if err != nil {
 		return "", fmt.Errorf("get seq: %w", err)
 	}

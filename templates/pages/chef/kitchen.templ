@@ -1,0 +1,235 @@
+package chefpages
+
+import (
+	"fmt"
+	"time"
+
+	chefservice "restaurant_network_pos/internal/service/chef"
+)
+
+// isTaskCookingOverdue повертає true якщо кухар вже готує довше за норму страви.
+func isTaskCookingOverdue(task chefservice.KitchenTaskView) bool {
+	if task.Status != chefservice.TaskStatusCooking || task.StartTime == nil {
+		return false
+	}
+	return time.Since(*task.StartTime) >= time.Duration(task.CookingTime)*time.Minute
+}
+
+// KitchenBoard — основний компонент KDS-монітора.
+// Використовується і для повного рендеру сторінки (через ChefLayout),
+// і як HTMX-фрагмент при поллінгу або після дій кухаря.
+templ KitchenBoard(tickets []chefservice.KitchenTicket, currentChefID int) {
+	<div
+		id="kitchen-board"
+		class="flex-1 flex flex-col bg-slate-800 p-4 overflow-hidden"
+		hx-get="/chef/kitchen/board"
+		hx-trigger="sse-refresh, every 5s"
+		hx-swap="outerHTML"
+	>
+		<!-- Заголовок -->
+		<div class="flex items-start justify-between mb-4 flex-shrink-0">
+			<div>
+				<h1 class="text-xl font-semibold text-white">Термінал кухаря (KDS)</h1>
+				<p class="text-slate-400 text-sm mt-0.5">Керування приготуванням страв</p>
+			</div>
+			<div class="text-slate-500 text-xs mono mt-1 text-right">
+					<span id="kds-clock"></span>
+				</div>
+		</div>
+		<!-- Колонки-тікети -->
+		<div class="flex-1 flex gap-5 overflow-x-auto overflow-y-hidden flex-nowrap pb-2 scrollbar-thin">
+			if len(tickets) == 0 {
+				<div class="flex-1 flex items-center justify-center">
+					<p class="text-slate-500 text-sm">Немає активних замовлень</p>
+				</div>
+			}
+			for _, ticket := range tickets {
+				@TicketCol(ticket, currentChefID)
+			}
+		</div>
+	</div>
+}
+
+// TicketCol — вертикальна колонка одного замовлення.
+templ TicketCol(ticket chefservice.KitchenTicket, currentChefID int) {
+	<div
+		id={ fmt.Sprintf("ticket-%d", ticket.OrderID) }
+		class={
+		"w-80 flex-shrink-0 rounded-xl flex flex-col shadow-xl overflow-hidden h-full max-h-full",
+		templ.KV("bg-red-50 ring-2 ring-red-400", ticket.IsOverdue),
+		templ.KV("bg-slate-100", !ticket.IsOverdue),
+	}>
+		<!-- Шапка тікета -->
+		<div class={
+			"px-4 py-3 flex items-center justify-between flex-shrink-0 border-b-4",
+			templ.KV("bg-red-600 border-red-700", ticket.IsOverdue),
+			templ.KV("bg-slate-900 border-slate-900", !ticket.IsOverdue),
+		}>
+			<div>
+				<div class="font-bold mono text-xl leading-tight text-white">{ ticket.OrderNumber }</div>
+				<div class={
+					"text-sm font-medium mt-1",
+					templ.KV("text-red-100", ticket.IsOverdue),
+					templ.KV("text-slate-300", !ticket.IsOverdue),
+				}>
+					{ fmt.Sprintf("Стіл №%d · %s", ticket.TableNumber, ticket.WaiterName) }
+				</div>
+			</div>
+			<div class={
+				"text-sm font-bold mono px-2 py-1 rounded border",
+				templ.KV("bg-red-700 text-white border-red-600", ticket.IsOverdue),
+				templ.KV("bg-slate-800 text-amber-400 border-slate-700", !ticket.IsOverdue),
+			}>
+				{ ticket.CreatedAt.Format("15:04") }
+			</div>
+		</div>
+		<!-- Картки страв -->
+		<div class="flex-1 overflow-y-auto space-y-3 p-3 scrollbar-thin">
+			for _, task := range ticket.Tasks {
+				@taskCard(task, ticket.IsOverdue, currentChefID, ticket.OrderID)
+			}
+		</div>
+	</div>
+}
+
+// taskCard — картка однієї страви всередині тікета.
+templ taskCard(task chefservice.KitchenTaskView, ticketOverdue bool, currentChefID int, orderID int) {
+	{{ overdue := isTaskCookingOverdue(task) }}
+	<div class={
+		"dish-card-kds border-2 rounded-xl p-4 shadow-sm flex flex-col fade-in",
+		templ.KV("bg-green-50 border-green-200 opacity-60", task.Status == chefservice.TaskStatusReady),
+		templ.KV("bg-red-100 border-red-500", task.Status == chefservice.TaskStatusCooking && overdue),
+		templ.KV("bg-white border-slate-200", task.Status == chefservice.TaskStatusCooking && !overdue),
+		templ.KV("bg-red-50 border-red-200", task.Status == chefservice.TaskStatusNew && ticketOverdue),
+		templ.KV("bg-white border-slate-200", task.Status == chefservice.TaskStatusNew && !ticketOverdue),
+	}>
+		<!-- Кількість + назва страви -->
+		<div class="flex items-start mb-2">
+			<div class="bg-slate-200 text-slate-800 px-2 py-1 rounded-md flex items-center gap-0.5 mr-3 flex-shrink-0 shadow-[inset_0_1px_3px_rgba(0,0,0,0.05)] border border-slate-300">
+				<span class="text-lg font-bold">{ fmt.Sprintf("%d", task.Qty) }</span>
+				<span class="text-xl font-semibold text-slate-500 mt-0.5">&times;</span>
+			</div>
+			<div class="text-base font-bold text-slate-800 leading-tight pt-1">{ task.DishName }</div>
+		</div>
+		<!-- Ім'я кухаря (тільки під час готування) -->
+		if task.Status == chefservice.TaskStatusCooking && task.ChefName != "" {
+			<div class="text-[11px] text-slate-500 mb-2">
+				Кухар: <span class="font-semibold text-slate-700">{ task.ChefName }</span>
+			</div>
+		}
+		<!-- Таймер (якщо готується) -->
+		if task.Status == chefservice.TaskStatusCooking && task.StartTime != nil {
+			<div
+				class={
+					"kitchen-timer w-full text-xl font-mono font-bold text-center py-2 mb-3 rounded-lg border shadow-sm",
+					templ.KV("bg-red-50 text-red-600 border-red-300 border-2", overdue),
+					templ.KV("bg-slate-100 text-slate-700 border-slate-200", !overdue),
+				}
+				data-start={ fmt.Sprintf("%d", task.StartTime.UnixMilli()) }
+				data-limit={ fmt.Sprintf("%d", task.CookingTime) }
+			>
+				00:00
+			</div>
+		}
+		<!-- Бейдж "Готово" -->
+		if task.Status == chefservice.TaskStatusReady {
+			<div class="w-full text-sm font-bold text-center py-2 mb-3 rounded-lg bg-green-100 text-green-600">
+				✓ Готово
+			</div>
+		}
+		<!-- Кнопки дій -->
+		if task.Status == chefservice.TaskStatusNew {
+			<button
+				hx-post={ fmt.Sprintf("/chef/kitchen/tasks/%d/start", task.CookingTaskID) }
+				hx-target={ fmt.Sprintf("#ticket-%d", orderID) }
+				hx-swap="outerHTML"
+				hx-indicator="this"
+				class="w-full bg-amber-400 hover:bg-amber-500 text-amber-900 text-sm font-bold uppercase tracking-wide py-2.5 rounded-lg transition-all shadow-sm border border-amber-500 mb-2 disabled:opacity-60"
+			>
+				ПОЧАТИ ПРИГОТУВАННЯ
+			</button>
+			<button
+				hx-get={ fmt.Sprintf("/chef/kitchen/tasks/%d/issue-modal", task.CookingTaskID) }
+				hx-target="#chef-modal"
+				hx-swap="innerHTML"
+				class="w-full bg-red-100 hover:bg-red-200 text-red-700 text-sm font-bold uppercase tracking-wide py-2.5 rounded-lg transition-all border border-red-300"
+			>
+				НЕМАЄ ПРОДУКТІВ
+			</button>
+		}
+		if task.Status == chefservice.TaskStatusCooking && task.ChefID == currentChefID {
+			<button
+				hx-post={ fmt.Sprintf("/chef/kitchen/tasks/%d/finish", task.CookingTaskID) }
+				hx-target={ fmt.Sprintf("#ticket-%d", orderID) }
+				hx-swap="outerHTML"
+				hx-indicator="this"
+				class="w-full bg-green-500 hover:bg-green-600 text-white text-sm font-bold uppercase tracking-wide py-2.5 rounded-lg transition-all shadow-sm border border-green-600 disabled:opacity-60"
+			>
+				ГОТОВО
+			</button>
+		}
+	</div>
+}
+
+// IssueModal — модальне вікно для сповіщення про нестачу продуктів.
+// Завантажується в #chef-modal через HTMX GET.
+templ IssueModal(taskID int, dishName string, maxQty int) {
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
+		onclick="if(event.target===this)this.closest('#chef-modal').innerHTML=''"
+	>
+		<div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+			<div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+				<div>
+					<h3 class="font-semibold text-slate-800">Нестача інгредієнтів</h3>
+					<p class="text-xs text-slate-500 mt-0.5 mono">{ dishName }</p>
+				</div>
+				<button
+					onclick="document.getElementById('chef-modal').innerHTML=''"
+					class="text-slate-400 hover:text-slate-600"
+				>
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+					</svg>
+				</button>
+			</div>
+			<div class="px-6 py-4 space-y-3">
+				<p class="text-sm text-slate-600">
+					Вкажіть, на скільки порцій не вистачає продуктів. Офіціант отримає сповіщення.
+				</p>
+				<div>
+					<label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">
+						Бракує порцій
+					</label>
+					<input
+						id="missing-qty-input"
+						name="missing_qty"
+						type="number"
+						min="1"
+						max={ fmt.Sprintf("%d", maxQty) }
+						value="1"
+						class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
+					/>
+				</div>
+			</div>
+			<div class="px-6 py-4 border-t border-slate-100 bg-slate-50 flex gap-3">
+				<button
+					hx-post={ fmt.Sprintf("/chef/kitchen/tasks/%d/report-issue", taskID) }
+					hx-target="#kitchen-board"
+					hx-swap="outerHTML"
+					hx-include="#missing-qty-input"
+					onclick="document.getElementById('chef-modal').innerHTML=''"
+					class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold uppercase tracking-wide py-2.5 rounded-lg border border-red-700 transition-all"
+				>
+					Сповістити
+				</button>
+				<button
+					onclick="document.getElementById('chef-modal').innerHTML=''"
+					class="flex-1 border border-slate-200 text-slate-600 font-medium py-2.5 rounded-lg hover:bg-white transition-colors"
+				>
+					Скасувати
+				</button>
+			</div>
+		</div>
+	</div>
+}

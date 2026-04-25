@@ -1,23 +1,29 @@
 package routes
 
 import (
-	"fmt"
 	"net/http"
+	chefhandler "restaurant_network_pos/internal/handlers/chef"
 	"restaurant_network_pos/internal/middleware"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/gorilla/sessions"
 )
 
-func SetupChefRoutes(r chi.Router, store sessions.Store) {
+func SetupChefRoutes(r chi.Router, h *chefhandler.KitchenHandler) {
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.RequireAuth(store))
-		r.Use(middleware.RequireRole(store, "chef"))
+		r.Use(middleware.RequireAuth(h.Store))
+		r.Use(middleware.RequireRole(h.Store, "chef"))
 
 		r.Get("/chef", func(w http.ResponseWriter, r *http.Request) {
-			sess, _ := store.Get(r, "session")
-			name, _ := sess.Values["full_name"].(string)
-			fmt.Fprintf(w, "Кухар: %s <form method='POST' action='/logout'><button>Вийти</button></form>", name)
+			http.Redirect(w, r, "/chef/kitchen", http.StatusSeeOther)
 		})
+
+		r.Get("/chef/kitchen", h.KitchenBoardPage)
+		r.Get("/chef/kitchen/board", h.BoardFragment)
+		r.Get("/chef/kitchen/events", h.Events)
+
+		r.Post("/chef/kitchen/tasks/{id}/start", h.StartCooking)
+		r.Post("/chef/kitchen/tasks/{id}/finish", h.FinishCooking)
+		r.Get("/chef/kitchen/tasks/{id}/issue-modal", h.IssueModal)
+		r.Post("/chef/kitchen/tasks/{id}/report-issue", h.ReportIssue)
 	})
 }

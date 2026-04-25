@@ -8,9 +8,9 @@ templ WaiterLayout(name string, activePage string, content templ.Component) {
 		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 		<title>RestaurantOS — Офіціант</title>
 		<script src="https://cdn.tailwindcss.com"></script>
-		<script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
+		<script src="/static/js/htmx.min.js"></script>
 		<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
-		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"/>
+		<link rel="stylesheet" href="/static/css/flatpickr.min.css"/>
 		<style>
 			* { font-family: 'IBM Plex Sans', sans-serif; }
 			.mono { font-family: 'IBM Plex Mono', monospace; }
@@ -45,8 +45,8 @@ templ WaiterLayout(name string, activePage string, content templ.Component) {
 			.numInputWrapper span.arrowDown:after { border-top-color: #64748b; }
 			.flatpickr-input.active { border-color: #60a5fa !important; outline: none !important; }
 		</style>
-		<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-		<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/uk.js"></script>
+		<script src="/static/js/flatpickr.min.js"></script>
+		<script src="/static/js/flatpickr.uk.js"></script>
 	</head>
 	<body class="bg-slate-50 overflow-hidden h-screen flex">
 		<!-- Sidebar -->
