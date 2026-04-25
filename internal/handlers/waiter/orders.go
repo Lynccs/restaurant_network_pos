@@ -32,6 +32,7 @@ type OrdersServicer interface {
 	GetArchiveOrders(restaurantID, waiterID int, search, statusName string, tableNumber int, dateFrom, dateTo string) ([]waiterservice.OrderView, error)
 	CancelOrder(orderID, restaurantID int) error
 	PayOrder(orderID, restaurantID int, paymentMethod string) error
+	RejectPayment(orderID, restaurantID int, paymentMethod string) error
 }
 
 type OrdersHandler struct {
@@ -169,6 +170,43 @@ func (h *OrdersHandler) PayOrder(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.svc.PayOrder(orderID, restaurantID, paymentMethod); err != nil {
 		ordersHandlerLog.Printf("PayOrder: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	orders, err := h.svc.GetActiveOrders(restaurantID, "", "", 0, "", "")
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	waiterpages.OrdersList(orders).Render(r.Context(), w)
+}
+
+func (h *OrdersHandler) RejectPayment(w http.ResponseWriter, r *http.Request) {
+	restaurantID, _, err := h.sessionRestaurant(r)
+	if err != nil {
+		http.Error(w, "session error", http.StatusInternalServerError)
+		return
+	}
+
+	orderID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "invalid order id", http.StatusBadRequest)
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	paymentMethod := r.FormValue("payment_method")
+	if !map[string]bool{"Карта": true, "Онлайн": true}[paymentMethod] {
+		http.Error(w, "cash payments cannot be rejected", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.svc.RejectPayment(orderID, restaurantID, paymentMethod); err != nil {
+		ordersHandlerLog.Printf("RejectPayment: %v", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}

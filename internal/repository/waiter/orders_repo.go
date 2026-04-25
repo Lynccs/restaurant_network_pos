@@ -266,6 +266,40 @@ func (r *OrdersRepo) CancelOrder(orderID, restaurantID int) error {
 	return nil
 }
 
+// RejectPayment inserts a rejected payment record. The DB trigger is conditioned on
+// 'Оплачено' only, so the order remains open after this insert.
+func (r *OrdersRepo) RejectPayment(orderID, restaurantID int, paymentMethod string) error {
+	ordersRepoLog.Printf("RejectPayment: orderID=%d restaurantID=%d method=%s", orderID, restaurantID, paymentMethod)
+
+	payNum := generatePaymentNumber()
+
+	res, err := r.db.Exec(`
+		INSERT INTO payments (payment_amount, payment_number, payment_method_id, payment_status_id, order_id)
+		SELECT
+			o.order_total_amount,
+			@payNum,
+			(SELECT payment_method_id FROM payment_methods  WHERE payment_method_name = @payMethod),
+			(SELECT payment_status_id FROM payment_statuses WHERE payment_status_name = N'Відхилено'),
+			@orderID
+		FROM orders o
+		JOIN tables t ON t.table_id = o.table_id
+		WHERE o.order_id = @orderID
+		  AND t.restaurant_id = @restaurantID`,
+		sql.Named("payNum", payNum),
+		sql.Named("orderID", orderID),
+		sql.Named("restaurantID", restaurantID),
+		sql.Named("payMethod", paymentMethod),
+	)
+	if err != nil {
+		return fmt.Errorf("RejectPayment exec: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("RejectPayment: order %d not found or wrong restaurant", orderID)
+	}
+	return nil
+}
+
 // PayOrder inserts a cash payment record. DB triggers automatically close the order.
 // The amount is taken directly from orders.order_total_amount — never from the caller.
 func (r *OrdersRepo) PayOrder(orderID, restaurantID int, paymentMethod string) error {

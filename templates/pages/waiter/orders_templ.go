@@ -103,7 +103,7 @@ func OrdersPage(activeOrders []waiterservice.OrderView, archiveOrders []waiterse
 			var templ_7745c5c3_Var2 string
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(t))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/orders.templ`, Line: 120, Col: 37}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/orders.templ`, Line: 120, Col: 37}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 			if templ_7745c5c3_Err != nil {
@@ -116,7 +116,7 @@ func OrdersPage(activeOrders []waiterservice.OrderView, archiveOrders []waiterse
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(t))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/orders.templ`, Line: 120, Col: 69}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/orders.templ`, Line: 120, Col: 69}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -147,7 +147,7 @@ func OrdersPage(activeOrders []waiterservice.OrderView, archiveOrders []waiterse
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(t))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/orders.templ`, Line: 193, Col: 37}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/orders.templ`, Line: 193, Col: 37}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -160,7 +160,7 @@ func OrdersPage(activeOrders []waiterservice.OrderView, archiveOrders []waiterse
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(t))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/orders.templ`, Line: 193, Col: 69}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/orders.templ`, Line: 193, Col: 69}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -178,7 +178,7 @@ func OrdersPage(activeOrders []waiterservice.OrderView, archiveOrders []waiterse
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(dateFrom)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/orders.templ`, Line: 201, Col: 22}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/orders.templ`, Line: 201, Col: 22}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
@@ -191,7 +191,7 @@ func OrdersPage(activeOrders []waiterservice.OrderView, archiveOrders []waiterse
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(dateTo)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/orders.templ`, Line: 211, Col: 20}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/orders.templ`, Line: 211, Col: 20}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
@@ -205,7 +205,7 @@ func OrdersPage(activeOrders []waiterservice.OrderView, archiveOrders []waiterse
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</div></div><!-- Payment modal --><div id=\"pay-modal\" class=\"hidden fixed inset-0 z-50 flex items-center justify-center\"><div class=\"absolute inset-0 bg-slate-900/60 backdrop-blur-sm\" onclick=\"closePayModal()\"></div><div class=\"relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 slide-up\"><div class=\"w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4\"><svg class=\"w-6 h-6 text-green-600\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M5 13l4 4L19 7\"></path></svg></div><h3 class=\"text-slate-900 font-semibold text-lg text-center mb-1\">Оплата замовлення</h3><p class=\"text-slate-500 text-sm text-center mb-5\">Оберіть метод оплати та підтвердіть</p><div class=\"bg-slate-50 rounded-xl px-4 py-3 mb-5 space-y-2\"><div class=\"flex justify-between text-sm\"><span class=\"text-slate-500\">Замовлення</span> <span class=\"font-semibold mono text-slate-800\" id=\"pay-modal-order-num\"></span></div><div class=\"flex justify-between text-sm\"><span class=\"text-slate-500\">Столик</span> <span class=\"font-semibold text-slate-800\" id=\"pay-modal-table\"></span></div><div class=\"flex justify-between text-sm border-t border-slate-200 pt-2\"><span class=\"text-slate-500\">Сума</span> <span class=\"font-semibold mono text-green-600\" id=\"pay-modal-total\"></span></div></div><p class=\"text-xs font-medium text-slate-500 mb-2\">Метод оплати</p><div class=\"flex gap-2 mb-5\"><button id=\"pay-method-cash\" onclick=\"selectPayMethod('Готівка')\" class=\"flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 text-sm font-medium transition-colors border-green-500 bg-green-50 text-green-700\"><span class=\"text-lg\">💵</span> Готівка</button> <button id=\"pay-method-card\" onclick=\"selectPayMethod('Карта')\" class=\"flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 text-sm font-medium transition-colors border-slate-200 bg-white text-slate-600 hover:border-slate-300\"><span class=\"text-lg\">💳</span> Карта</button> <button id=\"pay-method-online\" onclick=\"selectPayMethod('Онлайн')\" class=\"flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 text-sm font-medium transition-colors border-slate-200 bg-white text-slate-600 hover:border-slate-300\"><span class=\"text-lg\">📱</span> Онлайн</button></div><div class=\"flex gap-3\"><button onclick=\"closePayModal()\" class=\"flex-1 border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm py-2.5 rounded-xl font-medium transition-colors\">Назад</button> <button onclick=\"confirmPay()\" class=\"flex-1 bg-green-600 hover:bg-green-700 text-white text-sm py-2.5 rounded-xl font-semibold transition-colors\">Підтвердити оплату</button></div></div></div><!-- Cancel confirmation modal --><div id=\"cancel-modal\" class=\"hidden fixed inset-0 z-50 flex items-center justify-center\"><div class=\"absolute inset-0 bg-slate-900/60 backdrop-blur-sm\" onclick=\"closeCancelModal()\"></div><div class=\"relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 slide-up\"><div class=\"w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4\"><svg class=\"w-6 h-6 text-red-600\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M6 18L18 6M6 6l12 12\"></path></svg></div><h3 class=\"text-slate-900 font-semibold text-lg text-center mb-1\">Скасувати замовлення?</h3><p class=\"text-slate-500 text-sm text-center mb-5\">Ця дія незворотна — замовлення буде скасовано</p><div class=\"bg-slate-50 rounded-xl px-4 py-3 mb-5 space-y-2\"><div class=\"flex justify-between text-sm\"><span class=\"text-slate-500\">Замовлення</span> <span class=\"font-semibold mono text-slate-800\" id=\"modal-order-num\"></span></div><div class=\"flex justify-between text-sm\"><span class=\"text-slate-500\">Столик</span> <span class=\"font-semibold text-slate-800\" id=\"modal-table\"></span></div><div class=\"flex justify-between text-sm border-t border-slate-200 pt-2\"><span class=\"text-slate-500\">Сума</span> <span class=\"font-semibold mono text-red-600\" id=\"modal-total\"></span></div></div><div class=\"flex gap-3\"><button onclick=\"closeCancelModal()\" class=\"flex-1 border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm py-2.5 rounded-xl font-medium transition-colors\">Назад</button> <button onclick=\"confirmCancel()\" class=\"flex-1 bg-red-600 hover:bg-red-700 text-white text-sm py-2.5 rounded-xl font-semibold transition-colors\">Скасувати</button></div></div></div><script>\n\t\t\tfunction switchOrdersTab(tab) {\n\t\t\t\tvar isActive = tab === 'active';\n\t\t\t\tdocument.getElementById('tab-active').classList.toggle('hidden', !isActive);\n\t\t\t\tdocument.getElementById('tab-archive').classList.toggle('hidden', isActive);\n\t\t\t\tvar btnActive  = document.getElementById('tab-btn-active');\n\t\t\t\tvar btnArchive = document.getElementById('tab-btn-archive');\n\t\t\t\tbtnActive.className  = isActive\n\t\t\t\t\t? 'px-4 py-2.5 text-sm font-medium text-blue-600 border-b-2 border-blue-600 -mb-px transition-colors'\n\t\t\t\t\t: 'px-4 py-2.5 text-sm font-medium text-slate-500 border-b-2 border-transparent -mb-px hover:text-slate-700 transition-colors';\n\t\t\t\tbtnArchive.className = isActive\n\t\t\t\t\t? 'px-4 py-2.5 text-sm font-medium text-slate-500 border-b-2 border-transparent -mb-px hover:text-slate-700 transition-colors'\n\t\t\t\t\t: 'px-4 py-2.5 text-sm font-medium text-blue-600 border-b-2 border-blue-600 -mb-px transition-colors';\n\t\t\t}\n\n\t\t\tfunction toggleAccordion(id) {\n\t\t\t\tvar body    = document.getElementById('body-'    + id);\n\t\t\t\tvar chevron = document.getElementById('chevron-' + id);\n\t\t\t\tbody.classList.toggle('open');\n\t\t\t\tchevron.classList.toggle('rotated');\n\t\t\t}\n\n\t\t\tfunction toggleArchiveAccordion(id) {\n\t\t\t\tvar body    = document.getElementById('arc-body-'    + id);\n\t\t\t\tvar chevron = document.getElementById('arc-chevron-' + id);\n\t\t\t\tbody.classList.toggle('open');\n\t\t\t\tchevron.classList.toggle('rotated');\n\t\t\t}\n\n\t\t\tvar _pendingPayOrderID = null;\n\t\t\tvar _selectedPayMethod = 'Готівка';\n\n\t\t\tvar _payMethodMap = { 'Готівка': 'cash', 'Карта': 'card', 'Онлайн': 'online' };\n\t\t\tvar _payMethodActiveClass = 'flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 text-sm font-medium transition-colors border-green-500 bg-green-50 text-green-700';\n\t\t\tvar _payMethodInactiveClass = 'flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 text-sm font-medium transition-colors border-slate-200 bg-white text-slate-600 hover:border-slate-300';\n\n\t\t\tfunction openPayModal(id, orderNum, tableNum, total) {\n\t\t\t\t_pendingPayOrderID = id;\n\t\t\t\tdocument.getElementById('pay-modal-order-num').textContent = '№' + orderNum;\n\t\t\t\tdocument.getElementById('pay-modal-table').textContent = 'Стіл №' + tableNum;\n\t\t\t\tdocument.getElementById('pay-modal-total').textContent = total + ' ₴';\n\t\t\t\tselectPayMethod('Готівка');\n\t\t\t\tdocument.getElementById('pay-modal').classList.remove('hidden');\n\t\t\t}\n\n\t\t\tfunction closePayModal() {\n\t\t\t\tdocument.getElementById('pay-modal').classList.add('hidden');\n\t\t\t\t_pendingPayOrderID = null;\n\t\t\t}\n\n\t\t\tfunction selectPayMethod(method) {\n\t\t\t\t_selectedPayMethod = method;\n\t\t\t\tObject.keys(_payMethodMap).forEach(function(m) {\n\t\t\t\t\tvar el = document.getElementById('pay-method-' + _payMethodMap[m]);\n\t\t\t\t\tel.className = (m === method) ? _payMethodActiveClass : _payMethodInactiveClass;\n\t\t\t\t});\n\t\t\t}\n\n\t\t\tfunction confirmPay() {\n\t\t\t\tif (!_pendingPayOrderID) return;\n\t\t\t\tvar id = _pendingPayOrderID;\n\t\t\t\tclosePayModal();\n\t\t\t\thtmx.ajax('POST', '/waiter/orders/' + id + '/pay', {\n\t\t\t\t\ttarget: '#orders-list-wrapper',\n\t\t\t\t\tswap: 'innerHTML',\n\t\t\t\t\tvalues: { payment_method: _selectedPayMethod }\n\t\t\t\t});\n\t\t\t}\n\n\t\t\tvar _pendingCancelEvt = null;\n\n\t\t\tdocument.body.addEventListener('htmx:confirm', function(e) {\n\t\t\t\tif (e.detail.question !== 'cancel') return;\n\t\t\t\te.preventDefault();\n\t\t\t\t_pendingCancelEvt = e;\n\t\t\t\tvar el = e.detail.elt;\n\t\t\t\tdocument.getElementById('modal-order-num').textContent = '№' + el.dataset.orderNum;\n\t\t\t\tdocument.getElementById('modal-table').textContent = 'Стіл №' + el.dataset.table;\n\t\t\t\tdocument.getElementById('modal-total').textContent = el.dataset.total + ' ₴';\n\t\t\t\tdocument.getElementById('cancel-modal').classList.remove('hidden');\n\t\t\t});\n\n\t\t\tfunction closeCancelModal() {\n\t\t\t\tdocument.getElementById('cancel-modal').classList.add('hidden');\n\t\t\t\t_pendingCancelEvt = null;\n\t\t\t}\n\n\t\t\tfunction confirmCancel() {\n\t\t\t\tdocument.getElementById('cancel-modal').classList.add('hidden');\n\t\t\t\tif (_pendingCancelEvt) {\n\t\t\t\t\t_pendingCancelEvt.detail.issueRequest(true);\n\t\t\t\t\t_pendingCancelEvt = null;\n\t\t\t\t}\n\t\t\t}\n\t\t</script><script>\n\t\t\t(function() {\n\t\t\t\tif (typeof flatpickr !== 'undefined' && flatpickr.l10ns && flatpickr.l10ns.uk) {\n\t\t\t\t\tflatpickr.localize(flatpickr.l10ns.uk);\n\t\t\t\t}\n\t\t\t\tvar cfg = {\n\t\t\t\t\tenableTime: true,\n\t\t\t\t\tdateFormat: 'Y-m-d\\\\TH:i',\n\t\t\t\t\ttime_24hr: true,\n\t\t\t\t\tminuteIncrement: 1,\n\t\t\t\t\tdisableMobile: true,\n\t\t\t\t\tonChange: function(_, dateStr, instance) {\n\t\t\t\t\t\tinstance.input.dispatchEvent(new Event('change', { bubbles: true }));\n\t\t\t\t\t}\n\t\t\t\t};\n\t\t\t\tvar fpFrom = flatpickr('#fp-date-from', Object.assign({}, cfg));\n\t\t\t\tvar fpTo   = flatpickr('#fp-date-to',   Object.assign({}, cfg));\n\t\t\t\tdocument.getElementById('fp-date-from')._fp = fpFrom;\n\t\t\t\tdocument.getElementById('fp-date-to')._fp   = fpTo;\n\t\t\t})();\n\t\t</script></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</div></div><!-- Payment modal --><div id=\"pay-modal\" class=\"hidden fixed inset-0 z-50 flex items-center justify-center\"><div class=\"absolute inset-0 bg-slate-900/60 backdrop-blur-sm\" onclick=\"closePayModal()\"></div><div class=\"relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 slide-up\"><div class=\"w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4\"><svg class=\"w-6 h-6 text-green-600\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M5 13l4 4L19 7\"></path></svg></div><h3 class=\"text-slate-900 font-semibold text-lg text-center mb-1\">Оплата замовлення</h3><p class=\"text-slate-500 text-sm text-center mb-5\">Оберіть метод оплати та підтвердіть</p><div class=\"bg-slate-50 rounded-xl px-4 py-3 mb-5 space-y-2\"><div class=\"flex justify-between text-sm\"><span class=\"text-slate-500\">Замовлення</span> <span class=\"font-semibold mono text-slate-800\" id=\"pay-modal-order-num\"></span></div><div class=\"flex justify-between text-sm\"><span class=\"text-slate-500\">Столик</span> <span class=\"font-semibold text-slate-800\" id=\"pay-modal-table\"></span></div><div class=\"flex justify-between text-sm border-t border-slate-200 pt-2\"><span class=\"text-slate-500\">Сума</span> <span class=\"font-semibold mono text-green-600\" id=\"pay-modal-total\"></span></div></div><p class=\"text-xs font-medium text-slate-500 mb-2\">Метод оплати</p><div class=\"flex gap-2 mb-5\"><button id=\"pay-method-cash\" onclick=\"selectPayMethod('Готівка')\" class=\"flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 text-sm font-medium transition-colors border-green-500 bg-green-50 text-green-700\"><span class=\"text-lg\">💵</span> Готівка</button> <button id=\"pay-method-card\" onclick=\"selectPayMethod('Карта')\" class=\"flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 text-sm font-medium transition-colors border-slate-200 bg-white text-slate-600 hover:border-slate-300\"><span class=\"text-lg\">💳</span> Карта</button> <button id=\"pay-method-online\" onclick=\"selectPayMethod('Онлайн')\" class=\"flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 text-sm font-medium transition-colors border-slate-200 bg-white text-slate-600 hover:border-slate-300\"><span class=\"text-lg\">📱</span> Онлайн</button></div><div class=\"flex gap-2\"><button onclick=\"closePayModal()\" class=\"flex-1 border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm py-2.5 rounded-xl font-medium transition-colors\">Назад</button> <button id=\"pay-reject-btn\" onclick=\"confirmReject()\" class=\"hidden flex-1 bg-orange-500 hover:bg-orange-600 text-white text-sm py-2.5 rounded-xl font-semibold transition-colors\">Відхилено</button> <button onclick=\"confirmPay()\" class=\"flex-1 bg-green-600 hover:bg-green-700 text-white text-sm py-2.5 rounded-xl font-semibold transition-colors\">Оплачено</button></div></div></div><!-- Cancel confirmation modal --><div id=\"cancel-modal\" class=\"hidden fixed inset-0 z-50 flex items-center justify-center\"><div class=\"absolute inset-0 bg-slate-900/60 backdrop-blur-sm\" onclick=\"closeCancelModal()\"></div><div class=\"relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 slide-up\"><div class=\"w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4\"><svg class=\"w-6 h-6 text-red-600\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M6 18L18 6M6 6l12 12\"></path></svg></div><h3 class=\"text-slate-900 font-semibold text-lg text-center mb-1\">Скасувати замовлення?</h3><p class=\"text-slate-500 text-sm text-center mb-5\">Ця дія незворотна — замовлення буде скасовано</p><div class=\"bg-slate-50 rounded-xl px-4 py-3 mb-5 space-y-2\"><div class=\"flex justify-between text-sm\"><span class=\"text-slate-500\">Замовлення</span> <span class=\"font-semibold mono text-slate-800\" id=\"modal-order-num\"></span></div><div class=\"flex justify-between text-sm\"><span class=\"text-slate-500\">Столик</span> <span class=\"font-semibold text-slate-800\" id=\"modal-table\"></span></div><div class=\"flex justify-between text-sm border-t border-slate-200 pt-2\"><span class=\"text-slate-500\">Сума</span> <span class=\"font-semibold mono text-red-600\" id=\"modal-total\"></span></div></div><div class=\"flex gap-3\"><button onclick=\"closeCancelModal()\" class=\"flex-1 border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm py-2.5 rounded-xl font-medium transition-colors\">Назад</button> <button onclick=\"confirmCancel()\" class=\"flex-1 bg-red-600 hover:bg-red-700 text-white text-sm py-2.5 rounded-xl font-semibold transition-colors\">Скасувати</button></div></div></div><script>\n\t\t\tfunction switchOrdersTab(tab) {\n\t\t\t\tvar isActive = tab === 'active';\n\t\t\t\tdocument.getElementById('tab-active').classList.toggle('hidden', !isActive);\n\t\t\t\tdocument.getElementById('tab-archive').classList.toggle('hidden', isActive);\n\t\t\t\tvar btnActive  = document.getElementById('tab-btn-active');\n\t\t\t\tvar btnArchive = document.getElementById('tab-btn-archive');\n\t\t\t\tbtnActive.className  = isActive\n\t\t\t\t\t? 'px-4 py-2.5 text-sm font-medium text-blue-600 border-b-2 border-blue-600 -mb-px transition-colors'\n\t\t\t\t\t: 'px-4 py-2.5 text-sm font-medium text-slate-500 border-b-2 border-transparent -mb-px hover:text-slate-700 transition-colors';\n\t\t\t\tbtnArchive.className = isActive\n\t\t\t\t\t? 'px-4 py-2.5 text-sm font-medium text-slate-500 border-b-2 border-transparent -mb-px hover:text-slate-700 transition-colors'\n\t\t\t\t\t: 'px-4 py-2.5 text-sm font-medium text-blue-600 border-b-2 border-blue-600 -mb-px transition-colors';\n\t\t\t}\n\n\t\t\tfunction toggleAccordion(id) {\n\t\t\t\tvar body    = document.getElementById('body-'    + id);\n\t\t\t\tvar chevron = document.getElementById('chevron-' + id);\n\t\t\t\tbody.classList.toggle('open');\n\t\t\t\tchevron.classList.toggle('rotated');\n\t\t\t}\n\n\t\t\tfunction toggleArchiveAccordion(id) {\n\t\t\t\tvar body    = document.getElementById('arc-body-'    + id);\n\t\t\t\tvar chevron = document.getElementById('arc-chevron-' + id);\n\t\t\t\tbody.classList.toggle('open');\n\t\t\t\tchevron.classList.toggle('rotated');\n\t\t\t}\n\n\t\t\tvar _pendingPayOrderID = null;\n\t\t\tvar _selectedPayMethod = 'Готівка';\n\n\t\t\tvar _payMethodMap = { 'Готівка': 'cash', 'Карта': 'card', 'Онлайн': 'online' };\n\t\t\tvar _payMethodActiveClass = 'flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 text-sm font-medium transition-colors border-green-500 bg-green-50 text-green-700';\n\t\t\tvar _payMethodInactiveClass = 'flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 text-sm font-medium transition-colors border-slate-200 bg-white text-slate-600 hover:border-slate-300';\n\n\t\t\tfunction openPayModal(id, orderNum, tableNum, total) {\n\t\t\t\t_pendingPayOrderID = id;\n\t\t\t\tdocument.getElementById('pay-modal-order-num').textContent = '№' + orderNum;\n\t\t\t\tdocument.getElementById('pay-modal-table').textContent = 'Стіл №' + tableNum;\n\t\t\t\tdocument.getElementById('pay-modal-total').textContent = total + ' ₴';\n\t\t\t\tselectPayMethod('Готівка');\n\t\t\t\tdocument.getElementById('pay-modal').classList.remove('hidden');\n\t\t\t}\n\n\t\t\tfunction closePayModal() {\n\t\t\t\tdocument.getElementById('pay-modal').classList.add('hidden');\n\t\t\t\t_pendingPayOrderID = null;\n\t\t\t}\n\n\t\t\tfunction selectPayMethod(method) {\n\t\t\t\t_selectedPayMethod = method;\n\t\t\t\tObject.keys(_payMethodMap).forEach(function(m) {\n\t\t\t\t\tvar el = document.getElementById('pay-method-' + _payMethodMap[m]);\n\t\t\t\t\tel.className = (m === method) ? _payMethodActiveClass : _payMethodInactiveClass;\n\t\t\t\t});\n\t\t\t\tvar rejectBtn = document.getElementById('pay-reject-btn');\n\t\t\t\tif (method === 'Карта' || method === 'Онлайн') {\n\t\t\t\t\trejectBtn.classList.remove('hidden');\n\t\t\t\t} else {\n\t\t\t\t\trejectBtn.classList.add('hidden');\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction confirmPay() {\n\t\t\t\tif (!_pendingPayOrderID) return;\n\t\t\t\tvar id = _pendingPayOrderID;\n\t\t\t\tclosePayModal();\n\t\t\t\thtmx.ajax('POST', '/waiter/orders/' + id + '/pay', {\n\t\t\t\t\ttarget: '#orders-list-wrapper',\n\t\t\t\t\tswap: 'innerHTML',\n\t\t\t\t\tvalues: { payment_method: _selectedPayMethod }\n\t\t\t\t});\n\t\t\t}\n\n\t\t\tfunction confirmReject() {\n\t\t\t\tif (!_pendingPayOrderID) return;\n\t\t\t\tvar id = _pendingPayOrderID;\n\t\t\t\tclosePayModal();\n\t\t\t\thtmx.ajax('POST', '/waiter/orders/' + id + '/reject-payment', {\n\t\t\t\t\ttarget: '#orders-list-wrapper',\n\t\t\t\t\tswap: 'innerHTML',\n\t\t\t\t\tvalues: { payment_method: _selectedPayMethod }\n\t\t\t\t});\n\t\t\t}\n\n\t\t\tvar _pendingCancelEvt = null;\n\n\t\t\tdocument.body.addEventListener('htmx:confirm', function(e) {\n\t\t\t\tif (e.detail.question !== 'cancel') return;\n\t\t\t\te.preventDefault();\n\t\t\t\t_pendingCancelEvt = e;\n\t\t\t\tvar el = e.detail.elt;\n\t\t\t\tdocument.getElementById('modal-order-num').textContent = '№' + el.dataset.orderNum;\n\t\t\t\tdocument.getElementById('modal-table').textContent = 'Стіл №' + el.dataset.table;\n\t\t\t\tdocument.getElementById('modal-total').textContent = el.dataset.total + ' ₴';\n\t\t\t\tdocument.getElementById('cancel-modal').classList.remove('hidden');\n\t\t\t});\n\n\t\t\tfunction closeCancelModal() {\n\t\t\t\tdocument.getElementById('cancel-modal').classList.add('hidden');\n\t\t\t\t_pendingCancelEvt = null;\n\t\t\t}\n\n\t\t\tfunction confirmCancel() {\n\t\t\t\tdocument.getElementById('cancel-modal').classList.add('hidden');\n\t\t\t\tif (_pendingCancelEvt) {\n\t\t\t\t\t_pendingCancelEvt.detail.issueRequest(true);\n\t\t\t\t\t_pendingCancelEvt = null;\n\t\t\t\t}\n\t\t\t}\n\t\t</script><script>\n\t\t\t(function() {\n\t\t\t\tif (typeof flatpickr !== 'undefined' && flatpickr.l10ns && flatpickr.l10ns.uk) {\n\t\t\t\t\tflatpickr.localize(flatpickr.l10ns.uk);\n\t\t\t\t}\n\t\t\t\tvar cfg = {\n\t\t\t\t\tenableTime: true,\n\t\t\t\t\tdateFormat: 'Y-m-d\\\\TH:i',\n\t\t\t\t\ttime_24hr: true,\n\t\t\t\t\tminuteIncrement: 1,\n\t\t\t\t\tdisableMobile: true,\n\t\t\t\t\tonChange: function(_, dateStr, instance) {\n\t\t\t\t\t\tinstance.input.dispatchEvent(new Event('change', { bubbles: true }));\n\t\t\t\t\t}\n\t\t\t\t};\n\t\t\t\tvar fpFrom = flatpickr('#fp-date-from', Object.assign({}, cfg));\n\t\t\t\tvar fpTo   = flatpickr('#fp-date-to',   Object.assign({}, cfg));\n\t\t\t\tdocument.getElementById('fp-date-from')._fp = fpFrom;\n\t\t\t\tdocument.getElementById('fp-date-to')._fp   = fpTo;\n\t\t\t})();\n\t\t</script></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -292,7 +292,7 @@ func orderCard(o waiterservice.OrderView) templ.Component {
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("order-%d", o.OrderID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/orders.templ`, Line: 479, Col: 41}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/orders.templ`, Line: 503, Col: 41}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 		if templ_7745c5c3_Err != nil {
@@ -305,7 +305,7 @@ func orderCard(o waiterservice.OrderView) templ.Component {
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var10).String())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/orders.templ`, Line: 1, Col: 0}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/orders.templ`, Line: 1, Col: 0}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
@@ -340,7 +340,7 @@ func orderCard(o waiterservice.OrderView) templ.Component {
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var13).String())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/orders.templ`, Line: 1, Col: 0}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/orders.templ`, Line: 1, Col: 0}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 		if templ_7745c5c3_Err != nil {
@@ -353,7 +353,7 @@ func orderCard(o waiterservice.OrderView) templ.Component {
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(totalOrderQty(o.Items)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/orders.templ`, Line: 489, Col: 42}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/orders.templ`, Line: 513, Col: 42}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 		if templ_7745c5c3_Err != nil {
@@ -366,7 +366,7 @@ func orderCard(o waiterservice.OrderView) templ.Component {
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(o.OrderNumber)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/orders.templ`, Line: 494, Col: 79}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/orders.templ`, Line: 518, Col: 79}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
@@ -388,7 +388,7 @@ func orderCard(o waiterservice.OrderView) templ.Component {
 		var templ_7745c5c3_Var19 string
 		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var18).String())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/orders.templ`, Line: 1, Col: 0}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/orders.templ`, Line: 1, Col: 0}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 		if templ_7745c5c3_Err != nil {
@@ -401,7 +401,7 @@ func orderCard(o waiterservice.OrderView) templ.Component {
 		var templ_7745c5c3_Var20 string
 		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(o.StatusName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/orders.templ`, Line: 496, Col: 20}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/orders.templ`, Line: 520, Col: 20}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 		if templ_7745c5c3_Err != nil {
@@ -424,7 +424,7 @@ func orderCard(o waiterservice.OrderView) templ.Component {
 		var templ_7745c5c3_Var21 string
 		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("Стіл №%d · %s · %s", o.TableNumber, o.WaiterName, o.CreatedAt))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/orders.templ`, Line: 506, Col: 90}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/orders.templ`, Line: 530, Col: 90}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 		if templ_7745c5c3_Err != nil {
@@ -437,7 +437,7 @@ func orderCard(o waiterservice.OrderView) templ.Component {
 		var templ_7745c5c3_Var22 string
 		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.2f ₴", o.TotalAmount))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/orders.templ`, Line: 511, Col: 96}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/orders.templ`, Line: 535, Col: 96}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 		if templ_7745c5c3_Err != nil {
@@ -450,7 +450,7 @@ func orderCard(o waiterservice.OrderView) templ.Component {
 		var templ_7745c5c3_Var23 string
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("chevron-%d", o.OrderID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/orders.templ`, Line: 513, Col: 46}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/orders.templ`, Line: 537, Col: 46}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 		if templ_7745c5c3_Err != nil {
@@ -463,7 +463,7 @@ func orderCard(o waiterservice.OrderView) templ.Component {
 		var templ_7745c5c3_Var24 string
 		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("body-%d", o.OrderID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/orders.templ`, Line: 524, Col: 45}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/orders.templ`, Line: 548, Col: 45}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 		if templ_7745c5c3_Err != nil {
@@ -481,7 +481,7 @@ func orderCard(o waiterservice.OrderView) templ.Component {
 			var templ_7745c5c3_Var25 string
 			templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(item.DishName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/orders.templ`, Line: 531, Col: 52}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/orders.templ`, Line: 555, Col: 52}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 			if templ_7745c5c3_Err != nil {
@@ -494,7 +494,7 @@ func orderCard(o waiterservice.OrderView) templ.Component {
 			var templ_7745c5c3_Var26 string
 			templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(item.Qty))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/orders.templ`, Line: 534, Col: 32}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/orders.templ`, Line: 558, Col: 32}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 			if templ_7745c5c3_Err != nil {
@@ -507,7 +507,7 @@ func orderCard(o waiterservice.OrderView) templ.Component {
 			var templ_7745c5c3_Var27 string
 			templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.2f", item.DishPrice))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/orders.templ`, Line: 534, Col: 75}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/orders.templ`, Line: 558, Col: 75}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 			if templ_7745c5c3_Err != nil {
@@ -520,7 +520,7 @@ func orderCard(o waiterservice.OrderView) templ.Component {
 			var templ_7745c5c3_Var28 string
 			templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.2f ₴", item.Subtotal))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/orders.templ`, Line: 534, Col: 167}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/orders.templ`, Line: 558, Col: 167}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 			if templ_7745c5c3_Err != nil {
@@ -538,7 +538,7 @@ func orderCard(o waiterservice.OrderView) templ.Component {
 		var templ_7745c5c3_Var29 string
 		templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.2f ₴", o.TotalAmount))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/orders.templ`, Line: 542, Col: 121}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/orders.templ`, Line: 566, Col: 121}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 		if templ_7745c5c3_Err != nil {
@@ -556,7 +556,7 @@ func orderCard(o waiterservice.OrderView) templ.Component {
 			var templ_7745c5c3_Var30 templ.SafeURL
 			templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(fmt.Sprintf("/waiter/tables/%d/menu", o.TableNumber)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/orders.templ`, Line: 547, Col: 82}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/orders.templ`, Line: 571, Col: 82}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 			if templ_7745c5c3_Err != nil {
@@ -575,7 +575,7 @@ func orderCard(o waiterservice.OrderView) templ.Component {
 			var templ_7745c5c3_Var31 string
 			templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/waiter/orders/%d/cancel", o.OrderID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/orders.templ`, Line: 555, Col: 68}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/orders.templ`, Line: 579, Col: 68}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 			if templ_7745c5c3_Err != nil {
@@ -588,7 +588,7 @@ func orderCard(o waiterservice.OrderView) templ.Component {
 			var templ_7745c5c3_Var32 string
 			templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(o.OrderNumber)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/orders.templ`, Line: 560, Col: 38}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/orders.templ`, Line: 584, Col: 38}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 			if templ_7745c5c3_Err != nil {
@@ -601,7 +601,7 @@ func orderCard(o waiterservice.OrderView) templ.Component {
 			var templ_7745c5c3_Var33 string
 			templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(o.TableNumber))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/orders.templ`, Line: 561, Col: 48}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/orders.templ`, Line: 585, Col: 48}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 			if templ_7745c5c3_Err != nil {
@@ -614,7 +614,7 @@ func orderCard(o waiterservice.OrderView) templ.Component {
 			var templ_7745c5c3_Var34 string
 			templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.2f", o.TotalAmount))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/orders.templ`, Line: 562, Col: 55}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/orders.templ`, Line: 586, Col: 55}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 			if templ_7745c5c3_Err != nil {
@@ -668,7 +668,7 @@ func orderCard(o waiterservice.OrderView) templ.Component {
 		var templ_7745c5c3_Var37 string
 		templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var35).String())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `restaurant_network_pos/templates/pages/waiter/orders.templ`, Line: 1, Col: 0}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/orders.templ`, Line: 1, Col: 0}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 		if templ_7745c5c3_Err != nil {

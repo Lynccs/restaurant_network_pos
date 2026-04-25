@@ -281,7 +281,7 @@ templ OrdersPage(activeOrders []waiterservice.OrderView, archiveOrders []waiters
 						Онлайн
 					</button>
 				</div>
-				<div class="flex gap-3">
+				<div class="flex gap-2">
 					<button
 						onclick="closePayModal()"
 						class="flex-1 border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm py-2.5 rounded-xl font-medium transition-colors"
@@ -289,10 +289,17 @@ templ OrdersPage(activeOrders []waiterservice.OrderView, archiveOrders []waiters
 						Назад
 					</button>
 					<button
+						id="pay-reject-btn"
+						onclick="confirmReject()"
+						class="hidden flex-1 bg-orange-500 hover:bg-orange-600 text-white text-sm py-2.5 rounded-xl font-semibold transition-colors"
+					>
+						Відхилено
+					</button>
+					<button
 						onclick="confirmPay()"
 						class="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm py-2.5 rounded-xl font-semibold transition-colors"
 					>
-						Підтвердити оплату
+						Оплачено
 					</button>
 				</div>
 			</div>
@@ -394,6 +401,12 @@ templ OrdersPage(activeOrders []waiterservice.OrderView, archiveOrders []waiters
 					var el = document.getElementById('pay-method-' + _payMethodMap[m]);
 					el.className = (m === method) ? _payMethodActiveClass : _payMethodInactiveClass;
 				});
+				var rejectBtn = document.getElementById('pay-reject-btn');
+				if (method === 'Карта' || method === 'Онлайн') {
+					rejectBtn.classList.remove('hidden');
+				} else {
+					rejectBtn.classList.add('hidden');
+				}
 			}
 
 			function confirmPay() {
@@ -401,6 +414,17 @@ templ OrdersPage(activeOrders []waiterservice.OrderView, archiveOrders []waiters
 				var id = _pendingPayOrderID;
 				closePayModal();
 				htmx.ajax('POST', '/waiter/orders/' + id + '/pay', {
+					target: '#orders-list-wrapper',
+					swap: 'innerHTML',
+					values: { payment_method: _selectedPayMethod }
+				});
+			}
+
+			function confirmReject() {
+				if (!_pendingPayOrderID) return;
+				var id = _pendingPayOrderID;
+				closePayModal();
+				htmx.ajax('POST', '/waiter/orders/' + id + '/reject-payment', {
 					target: '#orders-list-wrapper',
 					swap: 'innerHTML',
 					values: { payment_method: _selectedPayMethod }

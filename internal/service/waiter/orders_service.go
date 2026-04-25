@@ -35,6 +35,7 @@ type ordersRepoIface interface {
 	GetArchiveOrdersList(restaurantID, waiterID int, f waiterrepo.ArchiveFilters) ([]waiterrepo.OrderListRow, error)
 	CancelOrder(orderID, restaurantID int) error
 	PayOrder(orderID, restaurantID int, paymentMethod string) error
+	RejectPayment(orderID, restaurantID int, paymentMethod string) error
 }
 
 type OrdersService struct {
@@ -142,4 +143,8 @@ func (s *OrdersService) CancelOrder(orderID, restaurantID int) error {
 
 func (s *OrdersService) PayOrder(orderID, restaurantID int, paymentMethod string) error {
 	return s.repo.PayOrder(orderID, restaurantID, paymentMethod)
+}
+
+func (s *OrdersService) RejectPayment(orderID, restaurantID int, paymentMethod string) error {
+	return s.repo.RejectPayment(orderID, restaurantID, paymentMethod)
 }
