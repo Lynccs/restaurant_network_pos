@@ -20,8 +20,9 @@ var kitchenHandlerLog = log.New(log.Writer(), "[KitchenHandler] ", log.LstdFlags
 
 type KitchenBoardServicer interface {
 	GetKitchenBoard(restaurantID, chefID int) ([]chefservice.KitchenTicket, error)
-	GetKitchenBoardSnapshot(restaurantID, chefID int) ([]chefservice.KitchenTicket, error)
-	StartCooking(taskID, chefID int) error
+	GetAllChefs(restaurantID int) ([]chefservice.ChefInfo, error)
+	GetOrderItemInfo(orderItemID int) (string, int, error)
+	StartCooking(orderItemID, chefID int) error
 	FinishCooking(taskID int) error
 }
 
@@ -62,8 +63,15 @@ func (h *KitchenHandler) KitchenBoardPage(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	allChefs, err := h.Svc.GetAllChefs(restaurantID)
+	if err != nil {
+		kitchenHandlerLog.Printf("KitchenBoardPage: GetAllChefs error: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
 	kitchenHandlerLog.Printf("KitchenBoardPage: restaurantID=%d tickets=%d", restaurantID, len(tickets))
-	layouts.ChefLayout(name, "kitchen", chefpages.KitchenBoard(tickets, chefID)).Render(r.Context(), w)
+	layouts.ChefLayout(name, "kitchen", chefpages.KitchenBoard(tickets, chefID, allChefs)).Render(r.Context(), w)
 }
 
 // BoardFragment — тільки дошка без layout, для HTMX-запиту після SSE-події (GET /chef/kitchen/board).
@@ -74,14 +82,23 @@ func (h *KitchenHandler) BoardFragment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	start := time.Now()
 	tickets, err := h.Svc.GetKitchenBoard(restaurantID, chefID)
+	kitchenHandlerLog.Printf("BoardFragment: restaurantID=%d took=%v", restaurantID, time.Since(start))
 	if err != nil {
 		kitchenHandlerLog.Printf("BoardFragment: service error: %v", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	chefpages.KitchenBoard(tickets, chefID).Render(r.Context(), w)
+	allChefs, err := h.Svc.GetAllChefs(restaurantID)
+	if err != nil {
+		kitchenHandlerLog.Printf("BoardFragment: GetAllChefs error: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	chefpages.KitchenBoard(tickets, chefID, allChefs).Render(r.Context(), w)
 }
 
 // Events — SSE-стрім оновлень дошки (GET /chef/kitchen/events).
@@ -116,6 +133,8 @@ func (h *KitchenHandler) Events(w http.ResponseWriter, r *http.Request) {
 
 	for {
 		select {
+		case <-h.Broadcaster.Done():
+			return
 		case <-ch:
 			if _, err := fmt.Fprintf(w, "data: refresh\n\n"); err != nil {
 				return // клієнт відключився
@@ -134,6 +153,9 @@ func (h *KitchenHandler) Events(w http.ResponseWriter, r *http.Request) {
 }
 
 // StartCooking — POST /chef/kitchen/tasks/{id}/start.
+// Виконує DB-операцію та сповіщає всіх підключених кухарів через SSE.
+// Не повертає HTML тікета — оновлення board відбувається через SSE-refresh,
+// щоб уникнути race condition між POST-відповіддю та SSE-swap #kitchen-board.
 func (h *KitchenHandler) StartCooking(w http.ResponseWriter, r *http.Request) {
 	restaurantID, chefID, _, err := h.sessionData(r)
 	if err != nil {
@@ -141,39 +163,28 @@ func (h *KitchenHandler) StartCooking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	taskID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	actionID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
 		http.Error(w, "invalid task id", http.StatusBadRequest)
 		return
 	}
 
-	if err := h.Svc.StartCooking(taskID, chefID); err != nil {
-		kitchenHandlerLog.Printf("StartCooking: taskID=%d error: %v", taskID, err)
+	if err := h.Svc.StartCooking(actionID, chefID); err != nil {
+		kitchenHandlerLog.Printf("StartCooking: id=%d error: %v", actionID, err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	h.Broadcaster.Notify(restaurantID)
 
-	tickets, err := h.Svc.GetKitchenBoardSnapshot(restaurantID, chefID)
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	for _, ticket := range tickets {
-		for _, task := range ticket.Tasks {
-			if task.CookingTaskID == taskID {
-				chefpages.TicketCol(ticket, chefID).Render(r.Context(), w)
-				return
-			}
-		}
-	}
-	w.Header().Set("HX-Reswap", "delete")
+	h.Broadcaster.Notify(restaurantID)
+	w.Header().Set("HX-Reswap", "none")
 	w.WriteHeader(http.StatusOK)
 }
 
 // FinishCooking — POST /chef/kitchen/tasks/{id}/finish.
+// Виконує DB-операцію та сповіщає всіх підключених кухарів через SSE.
+// Не повертає HTML тікета — оновлення board відбувається через SSE-refresh.
 func (h *KitchenHandler) FinishCooking(w http.ResponseWriter, r *http.Request) {
-	restaurantID, chefID, _, err := h.sessionData(r)
+	restaurantID, _, _, err := h.sessionData(r)
 	if err != nil {
 		http.Error(w, "session error", http.StatusInternalServerError)
 		return
@@ -190,58 +201,34 @@ func (h *KitchenHandler) FinishCooking(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	h.Broadcaster.Notify(restaurantID)
 
-	tickets, err := h.Svc.GetKitchenBoardSnapshot(restaurantID, chefID)
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	for _, ticket := range tickets {
-		for _, task := range ticket.Tasks {
-			if task.CookingTaskID == taskID {
-				chefpages.TicketCol(ticket, chefID).Render(r.Context(), w)
-				return
-			}
-		}
-	}
-	// Тікет не знайдено — замовлення стало "Готове" і відфільтрувалось → видалити колонку
-	w.Header().Set("HX-Reswap", "delete")
+	h.Broadcaster.Notify(restaurantID)
+	w.Header().Set("HX-Reswap", "none")
 	w.WriteHeader(http.StatusOK)
 }
 
 // IssueModal — GET /chef/kitchen/tasks/{id}/issue-modal.
 func (h *KitchenHandler) IssueModal(w http.ResponseWriter, r *http.Request) {
-	restaurantID, chefID, _, err := h.sessionData(r)
+	_, _, _, err := h.sessionData(r)
 	if err != nil {
 		http.Error(w, "session error", http.StatusInternalServerError)
 		return
 	}
 
-	taskID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	actionID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
 		http.Error(w, "invalid task id", http.StatusBadRequest)
 		return
 	}
 
-	tickets, err := h.Svc.GetKitchenBoard(restaurantID, chefID)
+	dishName, qty, err := h.Svc.GetOrderItemInfo(actionID)
 	if err != nil {
+		kitchenHandlerLog.Printf("IssueModal: GetOrderItemInfo id=%d error: %v", actionID, err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	var dishName string
-	var qty int
-	for _, t := range tickets {
-		for _, task := range t.Tasks {
-			if task.CookingTaskID == taskID {
-				dishName = task.DishName
-				qty = task.Qty
-			}
-		}
-	}
-
-	chefpages.IssueModal(taskID, dishName, qty).Render(r.Context(), w)
+	chefpages.IssueModal(actionID, dishName, qty).Render(r.Context(), w)
 }
 
 // ReportIssue — POST /chef/kitchen/tasks/{id}/report-issue.
@@ -257,5 +244,10 @@ func (h *KitchenHandler) ReportIssue(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	chefpages.KitchenBoard(tickets, chefID).Render(r.Context(), w)
+	allChefs, err := h.Svc.GetAllChefs(restaurantID)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	chefpages.KitchenBoard(tickets, chefID, allChefs).Render(r.Context(), w)
 }

@@ -291,7 +291,7 @@ func DishCard(tableNumber int, d waiterservice.DishView) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "\" hx-target=\"#cart-panel\" hx-swap=\"innerHTML\" hx-disabled-elt=\"this\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "\" hx-target=\"#cart-panel\" hx-swap=\"innerHTML\" hx-disable-elt=\"this\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -627,7 +627,7 @@ func CartPanel(tableNumber int, cart []waiterservice.CartItemView, total float64
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "\" hx-swap=\"none\" hx-disabled-elt=\"this\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "\" hx-swap=\"none\" hx-disable-elt=\"this\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -764,7 +764,7 @@ func CartItem(tableNumber int, item waiterservice.CartItemView) templ.Component 
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "\" hx-target=\"#cart-panel\" hx-swap=\"innerHTML\" hx-disabled-elt=\"this\" class=\"w-6 h-6 rounded-full border border-amber-300 text-amber-600 hover:bg-amber-100 flex items-center justify-center text-base leading-none font-bold transition-colors\">−</button> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "\" hx-target=\"#cart-panel\" hx-swap=\"innerHTML\" hx-disable-elt=\"this\" class=\"w-6 h-6 rounded-full border border-amber-300 text-amber-600 hover:bg-amber-100 flex items-center justify-center text-base leading-none font-bold transition-colors\">−</button> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -818,7 +818,7 @@ func CartItem(tableNumber int, item waiterservice.CartItemView) templ.Component 
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "\" hx-target=\"#cart-panel\" hx-swap=\"innerHTML\" hx-disabled-elt=\"this\" class=\"w-6 h-6 rounded-full border border-amber-300 text-amber-600 hover:bg-amber-100 flex items-center justify-center text-base leading-none font-bold transition-colors\">+</button>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "\" hx-target=\"#cart-panel\" hx-swap=\"innerHTML\" hx-disable-elt=\"this\" class=\"w-6 h-6 rounded-full border border-amber-300 text-amber-600 hover:bg-amber-100 flex items-center justify-center text-base leading-none font-bold transition-colors\">+</button>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -970,7 +970,7 @@ func CartItem(tableNumber int, item waiterservice.CartItemView) templ.Component 
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, " hx-target=\"#cart-panel\" hx-swap=\"innerHTML\" hx-disabled-elt=\"this\" class=\"w-6 h-6 rounded-full border border-slate-300 text-slate-500 hover:bg-slate-200 flex items-center justify-center text-base leading-none font-bold transition-colors\">−</button> <span class=\"w-5 text-center text-xs font-bold mono text-slate-800\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, " hx-target=\"#cart-panel\" hx-swap=\"innerHTML\" hx-disable-elt=\"this\" class=\"w-6 h-6 rounded-full border border-slate-300 text-slate-500 hover:bg-slate-200 flex items-center justify-center text-base leading-none font-bold transition-colors\">−</button> <span class=\"w-5 text-center text-xs font-bold mono text-slate-800\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1023,7 +1023,7 @@ func CartItem(tableNumber int, item waiterservice.CartItemView) templ.Component 
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "\" hx-target=\"#cart-panel\" hx-swap=\"innerHTML\" hx-disabled-elt=\"this\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "\" hx-target=\"#cart-panel\" hx-swap=\"innerHTML\" hx-disable-elt=\"this\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

@@ -10,7 +10,8 @@ import (
 var kitchenRepoLog = log.New(log.Writer(), "[KitchenRepo] ", log.LstdFlags|log.Lshortfile)
 
 // KitchenTaskRow — плоский рядок, що повертається з БД.
-// Один рядок = одне завдання на приготування (cooking_task).
+// Один рядок = одна активна позиція замовлення (order_item),
+// з опційно приєднаним cooking_task.
 type KitchenTaskRow struct {
 	OrderID        int
 	OrderNumber    string
@@ -18,7 +19,7 @@ type KitchenTaskRow struct {
 	WaiterName     string
 	OrderCreatedAt time.Time
 
-	CookingTaskID int
+	CookingTaskID sql.NullInt64
 	OrderItemID   int
 	DishName      string
 	DishCategory  string
@@ -39,9 +40,11 @@ func NewKitchenRepo(db *sql.DB) *KitchenRepo {
 	return &KitchenRepo{db: db}
 }
 
-// GetActiveKitchenTasks повертає всі завдання приготування для незакритих замовлень ресторану.
-// Результат впорядковано: спочатку за часом створення замовлення (ASC), потім за cooking_task_id (ASC).
+// GetActiveKitchenTasks повертає всі активні позиції для незакритих замовлень ресторану.
+// Статус позиції виводиться з cooking_tasks, якщо запис вже існує.
+// Результат впорядковано: спочатку за часом створення замовлення (ASC), потім за order_item_id (ASC).
 func (r *KitchenRepo) GetActiveKitchenTasks(restaurantID int) ([]KitchenTaskRow, error) {
+	start := time.Now()
 	kitchenRepoLog.Printf("GetActiveKitchenTasks: restaurantID=%d", restaurantID)
 
 	const query = `
@@ -78,11 +81,11 @@ func (r *KitchenRepo) GetActiveKitchenTasks(restaurantID int) ([]KitchenTaskRow,
 		FROM ActiveOrders ao
 		JOIN order_items    oi ON oi.order_id          = ao.order_id
 		                      AND oi.order_item_quantity > oi.cancelled_quantity
-		JOIN cooking_tasks  ct ON ct.order_item_id     = oi.order_item_id
+		LEFT JOIN cooking_tasks ct ON ct.order_item_id = oi.order_item_id
 		JOIN dishes          d ON d.dish_id            = oi.dish_id
 		JOIN dish_categories dc ON dc.dish_category_id = d.dish_category_id
 		LEFT JOIN chefs      c  ON c.chef_id           = ct.chef_id
-		ORDER BY ao.order_created_at ASC, ct.cooking_task_id ASC`
+		ORDER BY ao.order_created_at ASC, oi.order_item_id ASC`
 
 	rows, err := r.db.Query(query, sql.Named("restaurantID", restaurantID))
 	if err != nil {
@@ -118,49 +121,76 @@ func (r *KitchenRepo) GetActiveKitchenTasks(restaurantID int) ([]KitchenTaskRow,
 		return nil, fmt.Errorf("GetActiveKitchenTasks rows: %w", err)
 	}
 
-	kitchenRepoLog.Printf("GetActiveKitchenTasks: restaurantID=%d returned %d tasks", restaurantID, len(result))
+	kitchenRepoLog.Printf("GetActiveKitchenTasks: done=%v rows=%d restaurantID=%d", time.Since(start), len(result), restaurantID)
 	return result, nil
 }
 
-// ProvisionCookingTasks створює записи cooking_tasks для всіх активних order_items ресторану,
-// у яких запис ще відсутній. Операція ідемпотентна завдяки NOT EXISTS-гарантії.
-// Викликається перед GetActiveKitchenTasks, щоб кожна нова позиція замовлення
-// одразу з'явилася на KDS-дошці зі статусом "new".
-func (r *KitchenRepo) ProvisionCookingTasks(restaurantID int) error {
-	kitchenRepoLog.Printf("ProvisionCookingTasks: restaurantID=%d", restaurantID)
-	_, err := r.db.Exec(`
-		INSERT INTO cooking_tasks (order_item_id)
-		SELECT oi.order_item_id
-		FROM orders o
-		JOIN tables        t  ON t.table_id        = o.table_id
-		JOIN order_statuses os ON os.order_status_id = o.order_status_id
-		JOIN order_items   oi ON oi.order_id        = o.order_id
-		WHERE t.restaurant_id = @restaurantID
-		  AND os.order_status_name NOT IN (N'Закрито', N'Скасовано', N'Готове')
-		  AND oi.order_item_quantity > oi.cancelled_quantity
-		  AND NOT EXISTS (
-		        SELECT 1 FROM cooking_tasks ct
-		        WHERE ct.order_item_id = oi.order_item_id
-		  )`,
+// ChefRow — рядок кухаря для фільтра KDS.
+type ChefRow struct {
+	ID   int
+	Name string
+}
+
+// GetAllChefs повертає всіх кухарів ресторану для фільтра KDS.
+func (r *KitchenRepo) GetAllChefs(restaurantID int) ([]ChefRow, error) {
+	rows, err := r.db.Query(`
+		SELECT chef_id, chef_full_name
+		FROM chefs
+		WHERE restaurant_id = @restaurantID
+		ORDER BY chef_full_name ASC`,
 		sql.Named("restaurantID", restaurantID),
 	)
 	if err != nil {
-		return fmt.Errorf("ProvisionCookingTasks exec: %w", err)
+		return nil, fmt.Errorf("GetAllChefs query: %w", err)
 	}
-	return nil
+	defer rows.Close()
+	var result []ChefRow
+	for rows.Next() {
+		var c ChefRow
+		if err := rows.Scan(&c.ID, &c.Name); err != nil {
+			return nil, fmt.Errorf("GetAllChefs scan: %w", err)
+		}
+		result = append(result, c)
+	}
+	return result, rows.Err()
 }
 
-// StartCooking фіксує початок приготування: встановлює start_time та chef_id.
-// Операція ідемпотентна — якщо завдання вже розпочато, UPDATE не змінить рядок.
-func (r *KitchenRepo) StartCooking(taskID, chefID int) error {
-	kitchenRepoLog.Printf("StartCooking: taskID=%d chefID=%d", taskID, chefID)
+// GetOrderItemInfo повертає назву страви та ефективну кількість для одного order_item.
+func (r *KitchenRepo) GetOrderItemInfo(orderItemID int) (dishName string, qty int, err error) {
+	err = r.db.QueryRow(`
+		SELECT d.dish_name, oi.order_item_quantity - oi.cancelled_quantity
+		FROM order_items oi
+		JOIN dishes d ON d.dish_id = oi.dish_id
+		WHERE oi.order_item_id = @id`,
+		sql.Named("id", orderItemID),
+	).Scan(&dishName, &qty)
+	if err != nil {
+		err = fmt.Errorf("GetOrderItemInfo: %w", err)
+	}
+	return
+}
+
+// StartCooking фіксує початок приготування для позиції замовлення (order_item_id).
+// Якщо cooking_task відсутній, створює його одразу в статусі "cooking".
+// Якщо вже існує, апдейтом переводить у "cooking" лише якщо старт ще не зафіксовано.
+func (r *KitchenRepo) StartCooking(orderItemID, chefID int) error {
+	kitchenRepoLog.Printf("StartCooking: orderItemID=%d chefID=%d", orderItemID, chefID)
 	_, err := r.db.Exec(`
 		UPDATE cooking_tasks
 		SET cooking_task_start_time = GETUTCDATE(),
 		    chef_id                 = @chefID
-		WHERE cooking_task_id          = @taskID
-		  AND cooking_task_start_time IS NULL`,
-		sql.Named("taskID", taskID),
+		WHERE order_item_id            = @orderItemID
+		  AND cooking_task_start_time IS NULL;
+
+		IF @@ROWCOUNT = 0
+		BEGIN
+			INSERT INTO cooking_tasks (order_item_id, cooking_task_start_time, chef_id)
+			SELECT @orderItemID, GETUTCDATE(), @chefID
+			WHERE NOT EXISTS (
+				SELECT 1 FROM cooking_tasks WHERE order_item_id = @orderItemID
+			)
+		END`,
+		sql.Named("orderItemID", orderItemID),
 		sql.Named("chefID", chefID),
 	)
 	if err != nil {

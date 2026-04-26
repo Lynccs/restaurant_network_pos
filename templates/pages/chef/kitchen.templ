@@ -2,6 +2,7 @@ package chefpages
 
 import (
 	"fmt"
+	"sort"
 	"time"
 
 	chefservice "restaurant_network_pos/internal/service/chef"
@@ -15,15 +16,62 @@ func isTaskCookingOverdue(task chefservice.KitchenTaskView) bool {
 	return time.Since(*task.StartTime) >= time.Duration(task.CookingTime)*time.Minute
 }
 
+// ticketDominantStatus визначає «домінуючий» статус тікета для JS-фільтрації.
+func ticketDominantStatus(ticket chefservice.KitchenTicket) string {
+	if ticket.IsOverdue {
+		return "overdue"
+	}
+	hasCooking, hasNew := false, false
+	for _, t := range ticket.Tasks {
+		switch t.Status {
+		case chefservice.TaskStatusCooking:
+			hasCooking = true
+		case chefservice.TaskStatusNew:
+			hasNew = true
+		}
+	}
+	if hasCooking {
+		return "cooking"
+	}
+	if hasNew {
+		return "new"
+	}
+	return "ready"
+}
+
+// collectFilterOptions збирає унікальні відсортовані назви страв з тікетів.
+// Список кухарів береться з allChefs (всі кухарі ресторану з БД).
+// Поточний кухар (currentChefID) повертається окремо і не входить до списку chefs.
+func collectFilterOptions(tickets []chefservice.KitchenTicket, allChefs []chefservice.ChefInfo, currentChefID int) (dishes []string, chefs []string, currentChefName string) {
+	dishSeen := map[string]bool{}
+	for _, t := range tickets {
+		for _, task := range t.Tasks {
+			if !dishSeen[task.DishName] {
+				dishSeen[task.DishName] = true
+				dishes = append(dishes, task.DishName)
+			}
+		}
+	}
+	sort.Strings(dishes)
+	for _, c := range allChefs {
+		if c.ID == currentChefID {
+			currentChefName = c.Name
+		} else {
+			chefs = append(chefs, c.Name)
+		}
+	}
+	return
+}
+
 // KitchenBoard — основний компонент KDS-монітора.
 // Використовується і для повного рендеру сторінки (через ChefLayout),
 // і як HTMX-фрагмент при поллінгу або після дій кухаря.
-templ KitchenBoard(tickets []chefservice.KitchenTicket, currentChefID int) {
+templ KitchenBoard(tickets []chefservice.KitchenTicket, currentChefID int, allChefs []chefservice.ChefInfo) {
 	<div
 		id="kitchen-board"
 		class="flex-1 flex flex-col bg-slate-800 p-4 overflow-hidden"
 		hx-get="/chef/kitchen/board"
-		hx-trigger="sse-refresh, every 5s"
+		hx-trigger="sse-refresh"
 		hx-swap="outerHTML"
 	>
 		<!-- Заголовок -->
@@ -36,11 +84,108 @@ templ KitchenBoard(tickets []chefservice.KitchenTicket, currentChefID int) {
 					<span id="kds-clock"></span>
 				</div>
 		</div>
+		<!-- Фільтри -->
+		{{ dishes, chefs, currentChefName := collectFilterOptions(tickets, allChefs, currentChefID) }}
+		<div id="kds-filter-bar" class="bg-slate-700/40 border border-slate-600 rounded-xl p-3 mb-4 flex-shrink-0">
+			<div class="flex flex-wrap items-center gap-2">
+				<!-- Статус -->
+				<select
+					id="kds-filter-status"
+					onchange="kdsSetFilter('status',this.value)"
+					class="border border-slate-500 bg-slate-700 text-slate-100 rounded-lg px-2 py-1.5 text-sm"
+				>
+					<option value="all">Активні</option>
+					<option value="new">Нові</option>
+					<option value="overdue">Протерміновані</option>
+					<option value="cooking">Готуються</option>
+					<option value="ready">Готові</option>
+				</select>
+				<!-- № столу -->
+				<input
+					id="kds-filter-table"
+					type="number"
+					min="1"
+					placeholder="№ столу"
+					oninput="kdsSetFilter('table',this.value)"
+					onkeydown="if(event.key==='-'||event.key==='e'||event.key==='E'||event.key==='+')event.preventDefault()"
+					class="w-[90px] border border-slate-500 bg-slate-700 text-slate-100 placeholder-slate-400 rounded-lg px-2 py-1.5 text-sm"
+				/>
+				<!-- Кухар -->
+				<select
+					id="kds-filter-chef"
+					onchange="kdsSetFilter('chef',this.value)"
+					class="border border-slate-500 bg-slate-700 text-slate-100 rounded-lg px-2 py-1.5 text-sm"
+				>
+					<option value="all">Усі кухарі</option>
+					if currentChefName != "" {
+						<option value={ currentChefName }>Ви</option>
+					}
+					for _, chef := range chefs {
+						<option value={ chef }>{ chef }</option>
+					}
+				</select>
+				<!-- Цех -->
+				<select
+					id="kds-filter-workshop"
+					onchange="kdsSetFilter('workshop',this.value)"
+					class="border border-slate-500 bg-slate-700 text-slate-100 rounded-lg px-2 py-1.5 text-sm"
+				>
+					<option value="all">Усі цехи</option>
+					<option value="Гарячий">Гарячий</option>
+					<option value="Холодний">Холодний</option>
+					<option value="Закуски">Закуски</option>
+				</select>
+				<!-- Страва -->
+				<select
+					id="kds-filter-dish"
+					onchange="kdsSetFilter('dish',this.value)"
+					class="border border-slate-500 bg-slate-700 text-slate-100 rounded-lg px-2 py-1.5 text-sm"
+				>
+					<option value="all">Усі страви</option>
+					for _, dish := range dishes {
+						<option value={ dish }>{ dish }</option>
+					}
+				</select>
+				<!-- Час від -->
+				<div class="flex items-center gap-1">
+					<span class="text-slate-400 text-sm">З</span>
+					<input
+						id="kds-filter-from"
+						type="time"
+						title="Час від"
+						onchange="kdsSetFilter('from',this.value)"
+						class="w-[108px] border border-slate-500 bg-slate-700 text-slate-100 rounded-lg px-1.5 py-1.5 text-sm"
+					/>
+				</div>
+				<!-- Час до + Очистити -->
+				<div class="flex items-center gap-1">
+					<span class="text-slate-400 text-sm">До</span>
+					<input
+						id="kds-filter-to"
+						type="time"
+						title="Час до"
+						onchange="kdsSetFilter('to',this.value)"
+						class="w-[108px] border border-slate-500 bg-slate-700 text-slate-100 rounded-lg px-1.5 py-1.5 text-sm"
+					/>
+				</div>
+				<button
+					onclick="kdsClearFilters()"
+					class="px-3 py-1.5 border border-slate-500 text-slate-200 rounded-lg text-sm hover:bg-slate-600 transition-colors"
+				>
+					Очистити
+				</button>
+			</div>
+		</div>
 		<!-- Колонки-тікети -->
 		<div class="flex-1 flex gap-5 overflow-x-auto overflow-y-hidden flex-nowrap pb-2 scrollbar-thin">
 			if len(tickets) == 0 {
 				<div class="flex-1 flex items-center justify-center">
 					<p class="text-slate-500 text-sm">Немає активних замовлень</p>
+				</div>
+			}
+			if len(tickets) > 0 {
+				<div id="kds-no-results" style="display:none;" class="flex-1 flex items-center justify-center">
+					<p class="text-slate-500 text-sm">Немає замовлень за вибраними фільтрами</p>
 				</div>
 			}
 			for _, ticket := range tickets {
@@ -54,6 +199,10 @@ templ KitchenBoard(tickets []chefservice.KitchenTicket, currentChefID int) {
 templ TicketCol(ticket chefservice.KitchenTicket, currentChefID int) {
 	<div
 		id={ fmt.Sprintf("ticket-%d", ticket.OrderID) }
+		data-ticket-status={ ticketDominantStatus(ticket) }
+		data-table={ fmt.Sprintf("%d", ticket.TableNumber) }
+		data-overdue={ fmt.Sprintf("%v", ticket.IsOverdue) }
+		data-created-ms={ fmt.Sprintf("%d", ticket.CreatedAt.UnixMilli()) }
 		class={
 		"w-80 flex-shrink-0 rounded-xl flex flex-col shadow-xl overflow-hidden h-full max-h-full",
 		templ.KV("bg-red-50 ring-2 ring-red-400", ticket.IsOverdue),
@@ -95,7 +244,12 @@ templ TicketCol(ticket chefservice.KitchenTicket, currentChefID int) {
 // taskCard — картка однієї страви всередині тікета.
 templ taskCard(task chefservice.KitchenTaskView, ticketOverdue bool, currentChefID int, orderID int) {
 	{{ overdue := isTaskCookingOverdue(task) }}
-	<div class={
+	<div
+		data-status={ string(task.Status) }
+		data-category={ task.DishCategory }
+		data-chef={ task.ChefName }
+		data-dish={ task.DishName }
+		class={
 		"dish-card-kds border-2 rounded-xl p-4 shadow-sm flex flex-col fade-in",
 		templ.KV("bg-green-50 border-green-200 opacity-60", task.Status == chefservice.TaskStatusReady),
 		templ.KV("bg-red-100 border-red-500", task.Status == chefservice.TaskStatusCooking && overdue),
@@ -111,8 +265,8 @@ templ taskCard(task chefservice.KitchenTaskView, ticketOverdue bool, currentChef
 			</div>
 			<div class="text-base font-bold text-slate-800 leading-tight pt-1">{ task.DishName }</div>
 		</div>
-		<!-- Ім'я кухаря (тільки під час готування) -->
-		if task.Status == chefservice.TaskStatusCooking && task.ChefName != "" {
+		<!-- Ім'я кухаря (під час готування та після) -->
+		if (task.Status == chefservice.TaskStatusCooking || task.Status == chefservice.TaskStatusReady) && task.ChefName != "" {
 			<div class="text-[11px] text-slate-500 mb-2">
 				Кухар: <span class="font-semibold text-slate-700">{ task.ChefName }</span>
 			</div>
@@ -140,16 +294,15 @@ templ taskCard(task chefservice.KitchenTaskView, ticketOverdue bool, currentChef
 		<!-- Кнопки дій -->
 		if task.Status == chefservice.TaskStatusNew {
 			<button
-				hx-post={ fmt.Sprintf("/chef/kitchen/tasks/%d/start", task.CookingTaskID) }
-				hx-target={ fmt.Sprintf("#ticket-%d", orderID) }
-				hx-swap="outerHTML"
+				hx-post={ fmt.Sprintf("/chef/kitchen/tasks/%d/start", task.OrderItemID) }
+				hx-disable-elt="this"
 				hx-indicator="this"
 				class="w-full bg-amber-400 hover:bg-amber-500 text-amber-900 text-sm font-bold uppercase tracking-wide py-2.5 rounded-lg transition-all shadow-sm border border-amber-500 mb-2 disabled:opacity-60"
 			>
 				ПОЧАТИ ПРИГОТУВАННЯ
 			</button>
 			<button
-				hx-get={ fmt.Sprintf("/chef/kitchen/tasks/%d/issue-modal", task.CookingTaskID) }
+				hx-get={ fmt.Sprintf("/chef/kitchen/tasks/%d/issue-modal", task.OrderItemID) }
 				hx-target="#chef-modal"
 				hx-swap="innerHTML"
 				class="w-full bg-red-100 hover:bg-red-200 text-red-700 text-sm font-bold uppercase tracking-wide py-2.5 rounded-lg transition-all border border-red-300"
@@ -160,8 +313,7 @@ templ taskCard(task chefservice.KitchenTaskView, ticketOverdue bool, currentChef
 		if task.Status == chefservice.TaskStatusCooking && task.ChefID == currentChefID {
 			<button
 				hx-post={ fmt.Sprintf("/chef/kitchen/tasks/%d/finish", task.CookingTaskID) }
-				hx-target={ fmt.Sprintf("#ticket-%d", orderID) }
-				hx-swap="outerHTML"
+				hx-disable-elt="this"
 				hx-indicator="this"
 				class="w-full bg-green-500 hover:bg-green-600 text-white text-sm font-bold uppercase tracking-wide py-2.5 rounded-lg transition-all shadow-sm border border-green-600 disabled:opacity-60"
 			>

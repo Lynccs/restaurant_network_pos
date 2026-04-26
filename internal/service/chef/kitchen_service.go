@@ -24,6 +24,12 @@ const (
 	TaskStatusReady   TaskStatus = "ready"
 )
 
+// ChefInfo — кухар для фільтра KDS.
+type ChefInfo struct {
+	ID   int
+	Name string
+}
+
 // KitchenTaskView — одне завдання на приготування, підготовлене для рендеру в Templ.
 type KitchenTaskView struct {
 	CookingTaskID int
@@ -50,8 +56,9 @@ type KitchenTicket struct {
 }
 
 type kitchenRepoIface interface {
-	ProvisionCookingTasks(restaurantID int) error
 	GetActiveKitchenTasks(restaurantID int) ([]chefrepo.KitchenTaskRow, error)
+	GetAllChefs(restaurantID int) ([]chefrepo.ChefRow, error)
+	GetOrderItemInfo(orderItemID int) (dishName string, qty int, err error)
 	StartCooking(taskID, chefID int) error
 	FinishCooking(taskID int) error
 }
@@ -65,11 +72,8 @@ func NewKitchenService(repo kitchenRepoIface) *KitchenService {
 }
 
 // GetKitchenBoard повертає список тікетів для KDS-монітора.
-// Спочатку провізіонує cooking_tasks для нових позицій, потім будує тікети.
+// Джерелом є активні order_items; cooking_tasks лише уточнює статус.
 func (s *KitchenService) GetKitchenBoard(restaurantID, chefID int) ([]KitchenTicket, error) {
-	if err := s.repo.ProvisionCookingTasks(restaurantID); err != nil {
-		kitchenSvcLog.Printf("GetKitchenBoard: ProvisionCookingTasks warning: %v", err)
-	}
 	rows, err := s.repo.GetActiveKitchenTasks(restaurantID)
 	if err != nil {
 		return nil, fmt.Errorf("GetKitchenBoard: %w", err)
@@ -77,16 +81,6 @@ func (s *KitchenService) GetKitchenBoard(restaurantID, chefID int) ([]KitchenTic
 	tickets := buildTickets(rows, chefID)
 	kitchenSvcLog.Printf("GetKitchenBoard: restaurantID=%d returned %d tickets", restaurantID, len(tickets))
 	return tickets, nil
-}
-
-// GetKitchenBoardSnapshot повертає список тікетів без виклику ProvisionCookingTasks.
-// Використовується після дій кухаря — провізія там не потрібна.
-func (s *KitchenService) GetKitchenBoardSnapshot(restaurantID, chefID int) ([]KitchenTicket, error) {
-	rows, err := s.repo.GetActiveKitchenTasks(restaurantID)
-	if err != nil {
-		return nil, fmt.Errorf("GetKitchenBoardSnapshot: %w", err)
-	}
-	return buildTickets(rows, chefID), nil
 }
 
 // buildTickets перетворює плоский список рядків репо на зрізи тікетів зі збереженням порядку.
@@ -149,8 +143,13 @@ func mapTaskView(row chefrepo.KitchenTaskRow) KitchenTaskView {
 		startTime = &t
 	}
 
+	cookingTaskID := row.OrderItemID
+	if row.CookingTaskID.Valid {
+		cookingTaskID = int(row.CookingTaskID.Int64)
+	}
+
 	return KitchenTaskView{
-		CookingTaskID: row.CookingTaskID,
+		CookingTaskID: cookingTaskID,
 		OrderItemID:   row.OrderItemID,
 		DishName:      row.DishName,
 		DishCategory:  row.DishCategory,
@@ -185,12 +184,30 @@ func isOverdue(t *KitchenTicket) bool {
 	return time.Since(t.CreatedAt) > overdueThreshold
 }
 
+// GetAllChefs повертає всіх кухарів ресторану для фільтра KDS.
+func (s *KitchenService) GetAllChefs(restaurantID int) ([]ChefInfo, error) {
+	rows, err := s.repo.GetAllChefs(restaurantID)
+	if err != nil {
+		return nil, fmt.Errorf("GetAllChefs: %w", err)
+	}
+	chefs := make([]ChefInfo, len(rows))
+	for i, r := range rows {
+		chefs[i] = ChefInfo{ID: r.ID, Name: r.Name}
+	}
+	return chefs, nil
+}
+
+// GetOrderItemInfo повертає назву страви та ефективну кількість для одного order_item.
+func (s *KitchenService) GetOrderItemInfo(orderItemID int) (string, int, error) {
+	return s.repo.GetOrderItemInfo(orderItemID)
+}
+
 // StartCooking делегує старт приготування в репозиторій.
-func (s *KitchenService) StartCooking(taskID, chefID int) error {
-	if err := s.repo.StartCooking(taskID, chefID); err != nil {
+func (s *KitchenService) StartCooking(orderItemID, chefID int) error {
+	if err := s.repo.StartCooking(orderItemID, chefID); err != nil {
 		return fmt.Errorf("StartCooking: %w", err)
 	}
-	kitchenSvcLog.Printf("StartCooking: taskID=%d chefID=%d", taskID, chefID)
+	kitchenSvcLog.Printf("StartCooking: orderItemID=%d chefID=%d", orderItemID, chefID)
 	return nil
 }
 

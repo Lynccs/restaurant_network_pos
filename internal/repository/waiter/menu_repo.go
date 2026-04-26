@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"time"
 )
 
 var menuRepoLog = log.New(log.Writer(), "[MenuRepo] ", log.LstdFlags|log.Lshortfile)
@@ -211,18 +210,27 @@ func (r *MenuRepo) CreateOrder(tableID, waiterID int, items []CartEntryForOrder)
 	}
 	defer tx.Rollback() //nolint:errcheck
 
-	// Get today's sequential number.
-	// Range predicate is sargable (no function on column side) — uses idx_orders_table_id or any covering index.
-	var seq int
+	// Get today's sequential number atomically.
+	// UPDLOCK + HOLDLOCK serializes this read in the current transaction
+	// and prevents duplicate order_number under concurrent requests.
+	var (
+		today string
+		seq   int
+	)
 	err = tx.QueryRow(`
-		SELECT COUNT(*) + 1 FROM orders
-		WHERE order_created_at >= CONVERT(date, GETUTCDATE())
-		  AND order_created_at <  DATEADD(day, 1, CONVERT(date, GETUTCDATE()))`).Scan(&seq)
+		DECLARE @today CHAR(8) = CONVERT(CHAR(8), GETDATE(), 112);
+		DECLARE @seq INT;
+
+		SELECT @seq = ISNULL(MAX(TRY_CONVERT(INT, PARSENAME(REPLACE(order_number, '-', '.'), 1))), 0) + 1
+		FROM orders WITH (UPDLOCK, HOLDLOCK)
+		WHERE order_number LIKE 'ORD-' + @today + '-%';
+
+		SELECT @today AS today, @seq AS seq;`).Scan(&today, &seq)
 	if err != nil {
 		return "", fmt.Errorf("get seq: %w", err)
 	}
 
-	orderNumber := fmt.Sprintf("ORD-%s-%04d", time.Now().Format("20060102"), seq)
+	orderNumber := fmt.Sprintf("ORD-%s-%04d", today, seq)
 
 	// Calculate total.
 	var total float64
@@ -230,16 +238,16 @@ func (r *MenuRepo) CreateOrder(tableID, waiterID int, items []CartEntryForOrder)
 		total += it.Price * float64(it.Qty)
 	}
 
-	// Insert order.
+	// Insert order and return the generated PK via OUTPUT (works for IDENTITY and SEQUENCE).
 	var orderID int64
 	err = tx.QueryRow(`
 		INSERT INTO orders
 			(order_number, order_total_amount, order_created_at, order_status_id, table_id, waiter_id)
+		OUTPUT INSERTED.order_id
 		VALUES
 			(@number, @total, GETDATE(),
 			 (SELECT order_status_id FROM order_statuses WHERE order_status_name = N'Нове'),
-			 @tableID, @waiterID);
-		SELECT SCOPE_IDENTITY()`,
+			 @tableID, @waiterID)`,
 		sql.Named("number", orderNumber),
 		sql.Named("total", total),
 		sql.Named("tableID", tableID),
@@ -408,7 +416,7 @@ func (r *MenuRepo) SyncOrderDraft(params SyncDraftParams) error {
 					sql.Named("delta", totalCancel),
 					sql.Named("id", change.OrderItemID))
 			}
-		// "done": ignore changes
+			// "done": ignore changes
 		}
 		if err != nil {
 			return fmt.Errorf("apply change itemID=%d: %w", change.OrderItemID, err)

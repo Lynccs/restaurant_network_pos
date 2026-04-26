@@ -21,7 +21,7 @@ import (
 	"github.com/gorilla/sessions"
 )
 
-func SetupRouter(db *sql.DB, store sessions.Store) *chi.Mux {
+func SetupRouter(db *sql.DB, store sessions.Store) (*chi.Mux, func()) {
 	// Composition Root: збираємо весь ланцюг залежностей тут
 	userRepo := repository.NewUserRepo(db)
 	authSvc := service.NewAuthService(userRepo)
@@ -61,5 +61,9 @@ func SetupRouter(db *sql.DB, store sessions.Store) *chi.Mux {
 	routes.SetupWaiterRoutes(r, waiterH, menuH, ordersH)
 	routes.SetupChefRoutes(r, kitchenH)
 
-	return r
+	cleanup := func() {
+		broadcaster.Shutdown()
+	}
+
+	return r, cleanup
 }

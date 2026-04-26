@@ -45,11 +45,14 @@ func main() {
 
 	srv := &http.Server{
 		Addr:         ":" + port,
-		Handler:      app.SetupRouter(database, store),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
+
+	router, cleanup := app.SetupRouter(database, store)
+	srv.Handler = router
+	srv.RegisterOnShutdown(cleanup)
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
@@ -69,7 +72,12 @@ func main() {
 
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Printf("shutdown error: %v", err)
+		if cerr := srv.Close(); cerr != nil {
+			log.Printf("force close error: %v", cerr)
+		}
 	}
-	database.Close()
+	if err := database.Close(); err != nil {
+		log.Printf("database close error: %v", err)
+	}
 	log.Println("server stopped")
 }

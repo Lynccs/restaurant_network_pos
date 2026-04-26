@@ -60,20 +60,120 @@ templ ChefLayout(name string, activePage string, content templ.Component) {
 				kdsUpdateTimers();
 				kdsUpdateClock();
 			}
-			document.addEventListener('DOMContentLoaded', kdsInitTimers);
-			document.addEventListener('htmx:afterSwap', kdsInitTimers);
+			// ── Фільтри KDS ─────────────────────────────────────────────────
+			if (!window.kdsFilters) {
+				window.kdsFilters = { status:'all', table:'', chef:'all', workshop:'all', dish:'all', from:'', to:'' };
+			}
+
+			function kdsGetWorkshop(category) {
+				if (category === 'Супи' || category === 'Основні') return 'Гарячий';
+				if (category === 'Салати' || category === 'Десерти') return 'Холодний';
+				return 'Закуски';
+			}
+			function parseTimeMin(v) {
+				if (!v || !v.includes(':')) return null;
+				var p = v.split(':');
+				var h = parseInt(p[0], 10), m = parseInt(p[1], 10);
+				return (isFinite(h) && isFinite(m)) ? h * 60 + m : null;
+			}
+			function kdsSetFilter(key, value) { window.kdsFilters[key] = value; kdsApplyFilters(); }
+			function kdsClearFilters() {
+				window.kdsFilters = { status:'all', table:'', chef:'all', workshop:'all', dish:'all', from:'', to:'' };
+				kdsRestoreFilters();
+				kdsApplyFilters();
+			}
+			function kdsRestoreFilters() {
+				var f = window.kdsFilters;
+				['status','table','chef','workshop','dish','from','to'].forEach(function(key) {
+					var el = document.getElementById('kds-filter-' + key);
+					if (el) el.value = f[key];
+				});
+			}
+			function kdsApplyFilters() {
+				var f = window.kdsFilters;
+				var sf = f.status;
+				var fromMin = parseTimeMin(f.from), toMin = parseTimeMin(f.to);
+
+				document.querySelectorAll('[id^="ticket-"]').forEach(function(ticketEl) {
+					var ts    = ticketEl.dataset.ticketStatus || '';
+					var tbl   = ticketEl.dataset.table || '';
+					var crMs  = parseInt(ticketEl.dataset.createdMs || '0', 10);
+
+					// Фільтр за № столу (рівень тікета)
+					if (f.table && tbl !== f.table.trim()) { ticketEl.style.display = 'none'; return; }
+
+					// Фільтр за часом створення замовлення (рівень тікета)
+					if (fromMin !== null || toMin !== null) {
+						if (!crMs) { ticketEl.style.display = 'none'; return; }
+						var d = new Date(crMs);
+						var crMin = d.getHours() * 60 + d.getMinutes();
+						if (fromMin !== null && crMin < fromMin) { ticketEl.style.display = 'none'; return; }
+						if (toMin   !== null && crMin > toMin)   { ticketEl.style.display = 'none'; return; }
+					}
+
+					// Фільтр за статусом (рівень тікета)
+					var ticketOk = false;
+					if      (sf === 'all')     ticketOk = (ts !== 'ready');
+					else if (sf === 'overdue') ticketOk = (ts === 'overdue');
+					else                       ticketOk = true; // уточнюється на рівні карток
+					if (!ticketOk) { ticketEl.style.display = 'none'; return; }
+
+					// Фільтрація карток страв
+					var visible = 0;
+					ticketEl.querySelectorAll('.dish-card-kds').forEach(function(card) {
+						var cst = card.dataset.status || '';
+
+						// Відповідність вкладці статусу
+						var stOk = false;
+						if      (sf === 'all')     stOk = true;
+						else if (sf === 'overdue') stOk = (cst === 'new');
+						else                       stOk = (cst === sf);
+						if (!stOk) { card.style.display = 'none'; return; }
+
+						// Страва
+						if (f.dish !== 'all' && card.dataset.dish !== f.dish) { card.style.display = 'none'; return; }
+						// Кухар
+						if (f.chef !== 'all' && card.dataset.chef !== f.chef) { card.style.display = 'none'; return; }
+						// Цех
+						if (f.workshop !== 'all' && kdsGetWorkshop(card.dataset.category || '') !== f.workshop) { card.style.display = 'none'; return; }
+
+						card.style.display = '';
+						visible++;
+					});
+
+					ticketEl.style.display = visible > 0 ? '' : 'none';
+				});
+
+				var noResults = document.getElementById('kds-no-results');
+				if (noResults) {
+					var tickets = document.querySelectorAll('[id^="ticket-"]');
+					var anyVisible = tickets.length > 0 && Array.from(tickets).some(function(el) {
+						return el.style.display !== 'none';
+					});
+					noResults.style.display = anyVisible ? 'none' : '';
+				}
+			}
+
+			function kdsOnBoardReady() { kdsInitTimers(); kdsRestoreFilters(); kdsApplyFilters(); }
+			document.addEventListener('DOMContentLoaded', kdsOnBoardReady);
+			document.addEventListener('htmx:afterSwap',  kdsOnBoardReady);
 
 			// SSE: підписуємось на оновлення від сервера, при події оновлюємо дошку через HTMX
 			(function() {
 				function connectSSE() {
 					var es = new EventSource('/chef/kitchen/events');
+					es.onopen = function() {
+						// при (пере)підключенні одразу оновлюємо дошку — щоб не пропустити події, що надійшли під час розриву
+						var board = document.getElementById('kitchen-board');
+						if (board) htmx.trigger(board, 'sse-refresh');
+					};
 					es.onmessage = function() {
 						var board = document.getElementById('kitchen-board');
 						if (board) htmx.trigger(board, 'sse-refresh');
 					};
 					es.onerror = function() {
 						es.close();
-						setTimeout(connectSSE, 5000);
+						setTimeout(connectSSE, 1000);
 					};
 				}
 				connectSSE();

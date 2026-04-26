@@ -6,10 +6,27 @@ import "sync"
 type Broadcaster struct {
 	mu      sync.Mutex
 	clients map[int][]chan struct{}
+	done    chan struct{}
+	once    sync.Once
 }
 
 func NewBroadcaster() *Broadcaster {
-	return &Broadcaster{clients: make(map[int][]chan struct{})}
+	return &Broadcaster{
+		clients: make(map[int][]chan struct{}),
+		done:    make(chan struct{}),
+	}
+}
+
+// Done returns a channel that is closed when the broadcaster is shutting down.
+func (b *Broadcaster) Done() <-chan struct{} {
+	return b.done
+}
+
+// Shutdown signals all subscribers to stop long-lived loops (for graceful server shutdown).
+func (b *Broadcaster) Shutdown() {
+	b.once.Do(func() {
+		close(b.done)
+	})
 }
 
 // Subscribe реєструє нового підписника і повертає канал, з якого він читає сигнали.

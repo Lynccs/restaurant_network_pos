@@ -581,7 +581,7 @@ func orderCard(o waiterservice.OrderView) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "\" hx-target=\"#orders-list-wrapper\" hx-swap=\"innerHTML\" hx-confirm=\"cancel\" hx-disabled-elt=\"this\" data-order-num=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "\" hx-target=\"#orders-list-wrapper\" hx-swap=\"innerHTML\" hx-confirm=\"cancel\" hx-disable-elt=\"this\" data-order-num=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

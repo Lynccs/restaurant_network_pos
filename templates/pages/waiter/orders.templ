@@ -580,7 +580,7 @@ templ orderCard(o waiterservice.OrderView) {
 								hx-target="#orders-list-wrapper"
 								hx-swap="innerHTML"
 								hx-confirm="cancel"
-								hx-disabled-elt="this"
+								hx-disable-elt="this"
 								data-order-num={ o.OrderNumber }
 								data-table={ strconv.Itoa(o.TableNumber) }
 								data-total={ fmt.Sprintf("%.2f", o.TotalAmount) }

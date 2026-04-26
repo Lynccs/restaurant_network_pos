@@ -33,7 +33,7 @@ func New() (*sql.DB, error) {
 	// Пул з'єднань: без цих налаштувань Go тримає лише 2 idle-з'єднання
 	// і встановлює нове TCP-з'єднання до MS SQL Server (~300-500мс) для кожного запиту.
 	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(10)
+	db.SetMaxIdleConns(25)
 	db.SetConnMaxLifetime(5 * time.Minute)
 	db.SetConnMaxIdleTime(10 * time.Minute)
 
