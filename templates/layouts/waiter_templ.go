@@ -109,7 +109,7 @@ func WaiterLayout(name string, activePage string, content templ.Component) templ
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div><script>\n\t\tdocument.body.addEventListener('htmx:responseError', function(e) {\n\t\t\tif (e.detail.xhr.status === 429) e.preventDefault();\n\t\t});\n\t</script></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div><div id=\"toast-429\" style=\"position:fixed;top:1.25rem;left:50%;transform:translateX(-50%) translateY(-120%);transition:transform .3s ease,opacity .3s ease;opacity:0;z-index:9999;background:#1e293b;color:#f8fafc;padding:.6rem 1.25rem;border-radius:.5rem;font-size:.85rem;white-space:nowrap;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.35);\">⚠ Забагато запитів — спробуйте пізніше</div><script>\n\t\t(function() {\n\t\t\tvar _toastTimer;\n\t\t\tfunction showToast429() {\n\t\t\t\tvar t = document.getElementById('toast-429');\n\t\t\t\tif (!t) return;\n\t\t\t\tclearTimeout(_toastTimer);\n\t\t\t\tt.style.opacity = '1';\n\t\t\t\tt.style.transform = 'translateX(-50%) translateY(0)';\n\t\t\t\t_toastTimer = setTimeout(function() {\n\t\t\t\t\tt.style.opacity = '0';\n\t\t\t\t\tt.style.transform = 'translateX(-50%) translateY(-120%)';\n\t\t\t\t}, 3000);\n\t\t\t}\n\t\t\tdocument.body.addEventListener('htmx:responseError', function(e) {\n\t\t\t\tif (e.detail.xhr.status === 429) {\n\t\t\t\t\te.preventDefault();\n\t\t\t\t\tshowToast429();\n\t\t\t\t}\n\t\t\t});\n\t\t})();\n\t</script></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

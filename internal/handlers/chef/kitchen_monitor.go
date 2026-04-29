@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	chefservice "restaurant_network_pos/internal/service/chef"
@@ -22,8 +23,10 @@ type KitchenBoardServicer interface {
 	GetKitchenBoard(restaurantID, chefID int) ([]chefservice.KitchenTicket, error)
 	GetAllChefs(restaurantID int) ([]chefservice.ChefInfo, error)
 	GetOrderItemInfo(orderItemID int) (string, int, error)
+	GetStartCookingData(orderItemID, restaurantID int) (*chefservice.StartCookingView, error)
 	StartCooking(orderItemID, chefID int) error
 	FinishCooking(taskID int) error
+	RecordIngredientUsages(orderItemID, restaurantID int, usages map[int]float64) error
 }
 
 type KitchenHandler struct {
@@ -152,10 +155,30 @@ func (h *KitchenHandler) Events(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// StartCookingModal — GET /chef/kitchen/tasks/{id}/start-modal.
+// Повертає HTML модального вікна з рецептом страви та всіма інгредієнтами.
+func (h *KitchenHandler) StartCookingModal(w http.ResponseWriter, r *http.Request) {
+	restaurantID, _, _, err := h.sessionData(r)
+	if err != nil {
+		http.Error(w, "session error", http.StatusInternalServerError)
+		return
+	}
+	orderItemID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	data, err := h.Svc.GetStartCookingData(orderItemID, restaurantID)
+	if err != nil {
+		kitchenHandlerLog.Printf("StartCookingModal: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	chefpages.StartCookingModal(*data).Render(r.Context(), w)
+}
+
 // StartCooking — POST /chef/kitchen/tasks/{id}/start.
-// Виконує DB-операцію та сповіщає всіх підключених кухарів через SSE.
-// Не повертає HTML тікета — оновлення board відбувається через SSE-refresh,
-// щоб уникнути race condition між POST-відповіддю та SSE-swap #kitchen-board.
+// Виконує DB-операцію, записує використані інгредієнти та сповіщає кухарів через SSE.
 func (h *KitchenHandler) StartCooking(w http.ResponseWriter, r *http.Request) {
 	restaurantID, chefID, _, err := h.sessionData(r)
 	if err != nil {
@@ -169,10 +192,31 @@ func (h *KitchenHandler) StartCooking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Зчитуємо вибрані інгредієнти: поля виду ing_{ingredientID} = кількість
+	usages := make(map[int]float64)
+	if parseErr := r.ParseForm(); parseErr == nil {
+		for key, vals := range r.Form {
+			if !strings.HasPrefix(key, "ing_") || len(vals) == 0 {
+				continue
+			}
+			ingID, idErr := strconv.Atoi(key[4:])
+			qty, qtyErr := strconv.ParseFloat(vals[0], 64)
+			if idErr == nil && qtyErr == nil && ingID > 0 && qty > 0 {
+				usages[ingID] = qty
+			}
+		}
+	}
+
 	if err := h.Svc.StartCooking(actionID, chefID); err != nil {
 		kitchenHandlerLog.Printf("StartCooking: id=%d error: %v", actionID, err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
+	}
+
+	if len(usages) > 0 {
+		if err := h.Svc.RecordIngredientUsages(actionID, restaurantID, usages); err != nil {
+			kitchenHandlerLog.Printf("StartCooking: RecordIngredientUsages (non-fatal): %v", err)
+		}
 	}
 
 	h.Broadcaster.Notify(restaurantID)

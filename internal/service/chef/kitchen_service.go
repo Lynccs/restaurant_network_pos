@@ -24,6 +24,24 @@ const (
 	TaskStatusReady   TaskStatus = "ready"
 )
 
+// IngredientView — інгредієнт для модального вікна "Почати приготування".
+type IngredientView struct {
+	ID        int
+	Name      string
+	Unit      string
+	RecipeQty float64 // > 0 якщо входить до рецепту; 0 для "інших"
+	StockQty  float64
+}
+
+// StartCookingView — дані для модального вікна "Почати приготування".
+type StartCookingView struct {
+	OrderItemID int
+	DishName    string
+	Qty         int
+	Recipe      []IngredientView
+	Others      []IngredientView
+}
+
 // ChefInfo — кухар для фільтра KDS.
 type ChefInfo struct {
 	ID   int
@@ -59,8 +77,10 @@ type kitchenRepoIface interface {
 	GetActiveKitchenTasks(restaurantID int) ([]chefrepo.KitchenTaskRow, error)
 	GetAllChefs(restaurantID int) ([]chefrepo.ChefRow, error)
 	GetOrderItemInfo(orderItemID int) (dishName string, qty int, err error)
+	GetStartCookingData(orderItemID, restaurantID int) (dishName string, qty int, recipe []chefrepo.IngredientModalRow, others []chefrepo.IngredientModalRow, err error)
 	StartCooking(taskID, chefID int) error
 	FinishCooking(taskID int) error
+	RecordIngredientUsages(orderItemID, restaurantID int, usages map[int]float64) error
 }
 
 type KitchenService struct {
@@ -182,6 +202,36 @@ func isOverdue(t *KitchenTicket) bool {
 		}
 	}
 	return time.Since(t.CreatedAt) > overdueThreshold
+}
+
+// GetStartCookingData повертає дані для модального вікна "Почати приготування".
+func (s *KitchenService) GetStartCookingData(orderItemID, restaurantID int) (*StartCookingView, error) {
+	dishName, qty, recipe, others, err := s.repo.GetStartCookingData(orderItemID, restaurantID)
+	if err != nil {
+		return nil, fmt.Errorf("GetStartCookingData: %w", err)
+	}
+	view := &StartCookingView{
+		OrderItemID: orderItemID,
+		DishName:    dishName,
+		Qty:         qty,
+		Recipe:      make([]IngredientView, len(recipe)),
+		Others:      make([]IngredientView, len(others)),
+	}
+	for i, r := range recipe {
+		view.Recipe[i] = IngredientView{ID: r.IngredientID, Name: r.Name, Unit: r.Unit, RecipeQty: r.RecipeQty, StockQty: r.StockQty}
+	}
+	for i, r := range others {
+		view.Others[i] = IngredientView{ID: r.IngredientID, Name: r.Name, Unit: r.Unit, RecipeQty: 0, StockQty: r.StockQty}
+	}
+	return view, nil
+}
+
+// RecordIngredientUsages делегує запис використаних інгредієнтів у репозиторій.
+func (s *KitchenService) RecordIngredientUsages(orderItemID, restaurantID int, usages map[int]float64) error {
+	if err := s.repo.RecordIngredientUsages(orderItemID, restaurantID, usages); err != nil {
+		return fmt.Errorf("RecordIngredientUsages: %w", err)
+	}
+	return nil
 }
 
 // GetAllChefs повертає всіх кухарів ресторану для фільтра KDS.

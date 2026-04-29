@@ -155,6 +155,157 @@ func (r *KitchenRepo) GetAllChefs(restaurantID int) ([]ChefRow, error) {
 	return result, rows.Err()
 }
 
+// IngredientModalRow — рядок інгредієнта для модального вікна "Почати приготування".
+type IngredientModalRow struct {
+	IngredientID int
+	Name         string
+	Unit         string
+	RecipeQty    float64 // > 0 якщо входить до рецепту страви
+	StockQty     float64 // поточний залишок на складі (не прострочений)
+}
+
+// GetStartCookingData завантажує назву страви, к-сть порцій, рецептурні та решту інгредієнтів.
+func (r *KitchenRepo) GetStartCookingData(orderItemID, restaurantID int) (dishName string, qty int, recipe []IngredientModalRow, others []IngredientModalRow, err error) {
+	err = r.db.QueryRow(`
+		SELECT d.dish_name, oi.order_item_quantity - oi.cancelled_quantity
+		FROM order_items oi
+		JOIN dishes d ON d.dish_id = oi.dish_id
+		WHERE oi.order_item_id = @orderItemID`,
+		sql.Named("orderItemID", orderItemID),
+	).Scan(&dishName, &qty)
+	if err != nil {
+		err = fmt.Errorf("GetStartCookingData dish: %w", err)
+		return
+	}
+
+	recipeRows, qErr := r.db.Query(`
+		SELECT
+			i.ingredient_id,
+			i.ingredient_name,
+			iu.ingredient_unit_name,
+			di.dish_ingredient_quantity * CAST(@qty AS DECIMAL(10,4)) AS recipe_qty,
+			COALESCE((
+				SELECT SUM(si.stock_ingredient_quantity)
+				FROM stock_ingredients si
+				WHERE si.ingredient_id = i.ingredient_id
+				  AND si.restaurant_id = @restaurantID
+				  AND si.stock_ingredient_expiration_date > GETUTCDATE()
+			), 0) AS stock_qty
+		FROM order_items oi
+		JOIN dishes d ON d.dish_id = oi.dish_id
+		JOIN dish_ingredients di ON di.dish_id = d.dish_id
+		JOIN ingredients i ON i.ingredient_id = di.ingredient_id
+		JOIN ingredient_units iu ON iu.ingredient_unit_id = i.ingredient_unit_id
+		WHERE oi.order_item_id = @orderItemID
+		ORDER BY i.ingredient_name`,
+		sql.Named("orderItemID", orderItemID),
+		sql.Named("qty", qty),
+		sql.Named("restaurantID", restaurantID),
+	)
+	if qErr != nil {
+		err = fmt.Errorf("GetStartCookingData recipe: %w", qErr)
+		return
+	}
+	defer recipeRows.Close()
+	for recipeRows.Next() {
+		var row IngredientModalRow
+		if sErr := recipeRows.Scan(&row.IngredientID, &row.Name, &row.Unit, &row.RecipeQty, &row.StockQty); sErr != nil {
+			err = fmt.Errorf("GetStartCookingData recipe scan: %w", sErr)
+			return
+		}
+		recipe = append(recipe, row)
+	}
+	if err = recipeRows.Err(); err != nil {
+		return
+	}
+
+	othersRows, qErr := r.db.Query(`
+		SELECT
+			i.ingredient_id,
+			i.ingredient_name,
+			iu.ingredient_unit_name,
+			COALESCE((
+				SELECT SUM(si.stock_ingredient_quantity)
+				FROM stock_ingredients si
+				WHERE si.ingredient_id = i.ingredient_id
+				  AND si.restaurant_id = @restaurantID
+				  AND si.stock_ingredient_expiration_date > GETUTCDATE()
+			), 0) AS stock_qty
+		FROM ingredients i
+		JOIN ingredient_units iu ON iu.ingredient_unit_id = i.ingredient_unit_id
+		WHERE i.ingredient_id NOT IN (
+			SELECT di.ingredient_id
+			FROM dish_ingredients di
+			JOIN dishes d ON d.dish_id = di.dish_id
+			JOIN order_items oi2 ON oi2.dish_id = d.dish_id
+			WHERE oi2.order_item_id = @orderItemID
+		)
+		ORDER BY i.ingredient_name`,
+		sql.Named("orderItemID", orderItemID),
+		sql.Named("restaurantID", restaurantID),
+	)
+	if qErr != nil {
+		err = fmt.Errorf("GetStartCookingData others: %w", qErr)
+		return
+	}
+	defer othersRows.Close()
+	for othersRows.Next() {
+		var row IngredientModalRow
+		if sErr := othersRows.Scan(&row.IngredientID, &row.Name, &row.Unit, &row.StockQty); sErr != nil {
+			err = fmt.Errorf("GetStartCookingData others scan: %w", sErr)
+			return
+		}
+		others = append(others, row)
+	}
+	err = othersRows.Err()
+	return
+}
+
+// RecordIngredientUsages фіксує фактично використані інгредієнти для завдання приготування.
+// Для кожного інгредієнта обирається найстаріша не прострочена партія (FIFO).
+// Якщо запас не знайдено — запис пропускається (некритична помилка).
+func (r *KitchenRepo) RecordIngredientUsages(orderItemID, restaurantID int, usages map[int]float64) error {
+	var taskID int
+	if err := r.db.QueryRow(`
+		SELECT cooking_task_id FROM cooking_tasks WHERE order_item_id = @id`,
+		sql.Named("id", orderItemID),
+	).Scan(&taskID); err != nil {
+		return fmt.Errorf("RecordIngredientUsages taskID: %w", err)
+	}
+
+	for ingID, qty := range usages {
+		if qty <= 0 {
+			continue
+		}
+		var stockID int
+		err := r.db.QueryRow(`
+			SELECT TOP 1 stock_ingredient_id
+			FROM stock_ingredients
+			WHERE ingredient_id  = @ingID
+			  AND restaurant_id  = @restID
+			  AND stock_ingredient_expiration_date > GETUTCDATE()
+			ORDER BY stock_ingredient_received_at ASC`,
+			sql.Named("ingID", ingID),
+			sql.Named("restID", restaurantID),
+		).Scan(&stockID)
+		if err != nil {
+			kitchenRepoLog.Printf("RecordIngredientUsages: no stock for ingID=%d, skipping", ingID)
+			continue
+		}
+		if _, err := r.db.Exec(`
+			INSERT INTO ingredient_usages
+				(ingredient_usage_quantity, ingredient_usage_time, stock_ingredient_id, cooking_task_id)
+			VALUES (@qty, GETUTCDATE(), @stockID, @taskID)`,
+			sql.Named("qty", qty),
+			sql.Named("stockID", stockID),
+			sql.Named("taskID", taskID),
+		); err != nil {
+			return fmt.Errorf("RecordIngredientUsages insert ingID=%d: %w", ingID, err)
+		}
+	}
+	return nil
+}
+
 // GetOrderItemInfo повертає назву страви та ефективну кількість для одного order_item.
 func (r *KitchenRepo) GetOrderItemInfo(orderItemID int) (dishName string, qty int, err error) {
 	err = r.db.QueryRow(`

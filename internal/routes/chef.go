@@ -21,6 +21,7 @@ func SetupChefRoutes(r chi.Router, h *chefhandler.KitchenHandler) {
 		r.Get("/chef/kitchen/board", h.BoardFragment)
 		r.Get("/chef/kitchen/events", h.Events)
 
+		r.Get("/chef/kitchen/tasks/{id}/start-modal", h.StartCookingModal)
 		r.Post("/chef/kitchen/tasks/{id}/start", h.StartCooking)
 		r.Post("/chef/kitchen/tasks/{id}/finish", h.FinishCooking)
 		r.Get("/chef/kitchen/tasks/{id}/issue-modal", h.IssueModal)

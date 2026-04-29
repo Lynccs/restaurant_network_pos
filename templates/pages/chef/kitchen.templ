@@ -3,6 +3,8 @@ package chefpages
 import (
 	"fmt"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	chefservice "restaurant_network_pos/internal/service/chef"
@@ -294,10 +296,10 @@ templ taskCard(task chefservice.KitchenTaskView, ticketOverdue bool, currentChef
 		<!-- Кнопки дій -->
 		if task.Status == chefservice.TaskStatusNew {
 			<button
-				hx-post={ fmt.Sprintf("/chef/kitchen/tasks/%d/start", task.OrderItemID) }
-				hx-disable-elt="this"
-				hx-indicator="this"
-				class="w-full bg-amber-400 hover:bg-amber-500 text-amber-900 text-sm font-bold uppercase tracking-wide py-2.5 rounded-lg transition-all shadow-sm border border-amber-500 mb-2 disabled:opacity-60"
+				hx-get={ fmt.Sprintf("/chef/kitchen/tasks/%d/start-modal", task.OrderItemID) }
+				hx-target="#chef-modal"
+				hx-swap="innerHTML"
+				class="w-full bg-amber-400 hover:bg-amber-500 text-amber-900 text-sm font-bold uppercase tracking-wide py-2.5 rounded-lg transition-all shadow-sm border border-amber-500 mb-2"
 			>
 				ПОЧАТИ ПРИГОТУВАННЯ
 			</button>
@@ -320,6 +322,208 @@ templ taskCard(task chefservice.KitchenTaskView, ticketOverdue bool, currentChef
 				ГОТОВО
 			</button>
 		}
+	</div>
+}
+
+// fmtQty форматує float64 без зайвих нулів (0.050 → "0.05", 1.0 → "1").
+func fmtQty(v float64) string {
+	if v <= 0 {
+		return ""
+	}
+	s := strconv.FormatFloat(v, 'f', 3, 64)
+	s = strings.TrimRight(s, "0")
+	s = strings.TrimRight(s, ".")
+	return s
+}
+
+// StartCookingModal — модальне вікно з рецептом страви перед стартом приготування.
+// Завантажується в #chef-modal через HTMX GET.
+templ StartCookingModal(data chefservice.StartCookingView) {
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
+		onclick="if(event.target===this)this.closest('#chef-modal').innerHTML=''"
+	>
+		<div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+			<!-- Заголовок -->
+			<div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
+				<div>
+					<h3 class="font-semibold text-slate-800">Почати приготування</h3>
+					<p class="text-sm text-slate-500 mt-0.5 mono">{ data.DishName } · { fmt.Sprintf("%d", data.Qty) } порц.</p>
+				</div>
+				<button
+					onclick="document.getElementById('chef-modal').innerHTML=''"
+					class="text-slate-400 hover:text-slate-600"
+				>
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+					</svg>
+				</button>
+			</div>
+			<!-- Форма -->
+			<form
+				hx-post={ fmt.Sprintf("/chef/kitchen/tasks/%d/start", data.OrderItemID) }
+				hx-on--after-request="if(event.detail.successful)document.getElementById('chef-modal').innerHTML=''"
+				class="flex-1 overflow-hidden flex flex-col min-h-0"
+				onsubmit="var errs=document.querySelectorAll('#kds-ing-list [id$=-err]');for(var i=0;i<errs.length;i++){if(errs[i].textContent.trim()){alert('Виправте помилки перед збереженням.');return false;}}"
+			>
+				<!-- Пошук -->
+				<div class="px-6 py-3 border-b border-slate-100 flex gap-2 flex-shrink-0">
+					<input
+						type="text"
+						placeholder="Пошук інгредієнта..."
+						oninput="kdsIngFilter(this.value)"
+						class="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm"
+					/>
+					<button
+						type="button"
+						onclick="kdsIngFilter('');this.previousElementSibling.value=''"
+						class="border border-slate-200 text-slate-600 px-3 py-2 rounded-lg text-sm hover:bg-slate-50"
+					>
+						Очистити
+					</button>
+				</div>
+				<!-- Список інгредієнтів -->
+				<div class="px-6 py-4 overflow-y-auto flex-1">
+					<!-- Шапка таблиці -->
+					<div class="grid grid-cols-[5px_1fr_110px_96px] gap-2 text-[11px] font-bold text-slate-500 uppercase tracking-wide pb-2 border-b border-slate-200 mb-1">
+						<div></div>
+						<div>Інгредієнт</div>
+						<div class="text-right">Кількість</div>
+						<div class="pl-2">Од. виміру</div>
+					</div>
+					<!-- Рядки інгредієнтів -->
+					<div id="kds-ing-list">
+						if len(data.Recipe) > 0 {
+							<div class="text-[11px] font-semibold text-emerald-700 uppercase tracking-wide pt-2 pb-1">Рецепт</div>
+						}
+						for _, ing := range data.Recipe {
+							@kdsIngRow(ing, true)
+						}
+						if len(data.Others) > 0 {
+							<div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wide pt-3 pb-1">Інші інгредієнти</div>
+						}
+						for _, ing := range data.Others {
+							@kdsIngRow(ing, false)
+						}
+					</div>
+				</div>
+				<!-- Футер -->
+				<div class="px-6 py-4 border-t border-slate-100 bg-slate-50 flex gap-3 flex-shrink-0">
+					<button
+						type="submit"
+						class="flex-1 bg-amber-500 hover:bg-amber-600 text-amber-900 font-bold uppercase tracking-wide py-2.5 rounded-lg border border-amber-600 transition-all"
+					>
+						Почати приготування
+					</button>
+					<button
+						type="button"
+						onclick="document.getElementById('chef-modal').innerHTML=''"
+						class="flex-1 border border-slate-200 text-slate-600 font-medium py-2.5 rounded-lg hover:bg-white transition-colors"
+					>
+						Скасувати
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+	<script>
+	function kdsIngFilter(q) {
+		q = (q || '').toLowerCase();
+		document.querySelectorAll('#kds-ing-list [data-ing]').forEach(function(row) {
+			row.style.display = (!q || (row.dataset.ing || '').toLowerCase().indexOf(q) >= 0) ? '' : 'none';
+		});
+	}
+	function kdsIngToggle(chk, inputId) {
+		var inp = document.getElementById(inputId);
+		if (!inp) return;
+		var row = chk.closest('[data-ing]');
+		if (chk.checked) {
+			inp.disabled = false;
+			if (inp.dataset.savedVal !== undefined && inp.dataset.savedVal !== '') {
+				inp.value = inp.dataset.savedVal;
+			}
+			kdsIngQtyCheck(inp);
+			if (row) { row.classList.add('bg-emerald-50'); row.classList.remove('bg-white'); }
+		} else {
+			inp.dataset.savedVal = inp.value;
+			inp.disabled = true;
+			inp.value = '';
+			var errEl = document.getElementById(inputId + '-err');
+			if (errEl) errEl.textContent = '';
+			if (row) { row.classList.remove('bg-emerald-50'); row.classList.add('bg-white'); }
+		}
+	}
+	function kdsIngQtyCheck(inp) {
+		var stock = parseFloat(inp.dataset.stock || '0');
+		var unit = inp.dataset.unit || '';
+		var val = parseFloat(inp.value || '0');
+		var errEl = document.getElementById(inp.id + '-err');
+		if (!errEl) return;
+		if (stock > 0 && val > stock) {
+			var displayQty, displayUnit;
+			if (unit === 'г') {
+				displayQty = parseFloat((stock / 1000).toFixed(3)); displayUnit = 'кг';
+			} else if (unit === 'мл') {
+				displayQty = parseFloat((stock / 1000).toFixed(3)); displayUnit = 'л';
+			} else {
+				displayQty = parseFloat(stock.toFixed(3)); displayUnit = unit;
+			}
+			errEl.textContent = 'Завелика кількість. На складі доступно лише ' + displayQty + ' ' + displayUnit + '.';
+		} else {
+			errEl.textContent = '';
+		}
+	}
+	</script>
+}
+
+// kdsIngRow — один рядок інгредієнта у модальному вікні.
+templ kdsIngRow(ing chefservice.IngredientView, checked bool) {
+	{{ inputID := fmt.Sprintf("kds-ing-%d", ing.ID) }}
+	{{ fieldName := fmt.Sprintf("ing_%d", ing.ID) }}
+	<div
+		data-ing={ strings.ToLower(ing.Name) }
+		class={ "grid grid-cols-[20px_1fr_110px_76px] items-start gap-2 py-1.5 border-b border-slate-100 last:border-0 rounded px-1",
+			templ.KV("bg-emerald-50", checked),
+			templ.KV("bg-white", !checked) }
+	>
+		<input
+			type="checkbox"
+			id={ fmt.Sprintf("kds-chk-%d", ing.ID) }
+			data-inp={ inputID }
+			if checked {
+				checked
+			}
+			onchange="kdsIngToggle(this,this.dataset.inp)"
+			class="rounded text-blue-600 focus:ring-blue-500 mt-1"
+		/>
+		<div class="flex items-center gap-2 min-w-0">
+			<label
+				for={ fmt.Sprintf("kds-chk-%d", ing.ID) }
+				class={ "text-sm cursor-pointer select-none truncate shrink min-w-0",
+					templ.KV("font-semibold text-slate-800", checked),
+					templ.KV("text-slate-600", !checked) }
+			>
+				{ ing.Name }
+			</label>
+			<span id={ inputID + "-err" } class="text-[10px] text-red-500 shrink-0 ml-auto whitespace-nowrap"></span>
+		</div>
+		<input
+			id={ inputID }
+			name={ fieldName }
+			type="number"
+			step="0.001"
+			min="0"
+			value={ fmtQty(ing.RecipeQty) }
+			data-stock={ fmtQty(ing.StockQty) }
+			data-unit={ ing.Unit }
+			if !checked {
+				disabled
+			}
+			oninput="kdsIngQtyCheck(this)"
+			onkeydown="if(event.key==='-'||event.key==='e'||event.key==='E')event.preventDefault()"
+			class="border border-slate-200 rounded-lg px-2 py-1 text-sm mono text-right w-full disabled:bg-slate-100 disabled:text-slate-400"
+		/>
+		<div class="text-xs text-slate-500 pt-1 pl-2">{ ing.Unit }</div>
 	</div>
 }
 

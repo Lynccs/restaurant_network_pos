@@ -116,10 +116,30 @@ templ WaiterLayout(name string, activePage string, content templ.Component) {
 		<div class="flex-1 overflow-auto bg-slate-50">
 			@content
 		</div>
+	<div id="toast-429" style="position:fixed;top:1.25rem;left:50%;transform:translateX(-50%) translateY(-120%);transition:transform .3s ease,opacity .3s ease;opacity:0;z-index:9999;background:#1e293b;color:#f8fafc;padding:.6rem 1.25rem;border-radius:.5rem;font-size:.85rem;white-space:nowrap;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.35);">
+		⚠ Забагато запитів — спробуйте пізніше
+	</div>
 	<script>
-		document.body.addEventListener('htmx:responseError', function(e) {
-			if (e.detail.xhr.status === 429) e.preventDefault();
-		});
+		(function() {
+			var _toastTimer;
+			function showToast429() {
+				var t = document.getElementById('toast-429');
+				if (!t) return;
+				clearTimeout(_toastTimer);
+				t.style.opacity = '1';
+				t.style.transform = 'translateX(-50%) translateY(0)';
+				_toastTimer = setTimeout(function() {
+					t.style.opacity = '0';
+					t.style.transform = 'translateX(-50%) translateY(-120%)';
+				}, 3000);
+			}
+			document.body.addEventListener('htmx:responseError', function(e) {
+				if (e.detail.xhr.status === 429) {
+					e.preventDefault();
+					showToast429();
+				}
+			});
+		})();
 	</script>
 	</body>
 	</html>

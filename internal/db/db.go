@@ -1,8 +1,10 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -30,16 +32,28 @@ func New() (*sql.DB, error) {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
 
-	// Пул з'єднань: без цих налаштувань Go тримає лише 2 idle-з'єднання
-	// і встановлює нове TCP-з'єднання до MS SQL Server (~300-500мс) для кожного запиту.
 	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(25)
-	db.SetConnMaxLifetime(5 * time.Minute)
-	db.SetConnMaxIdleTime(10 * time.Minute)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(10 * time.Minute)
+	db.SetConnMaxIdleTime(4 * time.Minute)
 
 	if err = db.Ping(); err != nil {
 		return nil, fmt.Errorf("ping db: %w", err)
 	}
+
+	// Тримає мінімум одне idle-з'єднання живим, щоб SQL Server не переходив
+	// у AUTO_CLOSE і не змушував чекати 30 с при першому запиті після паузи.
+	go func() {
+		ticker := time.NewTicker(3 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			if err := db.PingContext(ctx); err != nil {
+				log.Printf("[db] keepalive ping failed: %v", err)
+			}
+			cancel()
+		}
+	}()
 
 	return db, nil
 }

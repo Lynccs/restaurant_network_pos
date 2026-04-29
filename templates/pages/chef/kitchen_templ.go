@@ -11,6 +11,8 @@ import templruntime "github.com/a-h/templ/runtime"
 import (
 	"fmt"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	chefservice "restaurant_network_pos/internal/service/chef"
@@ -112,7 +114,7 @@ func KitchenBoard(tickets []chefservice.KitchenTicket, currentChefID int, allChe
 			var templ_7745c5c3_Var2 string
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(currentChefName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 121, Col: 37}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 123, Col: 37}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 			if templ_7745c5c3_Err != nil {
@@ -131,7 +133,7 @@ func KitchenBoard(tickets []chefservice.KitchenTicket, currentChefID int, allChe
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(chef)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 124, Col: 26}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 126, Col: 26}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -144,7 +146,7 @@ func KitchenBoard(tickets []chefservice.KitchenTicket, currentChefID int, allChe
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(chef)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 124, Col: 35}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 126, Col: 35}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -167,7 +169,7 @@ func KitchenBoard(tickets []chefservice.KitchenTicket, currentChefID int, allChe
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(dish)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 146, Col: 26}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 148, Col: 26}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -180,7 +182,7 @@ func KitchenBoard(tickets []chefservice.KitchenTicket, currentChefID int, allChe
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(dish)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 146, Col: 35}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 148, Col: 35}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -258,7 +260,7 @@ func TicketCol(ticket chefservice.KitchenTicket, currentChefID int) templ.Compon
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("ticket-%d", ticket.OrderID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 201, Col: 47}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 203, Col: 47}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
@@ -271,7 +273,7 @@ func TicketCol(ticket chefservice.KitchenTicket, currentChefID int) templ.Compon
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(ticketDominantStatus(ticket))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 202, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 204, Col: 51}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
@@ -284,7 +286,7 @@ func TicketCol(ticket chefservice.KitchenTicket, currentChefID int) templ.Compon
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", ticket.TableNumber))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 203, Col: 52}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 205, Col: 52}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 		if templ_7745c5c3_Err != nil {
@@ -297,7 +299,7 @@ func TicketCol(ticket chefservice.KitchenTicket, currentChefID int) templ.Compon
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%v", ticket.IsOverdue))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 204, Col: 52}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 206, Col: 52}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
@@ -310,7 +312,7 @@ func TicketCol(ticket chefservice.KitchenTicket, currentChefID int) templ.Compon
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", ticket.CreatedAt.UnixMilli()))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 205, Col: 67}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 207, Col: 67}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 		if templ_7745c5c3_Err != nil {
@@ -361,7 +363,7 @@ func TicketCol(ticket chefservice.KitchenTicket, currentChefID int) templ.Compon
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(ticket.OrderNumber)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 218, Col: 85}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 220, Col: 85}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
@@ -399,7 +401,7 @@ func TicketCol(ticket chefservice.KitchenTicket, currentChefID int) templ.Compon
 		var templ_7745c5c3_Var20 string
 		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("Стіл №%d · %s", ticket.TableNumber, ticket.WaiterName))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 224, Col: 81}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 226, Col: 81}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 		if templ_7745c5c3_Err != nil {
@@ -437,7 +439,7 @@ func TicketCol(ticket chefservice.KitchenTicket, currentChefID int) templ.Compon
 		var templ_7745c5c3_Var23 string
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(ticket.CreatedAt.Format("15:04"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 232, Col: 38}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 234, Col: 38}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 		if templ_7745c5c3_Err != nil {
@@ -502,7 +504,7 @@ func taskCard(task chefservice.KitchenTaskView, ticketOverdue bool, currentChefI
 		var templ_7745c5c3_Var26 string
 		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(string(task.Status))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 248, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 250, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 		if templ_7745c5c3_Err != nil {
@@ -515,7 +517,7 @@ func taskCard(task chefservice.KitchenTaskView, ticketOverdue bool, currentChefI
 		var templ_7745c5c3_Var27 string
 		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(task.DishCategory)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 249, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 251, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 		if templ_7745c5c3_Err != nil {
@@ -528,7 +530,7 @@ func taskCard(task chefservice.KitchenTaskView, ticketOverdue bool, currentChefI
 		var templ_7745c5c3_Var28 string
 		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(task.ChefName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 250, Col: 27}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 252, Col: 27}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 		if templ_7745c5c3_Err != nil {
@@ -541,7 +543,7 @@ func taskCard(task chefservice.KitchenTaskView, ticketOverdue bool, currentChefI
 		var templ_7745c5c3_Var29 string
 		templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(task.DishName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 251, Col: 27}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 253, Col: 27}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 		if templ_7745c5c3_Err != nil {
@@ -567,7 +569,7 @@ func taskCard(task chefservice.KitchenTaskView, ticketOverdue bool, currentChefI
 		var templ_7745c5c3_Var31 string
 		templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", task.Qty))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 263, Col: 65}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 265, Col: 65}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 		if templ_7745c5c3_Err != nil {
@@ -580,7 +582,7 @@ func taskCard(task chefservice.KitchenTaskView, ticketOverdue bool, currentChefI
 		var templ_7745c5c3_Var32 string
 		templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(task.DishName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 266, Col: 85}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 268, Col: 85}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 		if templ_7745c5c3_Err != nil {
@@ -598,7 +600,7 @@ func taskCard(task chefservice.KitchenTaskView, ticketOverdue bool, currentChefI
 			var templ_7745c5c3_Var33 string
 			templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(task.ChefName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 271, Col: 74}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 273, Col: 74}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 			if templ_7745c5c3_Err != nil {
@@ -642,7 +644,7 @@ func taskCard(task chefservice.KitchenTaskView, ticketOverdue bool, currentChefI
 			var templ_7745c5c3_Var36 string
 			templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", task.StartTime.UnixMilli()))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 282, Col: 62}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 284, Col: 62}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 			if templ_7745c5c3_Err != nil {
@@ -655,7 +657,7 @@ func taskCard(task chefservice.KitchenTaskView, ticketOverdue bool, currentChefI
 			var templ_7745c5c3_Var37 string
 			templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", task.CookingTime))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 283, Col: 52}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 285, Col: 52}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 			if templ_7745c5c3_Err != nil {
@@ -681,27 +683,27 @@ func taskCard(task chefservice.KitchenTaskView, ticketOverdue bool, currentChefI
 			return templ_7745c5c3_Err
 		}
 		if task.Status == chefservice.TaskStatusNew {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "<button hx-post=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "<button hx-get=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var38 string
-			templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/chef/kitchen/tasks/%d/start", task.OrderItemID))
+			templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/chef/kitchen/tasks/%d/start-modal", task.OrderItemID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 297, Col: 75}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 299, Col: 80}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "\" hx-disable-elt=\"this\" hx-indicator=\"this\" class=\"w-full bg-amber-400 hover:bg-amber-500 text-amber-900 text-sm font-bold uppercase tracking-wide py-2.5 rounded-lg transition-all shadow-sm border border-amber-500 mb-2 disabled:opacity-60\">ПОЧАТИ ПРИГОТУВАННЯ</button> <button hx-get=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "\" hx-target=\"#chef-modal\" hx-swap=\"innerHTML\" class=\"w-full bg-amber-400 hover:bg-amber-500 text-amber-900 text-sm font-bold uppercase tracking-wide py-2.5 rounded-lg transition-all shadow-sm border border-amber-500 mb-2\">ПОЧАТИ ПРИГОТУВАННЯ</button> <button hx-get=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var39 string
 			templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/chef/kitchen/tasks/%d/issue-modal", task.OrderItemID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 305, Col: 80}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 307, Col: 80}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 			if templ_7745c5c3_Err != nil {
@@ -720,7 +722,7 @@ func taskCard(task chefservice.KitchenTaskView, ticketOverdue bool, currentChefI
 			var templ_7745c5c3_Var40 string
 			templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/chef/kitchen/tasks/%d/finish", task.CookingTaskID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 315, Col: 78}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 317, Col: 78}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 			if templ_7745c5c3_Err != nil {
@@ -732,6 +734,367 @@ func taskCard(task chefservice.KitchenTaskView, ticketOverdue bool, currentChefI
 			}
 		}
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "</div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+// fmtQty форматує float64 без зайвих нулів (0.050 → "0.05", 1.0 → "1").
+func fmtQty(v float64) string {
+	if v <= 0 {
+		return ""
+	}
+	s := strconv.FormatFloat(v, 'f', 3, 64)
+	s = strings.TrimRight(s, "0")
+	s = strings.TrimRight(s, ".")
+	return s
+}
+
+// StartCookingModal — модальне вікно з рецептом страви перед стартом приготування.
+// Завантажується в #chef-modal через HTMX GET.
+func StartCookingModal(data chefservice.StartCookingView) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var41 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var41 == nil {
+			templ_7745c5c3_Var41 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "<div class=\"fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40\" onclick=\"if(event.target===this)this.closest('#chef-modal').innerHTML=''\"><div class=\"bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col\"><!-- Заголовок --><div class=\"px-6 py-4 border-b border-slate-100 flex items-center justify-between flex-shrink-0\"><div><h3 class=\"font-semibold text-slate-800\">Почати приготування</h3><p class=\"text-sm text-slate-500 mt-0.5 mono\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var42 string
+		templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(data.DishName)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 351, Col: 66}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, " · ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var43 string
+		templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", data.Qty))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 351, Col: 101}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, " порц.</p></div><button onclick=\"document.getElementById('chef-modal').innerHTML=''\" class=\"text-slate-400 hover:text-slate-600\"><svg class=\"w-5 h-5\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M6 18L18 6M6 6l12 12\"></path></svg></button></div><!-- Форма --><form hx-post=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var44 string
+		templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/chef/kitchen/tasks/%d/start", data.OrderItemID))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 364, Col: 75}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "\" hx-on--after-request=\"if(event.detail.successful)document.getElementById('chef-modal').innerHTML=''\" class=\"flex-1 overflow-hidden flex flex-col min-h-0\" onsubmit=\"var errs=document.querySelectorAll('#kds-ing-list [id$=-err]');for(var i=0;i<errs.length;i++){if(errs[i].textContent.trim()){alert('Виправте помилки перед збереженням.');return false;}}\"><!-- Пошук --><div class=\"px-6 py-3 border-b border-slate-100 flex gap-2 flex-shrink-0\"><input type=\"text\" placeholder=\"Пошук інгредієнта...\" oninput=\"kdsIngFilter(this.value)\" class=\"flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm\"> <button type=\"button\" onclick=\"kdsIngFilter('');this.previousElementSibling.value=''\" class=\"border border-slate-200 text-slate-600 px-3 py-2 rounded-lg text-sm hover:bg-slate-50\">Очистити</button></div><!-- Список інгредієнтів --><div class=\"px-6 py-4 overflow-y-auto flex-1\"><!-- Шапка таблиці --><div class=\"grid grid-cols-[5px_1fr_110px_96px] gap-2 text-[11px] font-bold text-slate-500 uppercase tracking-wide pb-2 border-b border-slate-200 mb-1\"><div></div><div>Інгредієнт</div><div class=\"text-right\">Кількість</div><div class=\"pl-2\">Од. виміру</div></div><!-- Рядки інгредієнтів --><div id=\"kds-ing-list\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if len(data.Recipe) > 0 {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "<div class=\"text-[11px] font-semibold text-emerald-700 uppercase tracking-wide pt-2 pb-1\">Рецепт</div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		for _, ing := range data.Recipe {
+			templ_7745c5c3_Err = kdsIngRow(ing, true).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		if len(data.Others) > 0 {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "<div class=\"text-[11px] font-semibold text-slate-400 uppercase tracking-wide pt-3 pb-1\">Інші інгредієнти</div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		for _, ing := range data.Others {
+			templ_7745c5c3_Err = kdsIngRow(ing, false).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "</div></div><!-- Футер --><div class=\"px-6 py-4 border-t border-slate-100 bg-slate-50 flex gap-3 flex-shrink-0\"><button type=\"submit\" class=\"flex-1 bg-amber-500 hover:bg-amber-600 text-amber-900 font-bold uppercase tracking-wide py-2.5 rounded-lg border border-amber-600 transition-all\">Почати приготування</button> <button type=\"button\" onclick=\"document.getElementById('chef-modal').innerHTML=''\" class=\"flex-1 border border-slate-200 text-slate-600 font-medium py-2.5 rounded-lg hover:bg-white transition-colors\">Скасувати</button></div></form></div></div><script>\n\tfunction kdsIngFilter(q) {\n\t\tq = (q || '').toLowerCase();\n\t\tdocument.querySelectorAll('#kds-ing-list [data-ing]').forEach(function(row) {\n\t\t\trow.style.display = (!q || (row.dataset.ing || '').toLowerCase().indexOf(q) >= 0) ? '' : 'none';\n\t\t});\n\t}\n\tfunction kdsIngToggle(chk, inputId) {\n\t\tvar inp = document.getElementById(inputId);\n\t\tif (!inp) return;\n\t\tvar row = chk.closest('[data-ing]');\n\t\tif (chk.checked) {\n\t\t\tinp.disabled = false;\n\t\t\tif (inp.dataset.savedVal !== undefined && inp.dataset.savedVal !== '') {\n\t\t\t\tinp.value = inp.dataset.savedVal;\n\t\t\t}\n\t\t\tkdsIngQtyCheck(inp);\n\t\t\tif (row) { row.classList.add('bg-emerald-50'); row.classList.remove('bg-white'); }\n\t\t} else {\n\t\t\tinp.dataset.savedVal = inp.value;\n\t\t\tinp.disabled = true;\n\t\t\tinp.value = '';\n\t\t\tvar errEl = document.getElementById(inputId + '-err');\n\t\t\tif (errEl) errEl.textContent = '';\n\t\t\tif (row) { row.classList.remove('bg-emerald-50'); row.classList.add('bg-white'); }\n\t\t}\n\t}\n\tfunction kdsIngQtyCheck(inp) {\n\t\tvar stock = parseFloat(inp.dataset.stock || '0');\n\t\tvar unit = inp.dataset.unit || '';\n\t\tvar val = parseFloat(inp.value || '0');\n\t\tvar errEl = document.getElementById(inp.id + '-err');\n\t\tif (!errEl) return;\n\t\tif (stock > 0 && val > stock) {\n\t\t\tvar displayQty, displayUnit;\n\t\t\tif (unit === 'г') {\n\t\t\t\tdisplayQty = parseFloat((stock / 1000).toFixed(3)); displayUnit = 'кг';\n\t\t\t} else if (unit === 'мл') {\n\t\t\t\tdisplayQty = parseFloat((stock / 1000).toFixed(3)); displayUnit = 'л';\n\t\t\t} else {\n\t\t\t\tdisplayQty = parseFloat(stock.toFixed(3)); displayUnit = unit;\n\t\t\t}\n\t\t\terrEl.textContent = 'Завелика кількість. На складі доступно лише ' + displayQty + ' ' + displayUnit + '.';\n\t\t} else {\n\t\t\terrEl.textContent = '';\n\t\t}\n\t}\n\t</script>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+// kdsIngRow — один рядок інгредієнта у модальному вікні.
+func kdsIngRow(ing chefservice.IngredientView, checked bool) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var45 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var45 == nil {
+			templ_7745c5c3_Var45 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		inputID := fmt.Sprintf("kds-ing-%d", ing.ID)
+		fieldName := fmt.Sprintf("ing_%d", ing.ID)
+		var templ_7745c5c3_Var46 = []any{"grid grid-cols-[20px_1fr_110px_76px] items-start gap-2 py-1.5 border-b border-slate-100 last:border-0 rounded px-1",
+			templ.KV("bg-emerald-50", checked),
+			templ.KV("bg-white", !checked)}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var46...)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "<div data-ing=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var47 string
+		templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.JoinStringErrs(strings.ToLower(ing.Name))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 484, Col: 38}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var47))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "\" class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var48 string
+		templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var46).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "\"><input type=\"checkbox\" id=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var49 string
+		templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("kds-chk-%d", ing.ID))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 491, Col: 41}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var49))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "\" data-inp=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var50 string
+		templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(inputID)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 492, Col: 21}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if checked {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, " checked")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, " onchange=\"kdsIngToggle(this,this.dataset.inp)\" class=\"rounded text-blue-600 focus:ring-blue-500 mt-1\"><div class=\"flex items-center gap-2 min-w-0\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var51 = []any{"text-sm cursor-pointer select-none truncate shrink min-w-0",
+			templ.KV("font-semibold text-slate-800", checked),
+			templ.KV("text-slate-600", !checked)}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var51...)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "<label for=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var52 string
+		templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("kds-chk-%d", ing.ID))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 501, Col: 43}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var52))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "\" class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var53 string
+		templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var51).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var53))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var54 string
+		templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinStringErrs(ing.Name)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 506, Col: 14}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "</label> <span id=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var55 string
+		templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(inputID + "-err")
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 508, Col: 30}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var55))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "\" class=\"text-[10px] text-red-500 shrink-0 ml-auto whitespace-nowrap\"></span></div><input id=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var56 string
+		templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(inputID)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 511, Col: 15}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var56))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "\" name=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var57 string
+		templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinStringErrs(fieldName)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 512, Col: 19}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, "\" type=\"number\" step=\"0.001\" min=\"0\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var58 string
+		templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.JoinStringErrs(fmtQty(ing.RecipeQty))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 516, Col: 32}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var58))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "\" data-stock=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var59 string
+		templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.JoinStringErrs(fmtQty(ing.StockQty))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 517, Col: 36}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var59))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, "\" data-unit=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var60 string
+		templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.JoinStringErrs(ing.Unit)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 518, Col: 23}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var60))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if !checked {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 81, " disabled")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, " oninput=\"kdsIngQtyCheck(this)\" onkeydown=\"if(event.key==='-'||event.key==='e'||event.key==='E')event.preventDefault()\" class=\"border border-slate-200 rounded-lg px-2 py-1 text-sm mono text-right w-full disabled:bg-slate-100 disabled:text-slate-400\"><div class=\"text-xs text-slate-500 pt-1 pl-2\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var61 string
+		templ_7745c5c3_Var61, templ_7745c5c3_Err = templ.JoinStringErrs(ing.Unit)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 526, Col: 58}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var61))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 83, "</div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -757,51 +1120,51 @@ func IssueModal(taskID int, dishName string, maxQty int) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var41 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var41 == nil {
-			templ_7745c5c3_Var41 = templ.NopComponent
+		templ_7745c5c3_Var62 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var62 == nil {
+			templ_7745c5c3_Var62 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "<div class=\"fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40\" onclick=\"if(event.target===this)this.closest('#chef-modal').innerHTML=''\"><div class=\"bg-white rounded-2xl shadow-2xl w-full max-w-md\"><div class=\"px-6 py-4 border-b border-slate-100 flex items-center justify-between\"><div><h3 class=\"font-semibold text-slate-800\">Нестача інгредієнтів</h3><p class=\"text-xs text-slate-500 mt-0.5 mono\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 84, "<div class=\"fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40\" onclick=\"if(event.target===this)this.closest('#chef-modal').innerHTML=''\"><div class=\"bg-white rounded-2xl shadow-2xl w-full max-w-md\"><div class=\"px-6 py-4 border-b border-slate-100 flex items-center justify-between\"><div><h3 class=\"font-semibold text-slate-800\">Нестача інгредієнтів</h3><p class=\"text-xs text-slate-500 mt-0.5 mono\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var42 string
-		templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(dishName)
+		var templ_7745c5c3_Var63 string
+		templ_7745c5c3_Var63, templ_7745c5c3_Err = templ.JoinStringErrs(dishName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 337, Col: 61}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 541, Col: 61}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "</p></div><button onclick=\"document.getElementById('chef-modal').innerHTML=''\" class=\"text-slate-400 hover:text-slate-600\"><svg class=\"w-5 h-5\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M6 18L18 6M6 6l12 12\"></path></svg></button></div><div class=\"px-6 py-4 space-y-3\"><p class=\"text-sm text-slate-600\">Вкажіть, на скільки порцій не вистачає продуктів. Офіціант отримає сповіщення.</p><div><label class=\"block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5\">Бракує порцій</label> <input id=\"missing-qty-input\" name=\"missing_qty\" type=\"number\" min=\"1\" max=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var63))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var43 string
-		templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", maxQty))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 361, Col: 37}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 85, "</p></div><button onclick=\"document.getElementById('chef-modal').innerHTML=''\" class=\"text-slate-400 hover:text-slate-600\"><svg class=\"w-5 h-5\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M6 18L18 6M6 6l12 12\"></path></svg></button></div><div class=\"px-6 py-4 space-y-3\"><p class=\"text-sm text-slate-600\">Вкажіть, на скільки порцій не вистачає продуктів. Офіціант отримає сповіщення.</p><div><label class=\"block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5\">Бракує порцій</label> <input id=\"missing-qty-input\" name=\"missing_qty\" type=\"number\" min=\"1\" max=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "\" value=\"1\" class=\"w-full border border-slate-200 rounded-lg px-3 py-2 text-sm\"></div></div><div class=\"px-6 py-4 border-t border-slate-100 bg-slate-50 flex gap-3\"><button hx-post=\"")
+		var templ_7745c5c3_Var64 string
+		templ_7745c5c3_Var64, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", maxQty))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 565, Col: 37}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var64))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var44 string
-		templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/chef/kitchen/tasks/%d/report-issue", taskID))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 369, Col: 73}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "\" value=\"1\" class=\"w-full border border-slate-200 rounded-lg px-3 py-2 text-sm\"></div></div><div class=\"px-6 py-4 border-t border-slate-100 bg-slate-50 flex gap-3\"><button hx-post=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "\" hx-target=\"#kitchen-board\" hx-swap=\"outerHTML\" hx-include=\"#missing-qty-input\" onclick=\"document.getElementById('chef-modal').innerHTML=''\" class=\"flex-1 bg-red-600 hover:bg-red-700 text-white font-bold uppercase tracking-wide py-2.5 rounded-lg border border-red-700 transition-all\">Сповістити</button> <button onclick=\"document.getElementById('chef-modal').innerHTML=''\" class=\"flex-1 border border-slate-200 text-slate-600 font-medium py-2.5 rounded-lg hover:bg-white transition-colors\">Скасувати</button></div></div></div>")
+		var templ_7745c5c3_Var65 string
+		templ_7745c5c3_Var65, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/chef/kitchen/tasks/%d/report-issue", taskID))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/chef/kitchen.templ`, Line: 573, Col: 73}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var65))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "\" hx-target=\"#kitchen-board\" hx-swap=\"outerHTML\" hx-include=\"#missing-qty-input\" onclick=\"document.getElementById('chef-modal').innerHTML=''\" class=\"flex-1 bg-red-600 hover:bg-red-700 text-white font-bold uppercase tracking-wide py-2.5 rounded-lg border border-red-700 transition-all\">Сповістити</button> <button onclick=\"document.getElementById('chef-modal').innerHTML=''\" class=\"flex-1 border border-slate-200 text-slate-600 font-medium py-2.5 rounded-lg hover:bg-white transition-colors\">Скасувати</button></div></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
