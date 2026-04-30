@@ -58,6 +58,7 @@ type KitchenTaskView struct {
 	Qty           int
 	Status        TaskStatus
 	StartTime     *time.Time // nil якщо статус "new"
+	EndTime       *time.Time // не nil тільки для TaskStatusReady (архівний перегляд)
 	ChefID        int        // 0 якщо статус "new"
 	ChefName      string     // порожній якщо статус "new"
 }
@@ -75,12 +76,14 @@ type KitchenTicket struct {
 
 type kitchenRepoIface interface {
 	GetActiveKitchenTasks(restaurantID int) ([]chefrepo.KitchenTaskRow, error)
+	GetReadyTasksByDate(restaurantID int, date time.Time) ([]chefrepo.KitchenTaskRow, error)
 	GetAllChefs(restaurantID int) ([]chefrepo.ChefRow, error)
 	GetOrderItemInfo(orderItemID int) (dishName string, qty int, err error)
 	GetStartCookingData(orderItemID, restaurantID int) (dishName string, qty int, recipe []chefrepo.IngredientModalRow, others []chefrepo.IngredientModalRow, err error)
 	StartCooking(taskID, chefID int) error
 	FinishCooking(taskID int) error
 	RecordIngredientUsages(orderItemID, restaurantID int, usages map[int]float64) error
+	ReportIssue(orderItemID int) (dishName string, tableNumber int, qty int, err error)
 }
 
 type KitchenService struct {
@@ -89,6 +92,15 @@ type KitchenService struct {
 
 func NewKitchenService(repo kitchenRepoIface) *KitchenService {
 	return &KitchenService{repo: repo}
+}
+
+// GetReadyBoard повертає список тікетів з готовими стравами за вказану дату (архів).
+func (s *KitchenService) GetReadyBoard(restaurantID int, date time.Time) ([]KitchenTicket, error) {
+	rows, err := s.repo.GetReadyTasksByDate(restaurantID, date)
+	if err != nil {
+		return nil, fmt.Errorf("GetReadyBoard: %w", err)
+	}
+	return buildTickets(rows, 0), nil
 }
 
 // GetKitchenBoard повертає список тікетів для KDS-монітора.
@@ -163,6 +175,12 @@ func mapTaskView(row chefrepo.KitchenTaskRow) KitchenTaskView {
 		startTime = &t
 	}
 
+	var endTime *time.Time
+	if row.EndTime.Valid {
+		t := row.EndTime.Time
+		endTime = &t
+	}
+
 	cookingTaskID := row.OrderItemID
 	if row.CookingTaskID.Valid {
 		cookingTaskID = int(row.CookingTaskID.Int64)
@@ -177,6 +195,7 @@ func mapTaskView(row chefrepo.KitchenTaskRow) KitchenTaskView {
 		Qty:           row.EffectiveQty,
 		Status:        status,
 		StartTime:     startTime,
+		EndTime:       endTime,
 		ChefID:        int(row.ChefID.Int64),
 		ChefName:      row.ChefName.String,
 	}
@@ -268,6 +287,17 @@ func (s *KitchenService) FinishCooking(taskID int) error {
 	}
 	kitchenSvcLog.Printf("FinishCooking: taskID=%d", taskID)
 	return nil
+}
+
+// ReportIssue фіксує нестачу інгредієнтів для позиції та повертає JSON-пейлоад для SSE.
+func (s *KitchenService) ReportIssue(orderItemID int) (string, error) {
+	dishName, tableNumber, qty, err := s.repo.ReportIssue(orderItemID)
+	if err != nil {
+		return "", fmt.Errorf("ReportIssue: %w", err)
+	}
+	payload := fmt.Sprintf(`{"dishName":%q,"tableNumber":%d,"qty":%d}`, dishName, tableNumber, qty)
+	kitchenSvcLog.Printf("ReportIssue: orderItemID=%d table=%d dish=%s", orderItemID, tableNumber, dishName)
+	return payload, nil
 }
 
 // formatOrderNumber перетворює "RES1-ORD-0002" → "№2".

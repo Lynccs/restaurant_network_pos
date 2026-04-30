@@ -8,7 +8,7 @@ package layouts
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-func WaiterLayout(name string, activePage string, content templ.Component) templ.Component {
+func WaiterLayout(name string, activePage string, hasIssue bool, content templ.Component) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -101,7 +101,29 @@ func WaiterLayout(name string, activePage string, content templ.Component) templ
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\"><svg class=\"w-4 h-4 flex-shrink-0\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2\"></path></svg> Замовлення</a></nav><!-- Logout --><div class=\"px-2 py-3 border-t border-slate-700/50\"><form method=\"POST\" action=\"/logout\"><button type=\"submit\" class=\"sidebar-item w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-slate-400 hover:text-white text-xs\"><svg class=\"w-4 h-4 flex-shrink-0\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1\"></path></svg> Вийти</button></form></div></div><!-- Main content --><div class=\"flex-1 overflow-auto bg-slate-50\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\"><svg class=\"w-4 h-4 flex-shrink-0\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2\"></path></svg> Замовлення ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var8 = []any{"ml-auto w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0", templ.KV("hidden", !hasIssue)}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var8...)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<span id=\"orders-issue-badge\" class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var9 string
+		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var8).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/layouts/waiter.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\"></span></a></nav><!-- Logout --><div class=\"px-2 py-3 border-t border-slate-700/50\"><form method=\"POST\" action=\"/logout\"><button type=\"submit\" class=\"sidebar-item w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-slate-400 hover:text-white text-xs\"><svg class=\"w-4 h-4 flex-shrink-0\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1\"></path></svg> Вийти</button></form></div></div><!-- Main content --><div class=\"flex-1 overflow-auto bg-slate-50\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -109,7 +131,7 @@ func WaiterLayout(name string, activePage string, content templ.Component) templ
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div><div id=\"toast-429\" style=\"position:fixed;top:1.25rem;left:50%;transform:translateX(-50%) translateY(-120%);transition:transform .3s ease,opacity .3s ease;opacity:0;z-index:9999;background:#1e293b;color:#f8fafc;padding:.6rem 1.25rem;border-radius:.5rem;font-size:.85rem;white-space:nowrap;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.35);\">⚠ Забагато запитів — спробуйте пізніше</div><script>\n\t\t(function() {\n\t\t\tvar _toastTimer;\n\t\t\tfunction showToast429() {\n\t\t\t\tvar t = document.getElementById('toast-429');\n\t\t\t\tif (!t) return;\n\t\t\t\tclearTimeout(_toastTimer);\n\t\t\t\tt.style.opacity = '1';\n\t\t\t\tt.style.transform = 'translateX(-50%) translateY(0)';\n\t\t\t\t_toastTimer = setTimeout(function() {\n\t\t\t\t\tt.style.opacity = '0';\n\t\t\t\t\tt.style.transform = 'translateX(-50%) translateY(-120%)';\n\t\t\t\t}, 3000);\n\t\t\t}\n\t\t\tdocument.body.addEventListener('htmx:responseError', function(e) {\n\t\t\t\tif (e.detail.xhr.status === 429) {\n\t\t\t\t\te.preventDefault();\n\t\t\t\t\tshowToast429();\n\t\t\t\t}\n\t\t\t});\n\t\t})();\n\t</script></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</div><div id=\"toast-429\" style=\"position:fixed;top:1.25rem;left:50%;transform:translateX(-50%) translateY(-120%);transition:transform .3s ease,opacity .3s ease;opacity:0;z-index:9999;background:#ea580c;color:#fff;padding:.6rem 1.25rem;border-radius:.5rem;font-size:.85rem;white-space:nowrap;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.35);\">⚠ Забагато запитів — спробуйте пізніше</div><!-- Waiter issue toast --><div id=\"waiter-toast\" style=\"display:none;position:fixed;top:1.25rem;right:1.5rem;z-index:9999;white-space:nowrap;background:#1e293b;color:#f8fafc;padding:.75rem 1rem;border-radius:.75rem;box-shadow:0 4px 16px rgba(0,0,0,.4);border-left:4px solid #ef4444;font-size:.85rem;align-items:center;gap:.75rem;\"><span style=\"color:#f87171;font-weight:bold;flex-shrink:0;\">⚠</span> <span id=\"waiter-toast-msg\" style=\"flex:1;\"></span> <button onclick=\"closeWaiterToast()\" style=\"color:#94a3b8;background:none;border:none;cursor:pointer;font-size:1rem;line-height:1;flex-shrink:0;\">✕</button></div><script>\n\t\t(function() {\n\t\t\tvar _toastTimer;\n\t\t\tfunction showToast429() {\n\t\t\t\tvar t = document.getElementById('toast-429');\n\t\t\t\tif (!t) return;\n\t\t\t\tclearTimeout(_toastTimer);\n\t\t\t\tt.style.opacity = '1';\n\t\t\t\tt.style.transform = 'translateX(-50%) translateY(0)';\n\t\t\t\t_toastTimer = setTimeout(function() {\n\t\t\t\t\tt.style.opacity = '0';\n\t\t\t\t\tt.style.transform = 'translateX(-50%) translateY(-120%)';\n\t\t\t\t}, 3000);\n\t\t\t}\n\t\t\tdocument.body.addEventListener('htmx:responseError', function(e) {\n\t\t\t\tif (e.detail.xhr.status === 429) {\n\t\t\t\t\te.preventDefault();\n\t\t\t\t\tshowToast429();\n\t\t\t\t}\n\t\t\t});\n\n\t\t\t// Waiter SSE\n\t\t\tfunction refreshWaiterContent() {\n\t\t\t\tif (document.getElementById('orders-list-wrapper'))\n\t\t\t\t\thtmx.ajax('GET', '/waiter/orders/list', { target: '#orders-list-wrapper', swap: 'innerHTML' });\n\t\t\t\tif (document.getElementById('tables-grid'))\n\t\t\t\t\thtmx.ajax('GET', '/waiter/tables/grid', { target: '#tables-grid', swap: 'outerHTML' });\n\t\t\t}\n\n\t\t\tfunction showWaiterToast(msg) {\n\t\t\t\tvar t = document.getElementById('waiter-toast');\n\t\t\t\tvar m = document.getElementById('waiter-toast-msg');\n\t\t\t\tif (!t || !m) return;\n\t\t\t\tm.textContent = msg;\n\t\t\t\tt.style.display = 'flex';\n\t\t\t\tclearTimeout(window._waiterToastTimer);\n\t\t\t\twindow._waiterToastTimer = setTimeout(closeWaiterToast, 6000);\n\t\t\t}\n\n\t\t\twindow.closeWaiterToast = function() {\n\t\t\t\tvar t = document.getElementById('waiter-toast');\n\t\t\t\tif (t) t.style.display = 'none';\n\t\t\t};\n\n\t\t\tfunction connectWaiterSSE() {\n\t\t\t\tvar es = new EventSource('/waiter/events');\n\t\t\t\tes.addEventListener('refresh', function() { refreshWaiterContent(); });\n\t\t\t\tes.addEventListener('issue', function(e) {\n\t\t\t\t\ttry {\n\t\t\t\t\t\tvar d = JSON.parse(e.data);\n\t\t\t\t\t\tshowWaiterToast('Проблема на кухні: ' + d.dishName + ' (' + d.qty + ' порц.) — Стіл №' + d.tableNumber);\n\t\t\t\t\t\tvar badge = document.getElementById('orders-issue-badge');\n\t\t\t\t\t\tif (badge) badge.classList.remove('hidden');\n\t\t\t\t\t} catch(_) {}\n\t\t\t\t\trefreshWaiterContent();\n\t\t\t\t});\n\t\t\t\tes.onerror = function() { es.close(); setTimeout(connectWaiterSSE, 2000); };\n\t\t\t}\n\t\t\tconnectWaiterSSE();\n\t\t})();\n\t</script></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

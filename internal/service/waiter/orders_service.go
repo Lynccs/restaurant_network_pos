@@ -16,6 +16,7 @@ type OrderItemView struct {
 	DishPrice float64
 	Qty       int
 	Subtotal  float64
+	HasIssue  bool
 }
 
 type OrderView struct {
@@ -75,16 +76,19 @@ func (s *OrdersService) GetActiveOrders(restaurantID int, search, statusName str
 				TotalAmount: row.TotalAmount,
 				CreatedAt:   row.CreatedAt.Format("2006-01-02 15:04"),
 				StatusName:  row.StatusName,
-				HasIssue:    false,
+				HasIssue:    row.HasIssue,
 			})
 			idx = len(orders) - 1
 			seen[row.OrderID] = idx
+		} else if row.HasIssue {
+			orders[idx].HasIssue = true
 		}
 		orders[idx].Items = append(orders[idx].Items, OrderItemView{
 			DishName:  row.DishName,
 			DishPrice: row.DishPrice,
 			Qty:       row.ItemQty,
 			Subtotal:  row.DishPrice * float64(row.ItemQty),
+			HasIssue:  row.ItemHasIssue,
 		})
 	}
 

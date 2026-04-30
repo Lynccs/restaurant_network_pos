@@ -47,6 +47,10 @@ func (r *KitchenRepo) GetActiveKitchenTasks(restaurantID int) ([]KitchenTaskRow,
 	start := time.Now()
 	kitchenRepoLog.Printf("GetActiveKitchenTasks: restaurantID=%d", restaurantID)
 
+	// Drive from tables first (small set filtered by restaurant_id), then seek into
+	// orders using idx_orders_kitchen_board(table_id, order_status_id).
+	// OPTION(FORCE ORDER) locks this join strategy so the optimizer cannot revert
+	// to a full orders scan regardless of index availability.
 	const query = `
 		WITH ActiveOrders AS (
 			SELECT
@@ -55,9 +59,9 @@ func (r *KitchenRepo) GetActiveKitchenTasks(restaurantID int) ([]KitchenTaskRow,
 				o.order_created_at,
 				t.table_number,
 				w.waiter_full_name
-			FROM orders o
-			JOIN tables        t  ON t.table_id        = o.table_id
-			JOIN waiters       w  ON w.waiter_id        = o.waiter_id
+			FROM tables        t
+			JOIN orders        o  ON o.table_id         = t.table_id
+			JOIN waiters       w  ON w.waiter_id         = o.waiter_id
 			JOIN order_statuses os ON os.order_status_id = o.order_status_id
 			WHERE t.restaurant_id = @restaurantID
 			  AND os.order_status_name NOT IN (N'Закрито', N'Скасовано', N'Готове')
@@ -79,13 +83,15 @@ func (r *KitchenRepo) GetActiveKitchenTasks(restaurantID int) ([]KitchenTaskRow,
 			ct.chef_id,
 			c.chef_full_name
 		FROM ActiveOrders ao
-		JOIN order_items    oi ON oi.order_id          = ao.order_id
+		JOIN order_items    oi ON oi.order_id           = ao.order_id
 		                      AND oi.order_item_quantity > oi.cancelled_quantity
-		LEFT JOIN cooking_tasks ct ON ct.order_item_id = oi.order_item_id
-		JOIN dishes          d ON d.dish_id            = oi.dish_id
-		JOIN dish_categories dc ON dc.dish_category_id = d.dish_category_id
-		LEFT JOIN chefs      c  ON c.chef_id           = ct.chef_id
-		ORDER BY ao.order_created_at ASC, oi.order_item_id ASC`
+		                      AND oi.order_item_has_issue = 0
+		LEFT JOIN cooking_tasks ct ON ct.order_item_id  = oi.order_item_id
+		JOIN dishes          d  ON d.dish_id            = oi.dish_id
+		JOIN dish_categories dc ON dc.dish_category_id  = d.dish_category_id
+		LEFT JOIN chefs      c  ON c.chef_id            = ct.chef_id
+		ORDER BY ao.order_created_at ASC, oi.order_item_id ASC
+		OPTION (FORCE ORDER)`
 
 	rows, err := r.db.Query(query, sql.Named("restaurantID", restaurantID))
 	if err != nil {
@@ -122,6 +128,84 @@ func (r *KitchenRepo) GetActiveKitchenTasks(restaurantID int) ([]KitchenTaskRow,
 	}
 
 	kitchenRepoLog.Printf("GetActiveKitchenTasks: done=%v rows=%d restaurantID=%d", time.Since(start), len(result), restaurantID)
+	return result, nil
+}
+
+// GetReadyTasksByDate повертає всі завершені позиції (cooking_task_end_time IS NOT NULL)
+// за вказану дату (UTC) для ресторану. Використовується для архівного перегляду "Готових".
+func (r *KitchenRepo) GetReadyTasksByDate(restaurantID int, date time.Time) ([]KitchenTaskRow, error) {
+	start := time.Now()
+	kitchenRepoLog.Printf("GetReadyTasksByDate: restaurantID=%d date=%s", restaurantID, date.Format("2006-01-02"))
+
+	// Порядок колонок відповідає порядку Scan нижче (такий самий як у GetActiveKitchenTasks).
+	const query = `
+		SELECT
+			o.order_id,
+			o.order_number,
+			t.table_number,
+			w.waiter_full_name,
+			o.order_created_at,
+			ct.cooking_task_id,
+			oi.order_item_id,
+			d.dish_name,
+			dc.dish_category_name,
+			d.dish_cooking_time,
+			oi.order_item_quantity - oi.cancelled_quantity AS effective_qty,
+			ct.cooking_task_start_time,
+			ct.cooking_task_end_time,
+			ct.chef_id,
+			c.chef_full_name
+		FROM cooking_tasks    ct
+		JOIN order_items    oi ON oi.order_item_id      = ct.order_item_id
+		JOIN orders          o ON o.order_id             = oi.order_id
+		JOIN tables          t ON t.table_id              = o.table_id
+		JOIN waiters         w ON w.waiter_id              = o.waiter_id
+		JOIN dishes          d ON d.dish_id               = oi.dish_id
+		JOIN dish_categories dc ON dc.dish_category_id   = d.dish_category_id
+		JOIN chefs           c ON c.chef_id               = ct.chef_id
+		WHERE t.restaurant_id            = @restaurantID
+		  AND ct.cooking_task_end_time  IS NOT NULL
+		  AND CONVERT(DATE, ct.cooking_task_end_time) = @date
+		ORDER BY ct.cooking_task_end_time ASC, ct.cooking_task_id ASC`
+
+	rows, err := r.db.Query(query,
+		sql.Named("restaurantID", restaurantID),
+		sql.Named("date", date.Format("2006-01-02")),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("GetReadyTasksByDate query: %w", err)
+	}
+	defer rows.Close()
+
+	var result []KitchenTaskRow
+	for rows.Next() {
+		var row KitchenTaskRow
+		if err := rows.Scan(
+			&row.OrderID,
+			&row.OrderNumber,
+			&row.TableNumber,
+			&row.WaiterName,
+			&row.OrderCreatedAt,
+			&row.CookingTaskID,
+			&row.OrderItemID,
+			&row.DishName,
+			&row.DishCategory,
+			&row.CookingTime,
+			&row.EffectiveQty,
+			&row.StartTime,
+			&row.EndTime,
+			&row.ChefID,
+			&row.ChefName,
+		); err != nil {
+			return nil, fmt.Errorf("GetReadyTasksByDate scan: %w", err)
+		}
+		result = append(result, row)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("GetReadyTasksByDate rows: %w", err)
+	}
+
+	kitchenRepoLog.Printf("GetReadyTasksByDate: done=%v rows=%d", time.Since(start), len(result))
 	return result, nil
 }
 
@@ -304,6 +388,37 @@ func (r *KitchenRepo) RecordIngredientUsages(orderItemID, restaurantID int, usag
 		}
 	}
 	return nil
+}
+
+// ReportIssue ставить флаг order_item_has_issue = 1 для позиції (не змінює cancelled_quantity).
+// Повертає назву страви, номер столу та повну кількість порцій для SSE-пейлоаду.
+func (r *KitchenRepo) ReportIssue(orderItemID int) (dishName string, tableNumber int, qty int, err error) {
+	kitchenRepoLog.Printf("ReportIssue: orderItemID=%d", orderItemID)
+
+	_, err = r.db.Exec(`
+		UPDATE order_items
+		SET order_item_has_issue = 1
+		WHERE order_item_id = @orderItemID`,
+		sql.Named("orderItemID", orderItemID),
+	)
+	if err != nil {
+		err = fmt.Errorf("ReportIssue update: %w", err)
+		return
+	}
+
+	err = r.db.QueryRow(`
+		SELECT d.dish_name, t.table_number, oi.order_item_quantity
+		FROM order_items oi
+		JOIN dishes d ON d.dish_id   = oi.dish_id
+		JOIN orders o ON o.order_id  = oi.order_id
+		JOIN tables t ON t.table_id  = o.table_id
+		WHERE oi.order_item_id = @orderItemID`,
+		sql.Named("orderItemID", orderItemID),
+	).Scan(&dishName, &tableNumber, &qty)
+	if err != nil {
+		err = fmt.Errorf("ReportIssue select: %w", err)
+	}
+	return
 }
 
 // GetOrderItemInfo повертає назву страви та ефективну кількість для одного order_item.

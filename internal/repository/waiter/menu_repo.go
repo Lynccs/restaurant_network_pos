@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"strings"
 )
 
 var menuRepoLog = log.New(log.Writer(), "[MenuRepo] ", log.LstdFlags|log.Lshortfile)
@@ -182,6 +183,7 @@ type ActiveOrderItemRow struct {
 	Qty          int
 	CancelledQty int
 	Status       string // "new" | "cooking" | "done"
+	HasIssue     bool   // order_item_has_issue = 1
 }
 
 // DBItemChange describes a change to an existing order_item in a SyncOrderDraft call.
@@ -319,7 +321,8 @@ func (r *MenuRepo) GetActiveOrderItems(tableID int) ([]ActiveOrderItemRow, error
 				WHEN ct.cooking_task_id IS NULL THEN 'new'
 				WHEN ct.cooking_task_end_time IS NULL THEN 'cooking'
 				ELSE 'done'
-			END AS item_status
+			END AS item_status,
+			oi.order_item_has_issue
 		FROM orders o
 		JOIN order_items oi ON oi.order_id = o.order_id
 		JOIN dishes d ON d.dish_id = oi.dish_id
@@ -345,7 +348,7 @@ func (r *MenuRepo) GetActiveOrderItems(tableID int) ([]ActiveOrderItemRow, error
 		var row ActiveOrderItemRow
 		if err := rows.Scan(
 			&row.OrderItemID, &row.OrderID, &row.DishID, &row.DishName,
-			&row.Price, &row.Qty, &row.CancelledQty, &row.Status,
+			&row.Price, &row.Qty, &row.CancelledQty, &row.Status, &row.HasIssue,
 		); err != nil {
 			menuRepoLog.Printf("GetActiveOrderItems: scan error: %v", err)
 			return nil, err
@@ -362,8 +365,8 @@ func (r *MenuRepo) GetActiveOrderItems(tableID int) ([]ActiveOrderItemRow, error
 }
 
 // SyncOrderDraft applies the waiter's full draft to an existing order in a single transaction.
-// For each changed DB item it re-checks the real status via LEFT JOIN cooking_tasks (security),
-// then applies the appropriate SQL. New in-memory items are inserted. Total is recalculated.
+// All status checks are batched into one query; mutations are grouped by type and executed as
+// batch statements, reducing round trips from 2N+M+3 to at most 8 regardless of order size.
 func (r *MenuRepo) SyncOrderDraft(params SyncDraftParams) error {
 	menuRepoLog.Printf("SyncOrderDraft: orderID=%d dbChanges=%d newItems=%d",
 		params.ExistingOrderID, len(params.DBItemChanges), len(params.NewItems))
@@ -374,121 +377,133 @@ func (r *MenuRepo) SyncOrderDraft(params SyncDraftParams) error {
 	}
 	defer tx.Rollback() //nolint:errcheck
 
-	// Apply each DB item change with a server-side status re-check.
-	for _, change := range params.DBItemChanges {
-		var realStatus string
-		err := tx.QueryRow(`
-			SELECT CASE
-				WHEN ct.cooking_task_id IS NULL THEN 'new'
-				WHEN ct.cooking_task_end_time IS NULL THEN 'cooking'
-				ELSE 'done'
-			END
-			FROM order_items oi
-			LEFT JOIN cooking_tasks ct ON ct.order_item_id = oi.order_item_id
-			WHERE oi.order_item_id = @id`,
-			sql.Named("id", change.OrderItemID),
-		).Scan(&realStatus)
+	if len(params.DBItemChanges) > 0 {
+		// ── 1. Batch status check: one query for all changed items ──────────
+		statusMap, err := syncFetchStatuses(tx, params.ExistingOrderID)
 		if err != nil {
-			return fmt.Errorf("status check itemID=%d: %w", change.OrderItemID, err)
+			return fmt.Errorf("fetch item statuses: %w", err)
 		}
 
-		switch realStatus {
-		case "new":
-			if change.DraftQty == 0 {
-				_, err = tx.Exec(`DELETE FROM order_items WHERE order_item_id = @id`,
-					sql.Named("id", change.OrderItemID))
-			} else {
-				_, err = tx.Exec(`UPDATE order_items SET order_item_quantity = @qty WHERE order_item_id = @id`,
-					sql.Named("qty", change.DraftQty),
-					sql.Named("id", change.OrderItemID))
-			}
-		case "cooking":
-			// Race condition fix: if status changed from 'new' to 'cooking' between
-			// LoadActiveOrder and Submit, fold any qty reduction into cancel delta.
-			totalCancel := change.CancelDelta
-			if change.OrigQty > change.DraftQty {
-				totalCancel += change.OrigQty - change.DraftQty
-			}
-			if totalCancel > 0 {
-				_, err = tx.Exec(`
-					UPDATE order_items SET cancelled_quantity = cancelled_quantity + @delta
-					WHERE order_item_id = @id`,
-					sql.Named("delta", totalCancel),
-					sql.Named("id", change.OrderItemID))
-			}
-			// "done": ignore changes
-		}
-		if err != nil {
-			return fmt.Errorf("apply change itemID=%d: %w", change.OrderItemID, err)
-		}
-	}
-
-	// Insert new in-memory items.
-	for _, item := range params.NewItems {
-		_, err = tx.Exec(`
-			INSERT INTO order_items (order_item_quantity, order_id, dish_id)
-			VALUES (@qty, @orderID, @dishID)`,
-			sql.Named("qty", item.Qty),
-			sql.Named("orderID", params.ExistingOrderID),
-			sql.Named("dishID", item.DishID),
+		// ── 2. Classify changes by operation type ───────────────────────────
+		type qtyUpdate struct{ id, qty int }
+		type cancelUpdate struct{ id, delta int }
+		var (
+			deleteIDs     []int
+			qtyUpdates    []qtyUpdate
+			cancelUpdates []cancelUpdate
 		)
-		if err != nil {
-			return fmt.Errorf("insert new item dishID=%d: %w", item.DishID, err)
+
+		for _, change := range params.DBItemChanges {
+			switch statusMap[change.OrderItemID] {
+			case "new":
+				if change.DraftQty == 0 {
+					deleteIDs = append(deleteIDs, change.OrderItemID)
+				} else {
+					qtyUpdates = append(qtyUpdates, qtyUpdate{change.OrderItemID, change.DraftQty})
+				}
+			case "cooking":
+				// Race condition fix: if item moved from 'new' to 'cooking' between
+				// LoadActiveOrder and Submit, fold any qty reduction into cancel delta.
+				totalCancel := change.CancelDelta
+				if change.OrigQty > change.DraftQty {
+					totalCancel += change.OrigQty - change.DraftQty
+				}
+				if totalCancel > 0 {
+					cancelUpdates = append(cancelUpdates, cancelUpdate{change.OrderItemID, totalCancel})
+				}
+				// "done": ignore changes
+			}
+		}
+
+		// ── 3. Batch DELETE ─────────────────────────────────────────────────
+		if len(deleteIDs) > 0 {
+			if err = syncBatchDelete(tx, deleteIDs); err != nil {
+				return fmt.Errorf("batch delete: %w", err)
+			}
+		}
+
+		// ── 4. Batch qty UPDATE ─────────────────────────────────────────────
+		if len(qtyUpdates) > 0 {
+			ids := make([]int, len(qtyUpdates))
+			qtys := make([]int, len(qtyUpdates))
+			for i, u := range qtyUpdates {
+				ids[i] = u.id
+				qtys[i] = u.qty
+			}
+			if err = syncBatchUpdateQty(tx, ids, qtys); err != nil {
+				return fmt.Errorf("batch update qty: %w", err)
+			}
+		}
+
+		// ── 5. Batch cancel UPDATE ──────────────────────────────────────────
+		if len(cancelUpdates) > 0 {
+			ids := make([]int, len(cancelUpdates))
+			deltas := make([]int, len(cancelUpdates))
+			for i, u := range cancelUpdates {
+				ids[i] = u.id
+				deltas[i] = u.delta
+			}
+			if err = syncBatchUpdateCancel(tx, ids, deltas); err != nil {
+				return fmt.Errorf("batch update cancel: %w", err)
+			}
 		}
 	}
 
-	// Recalculate order total from remaining items.
-	_, err = tx.Exec(`
+	// ── 6. Batch INSERT new items ───────────────────────────────────────────
+	if len(params.NewItems) > 0 {
+		if err = syncBatchInsert(tx, params.ExistingOrderID, params.NewItems); err != nil {
+			return fmt.Errorf("batch insert new items: %w", err)
+		}
+	}
+
+	// ── 7. Reset has_issue flag ─────────────────────────────────────────────
+	if _, err = tx.Exec(`UPDATE order_items SET order_item_has_issue = 0 WHERE order_id = @orderID`,
+		sql.Named("orderID", params.ExistingOrderID)); err != nil {
+		return fmt.Errorf("reset has_issue: %w", err)
+	}
+
+	// ── 8. Recalculate total ────────────────────────────────────────────────
+	if _, err = tx.Exec(`
 		UPDATE orders SET order_total_amount = (
 			SELECT COALESCE(SUM((oi.order_item_quantity - oi.cancelled_quantity) * d.dish_price), 0)
 			FROM order_items oi
 			JOIN dishes d ON d.dish_id = oi.dish_id
 			WHERE oi.order_id = @orderID)
 		WHERE order_id = @orderID`,
-		sql.Named("orderID", params.ExistingOrderID),
-	)
-	if err != nil {
+		sql.Named("orderID", params.ExistingOrderID)); err != nil {
 		return fmt.Errorf("recalc total: %w", err)
 	}
 
-	// Recalculate order status based on remaining item statuses.
-	// Priority: all cancelled → Скасовано; any new → Нове; any cooking → Готується; all done → Готове.
-	// Does not touch orders that are already Закрито.
-	_, err = tx.Exec(`
-		UPDATE orders SET order_status_id = (
+	// ── 9. Recalculate status (single pass via CTE instead of 3 × EXISTS) ──
+	// Scans order_items once; priority: all cancelled → Скасовано,
+	// any new → Нове, any cooking → Готується, else → Готове.
+	// Does not touch orders already in Закрито.
+	if _, err = tx.Exec(`
+		WITH s AS (
+			SELECT
+				COUNT(CASE WHEN oi.order_item_quantity > oi.cancelled_quantity                                                THEN 1 END) AS active_cnt,
+				COUNT(CASE WHEN oi.order_item_quantity > oi.cancelled_quantity AND ct.cooking_task_id IS NULL                THEN 1 END) AS new_cnt,
+				COUNT(CASE WHEN oi.order_item_quantity > oi.cancelled_quantity AND ct.cooking_task_id IS NOT NULL
+				                                                               AND ct.cooking_task_end_time IS NULL           THEN 1 END) AS cooking_cnt
+			FROM order_items oi
+			LEFT JOIN cooking_tasks ct ON ct.order_item_id = oi.order_item_id
+			WHERE oi.order_id = @orderID
+		)
+		UPDATE orders
+		SET order_status_id = (
 			SELECT CASE
-				WHEN NOT EXISTS (
-					SELECT 1 FROM order_items oi2
-					WHERE oi2.order_id = @orderID
-					  AND oi2.order_item_quantity > oi2.cancelled_quantity
-				)
-				THEN (SELECT order_status_id FROM order_statuses WHERE order_status_name = N'Скасовано')
-				WHEN EXISTS (
-					SELECT 1 FROM order_items oi2
-					LEFT JOIN cooking_tasks ct ON ct.order_item_id = oi2.order_item_id
-					WHERE oi2.order_id = @orderID
-					  AND oi2.order_item_quantity > oi2.cancelled_quantity
-					  AND ct.cooking_task_id IS NULL
-				)
-				THEN (SELECT order_status_id FROM order_statuses WHERE order_status_name = N'Нове')
-				WHEN EXISTS (
-					SELECT 1 FROM order_items oi2
-					JOIN cooking_tasks ct ON ct.order_item_id = oi2.order_item_id
-					WHERE oi2.order_id = @orderID
-					  AND oi2.order_item_quantity > oi2.cancelled_quantity
-					  AND ct.cooking_task_end_time IS NULL
-				)
-				THEN (SELECT order_status_id FROM order_statuses WHERE order_status_name = N'Готується')
-				ELSE (SELECT order_status_id FROM order_statuses WHERE order_status_name = N'Готове')
+				WHEN s.active_cnt  = 0 THEN (SELECT order_status_id FROM order_statuses WHERE order_status_name = N'Скасовано')
+				WHEN s.new_cnt     > 0 THEN (SELECT order_status_id FROM order_statuses WHERE order_status_name = N'Нове')
+				WHEN s.cooking_cnt > 0 THEN (SELECT order_status_id FROM order_statuses WHERE order_status_name = N'Готується')
+				ELSE                        (SELECT order_status_id FROM order_statuses WHERE order_status_name = N'Готове')
 			END
+			FROM s
 		)
 		WHERE order_id = @orderID
 		  AND order_status_id NOT IN (
 			  SELECT order_status_id FROM order_statuses WHERE order_status_name = N'Закрито'
 		  )`,
-		sql.Named("orderID", params.ExistingOrderID),
-	)
-	if err != nil {
+		sql.Named("orderID", params.ExistingOrderID)); err != nil {
 		return fmt.Errorf("recalc status: %w", err)
 	}
 
@@ -496,6 +511,115 @@ func (r *MenuRepo) SyncOrderDraft(params SyncDraftParams) error {
 		return fmt.Errorf("commit: %w", err)
 	}
 
-	menuRepoLog.Printf("SyncOrderDraft: completed for orderID=%d", params.ExistingOrderID)
+	menuRepoLog.Printf("SyncOrderDraft: done orderID=%d", params.ExistingOrderID)
 	return nil
+}
+
+// syncFetchStatuses returns the cooking status for every order_item of the given order
+// in a single query instead of one per item.
+func syncFetchStatuses(tx *sql.Tx, orderID int) (map[int]string, error) {
+	rows, err := tx.Query(`
+		SELECT oi.order_item_id,
+			CASE
+				WHEN ct.cooking_task_id IS NULL       THEN 'new'
+				WHEN ct.cooking_task_end_time IS NULL THEN 'cooking'
+				ELSE 'done'
+			END
+		FROM order_items oi
+		LEFT JOIN cooking_tasks ct ON ct.order_item_id = oi.order_item_id
+		WHERE oi.order_id = @orderID`,
+		sql.Named("orderID", orderID),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	m := make(map[int]string)
+	for rows.Next() {
+		var id int
+		var status string
+		if err := rows.Scan(&id, &status); err != nil {
+			return nil, err
+		}
+		m[id] = status
+	}
+	return m, rows.Err()
+}
+
+// syncBatchDelete removes all listed order_item rows in one DELETE … IN (…).
+func syncBatchDelete(tx *sql.Tx, ids []int) error {
+	args := make([]any, len(ids))
+	params := make([]string, len(ids))
+	for i, id := range ids {
+		name := fmt.Sprintf("d%d", i)
+		args[i] = sql.Named(name, id)
+		params[i] = "@" + name
+	}
+	_, err := tx.Exec(
+		"DELETE FROM order_items WHERE order_item_id IN ("+strings.Join(params, ",")+")",
+		args...,
+	)
+	return err
+}
+
+// syncBatchUpdateQty sets order_item_quantity for multiple rows in one CASE UPDATE.
+func syncBatchUpdateQty(tx *sql.Tx, ids, qtys []int) error {
+	when := make([]string, len(ids))
+	in := make([]string, len(ids))
+	args := make([]any, 0, len(ids)*2)
+	for i := range ids {
+		iName := fmt.Sprintf("ui%d", i)
+		qName := fmt.Sprintf("uq%d", i)
+		when[i] = fmt.Sprintf("WHEN @%s THEN @%s", iName, qName)
+		in[i] = "@" + iName
+		args = append(args, sql.Named(iName, ids[i]), sql.Named(qName, qtys[i]))
+	}
+	_, err := tx.Exec(
+		"UPDATE order_items SET order_item_quantity = CASE order_item_id "+
+			strings.Join(when, " ")+
+			" END WHERE order_item_id IN ("+strings.Join(in, ",")+")",
+		args...,
+	)
+	return err
+}
+
+// syncBatchUpdateCancel adds each delta to cancelled_quantity in one CASE UPDATE.
+func syncBatchUpdateCancel(tx *sql.Tx, ids, deltas []int) error {
+	when := make([]string, len(ids))
+	in := make([]string, len(ids))
+	args := make([]any, 0, len(ids)*2)
+	for i := range ids {
+		iName := fmt.Sprintf("ci%d", i)
+		dName := fmt.Sprintf("cd%d", i)
+		when[i] = fmt.Sprintf("WHEN @%s THEN @%s", iName, dName)
+		in[i] = "@" + iName
+		args = append(args, sql.Named(iName, ids[i]), sql.Named(dName, deltas[i]))
+	}
+	_, err := tx.Exec(
+		"UPDATE order_items SET cancelled_quantity = cancelled_quantity + CASE order_item_id "+
+			strings.Join(when, " ")+
+			" ELSE 0 END WHERE order_item_id IN ("+strings.Join(in, ",")+")",
+		args...,
+	)
+	return err
+}
+
+// syncBatchInsert inserts multiple new order_items in one multi-row INSERT.
+func syncBatchInsert(tx *sql.Tx, orderID int, items []CartEntryForOrder) error {
+	vals := make([]string, len(items))
+	args := make([]any, 0, len(items)*2+1)
+	args = append(args, sql.Named("orderID", orderID))
+	for i, item := range items {
+		qName := fmt.Sprintf("nq%d", i)
+		dName := fmt.Sprintf("nd%d", i)
+		vals[i] = fmt.Sprintf("(@%s, @orderID, @%s)", qName, dName)
+		args = append(args, sql.Named(qName, item.Qty), sql.Named(dName, item.DishID))
+	}
+	_, err := tx.Exec(
+		"INSERT INTO order_items (order_item_quantity, order_id, dish_id) VALUES "+
+			strings.Join(vals, ","),
+		args...,
+	)
+	return err
 }

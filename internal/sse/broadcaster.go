@@ -3,16 +3,17 @@ package sse
 import "sync"
 
 // Broadcaster розсилає сигнали оновлення підписникам, згрупованим за restaurantID.
+// Порожній рядок — сигнал "refresh"; непорожній — JSON-пейлоад події "issue".
 type Broadcaster struct {
 	mu      sync.Mutex
-	clients map[int][]chan struct{}
+	clients map[int][]chan string
 	done    chan struct{}
 	once    sync.Once
 }
 
 func NewBroadcaster() *Broadcaster {
 	return &Broadcaster{
-		clients: make(map[int][]chan struct{}),
+		clients: make(map[int][]chan string),
 		done:    make(chan struct{}),
 	}
 }
@@ -29,9 +30,9 @@ func (b *Broadcaster) Shutdown() {
 	})
 }
 
-// Subscribe реєструє нового підписника і повертає канал, з якого він читає сигнали.
-func (b *Broadcaster) Subscribe(restaurantID int) chan struct{} {
-	ch := make(chan struct{}, 1)
+// Subscribe реєструє нового підписника і повертає канал, з якого він читає повідомлення.
+func (b *Broadcaster) Subscribe(restaurantID int) chan string {
+	ch := make(chan string, 1)
 	b.mu.Lock()
 	b.clients[restaurantID] = append(b.clients[restaurantID], ch)
 	b.mu.Unlock()
@@ -39,7 +40,7 @@ func (b *Broadcaster) Subscribe(restaurantID int) chan struct{} {
 }
 
 // Unsubscribe видаляє підписника після закриття SSE-з'єднання.
-func (b *Broadcaster) Unsubscribe(restaurantID int, ch chan struct{}) {
+func (b *Broadcaster) Unsubscribe(restaurantID int, ch chan string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	list := b.clients[restaurantID]
@@ -51,15 +52,24 @@ func (b *Broadcaster) Unsubscribe(restaurantID int, ch chan struct{}) {
 	}
 }
 
-// Notify надсилає сигнал усім підписникам ресторану. Не блокується.
+// Notify надсилає порожній сигнал refresh усім підписникам ресторану. Не блокується.
 func (b *Broadcaster) Notify(restaurantID int) {
+	b.notify(restaurantID, "")
+}
+
+// NotifyIssue надсилає JSON-пейлоад проблеми усім підписникам ресторану. Не блокується.
+func (b *Broadcaster) NotifyIssue(restaurantID int, payload string) {
+	b.notify(restaurantID, payload)
+}
+
+func (b *Broadcaster) notify(restaurantID int, msg string) {
 	b.mu.Lock()
-	list := make([]chan struct{}, len(b.clients[restaurantID]))
+	list := make([]chan string, len(b.clients[restaurantID]))
 	copy(list, b.clients[restaurantID])
 	b.mu.Unlock()
 	for _, ch := range list {
 		select {
-		case ch <- struct{}{}:
+		case ch <- msg:
 		default:
 		}
 	}

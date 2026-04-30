@@ -14,6 +14,7 @@ type TableView struct {
 	Capacity int
 	Status   string // "free" | "occupied"
 	SeatTime string // "14:20" or ""
+	HasIssue bool
 }
 
 type WaiterRepo interface {
@@ -45,6 +46,7 @@ func (s *WaiterService) GetTables(restaurantID int) ([]TableView, error) {
 			Number:   r.Number,
 			Capacity: r.Capacity,
 			Status:   "free",
+			HasIssue: r.HasIssue,
 		}
 		if r.HasActiveOrder {
 			v.Status = "occupied"

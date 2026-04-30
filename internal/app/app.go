@@ -45,7 +45,7 @@ func SetupRouter(db *sql.DB, store sessions.Store) (*chi.Mux, func()) {
 	menuRepo := waiterrepo.NewMenuRepo(db)
 	cartMgr := waiterservice.NewCartManager(menuRepo)
 
-	waiterH := waiterhandler.NewWaiterHandler(waiterSvc, store, cartMgr)
+	waiterH := waiterhandler.NewWaiterHandler(waiterSvc, store, cartMgr, broadcaster)
 	menuH := waiterhandler.NewMenuHandler(cartMgr, menuRepo, store, broadcaster)
 
 	ordersRepo := waiterrepo.NewOrdersRepo(db)

@@ -13,6 +13,9 @@ func SetupWaiterRoutes(r chi.Router, h *waiterhandler.WaiterHandler, menuH *wait
 		r.Use(middleware.RequireAuth(h.Store))
 		r.Use(middleware.RequireRole(h.Store, "waiter"))
 
+		r.Get("/waiter/events",      h.Events)
+		r.Get("/waiter/tables/grid", h.TablesGrid)
+
 		r.Get("/waiter", func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/waiter/tables", http.StatusSeeOther)
 		})

@@ -21,12 +21,14 @@ var kitchenHandlerLog = log.New(log.Writer(), "[KitchenHandler] ", log.LstdFlags
 
 type KitchenBoardServicer interface {
 	GetKitchenBoard(restaurantID, chefID int) ([]chefservice.KitchenTicket, error)
+	GetReadyBoard(restaurantID int, date time.Time) ([]chefservice.KitchenTicket, error)
 	GetAllChefs(restaurantID int) ([]chefservice.ChefInfo, error)
 	GetOrderItemInfo(orderItemID int) (string, int, error)
 	GetStartCookingData(orderItemID, restaurantID int) (*chefservice.StartCookingView, error)
 	StartCooking(orderItemID, chefID int) error
 	FinishCooking(taskID int) error
 	RecordIngredientUsages(orderItemID, restaurantID int, usages map[int]float64) error
+	ReportIssue(orderItemID int) (string, error)
 }
 
 type KitchenHandler struct {
@@ -138,7 +140,8 @@ func (h *KitchenHandler) Events(w http.ResponseWriter, r *http.Request) {
 		select {
 		case <-h.Broadcaster.Done():
 			return
-		case <-ch:
+		case msg := <-ch:
+			_ = msg // кухар не потребує payload
 			if _, err := fmt.Fprintf(w, "data: refresh\n\n"); err != nil {
 				return // клієнт відключився
 			}
@@ -153,6 +156,38 @@ func (h *KitchenHandler) Events(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+}
+
+// ReadyBoardFragment — архівний перегляд готових страв за дату (GET /chef/kitchen/board/ready?date=YYYY-MM-DD).
+func (h *KitchenHandler) ReadyBoardFragment(w http.ResponseWriter, r *http.Request) {
+	restaurantID, _, _, err := h.sessionData(r)
+	if err != nil {
+		http.Error(w, "session error", http.StatusInternalServerError)
+		return
+	}
+
+	dateStr := r.URL.Query().Get("date")
+	date, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		http.Error(w, "invalid date: expected YYYY-MM-DD", http.StatusBadRequest)
+		return
+	}
+
+	tickets, err := h.Svc.GetReadyBoard(restaurantID, date)
+	if err != nil {
+		kitchenHandlerLog.Printf("ReadyBoardFragment: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	allChefs, err := h.Svc.GetAllChefs(restaurantID)
+	if err != nil {
+		kitchenHandlerLog.Printf("ReadyBoardFragment: GetAllChefs: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	chefpages.ReadyHistoryBoard(tickets, allChefs, dateStr).Render(r.Context(), w)
 }
 
 // StartCookingModal — GET /chef/kitchen/tasks/{id}/start-modal.
@@ -282,6 +317,22 @@ func (h *KitchenHandler) ReportIssue(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "session error", http.StatusInternalServerError)
 		return
 	}
+
+	actionID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "invalid task id", http.StatusBadRequest)
+		return
+	}
+
+	payload, err := h.Svc.ReportIssue(actionID)
+	if err != nil {
+		kitchenHandlerLog.Printf("ReportIssue: id=%d error: %v", actionID, err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	h.Broadcaster.NotifyIssue(restaurantID, payload) // сповіщає офіціантів
+	h.Broadcaster.Notify(restaurantID)               // оновлює KDS (позиція зникла)
 
 	tickets, err := h.Svc.GetKitchenBoard(restaurantID, chefID)
 	if err != nil {

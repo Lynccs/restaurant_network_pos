@@ -168,7 +168,8 @@ func (h *MenuHandler) CartAdd(w http.ResponseWriter, r *http.Request) {
 
 	addErr := h.CartMgr.AddItem(restaurantID, tableID, dishID, dishName, price)
 	if errors.Is(addErr, waiterservice.ErrInsufficientIngredients) {
-		w.WriteHeader(http.StatusConflict)
+		w.Header().Set("HX-Retarget", "body")
+		w.Header().Set("HX-Reswap", "beforeend")
 		menupages.CartError("Недостатньо інгредієнтів на складі").Render(r.Context(), w)
 		return
 	}

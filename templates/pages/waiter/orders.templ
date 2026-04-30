@@ -49,9 +49,6 @@ func orderCardClass(hasIssue bool) string {
 
 func orderCardHeaderClass(statusName string, hasIssue bool) string {
 	base := "flex items-center gap-3 px-5 py-4 cursor-pointer transition-colors select-none "
-	if hasIssue {
-		return base + "bg-red-50 hover:bg-red-100/60"
-	}
 	switch statusName {
 	case "Готується":
 		return base + "bg-amber-50 hover:bg-amber-100/60"
@@ -550,9 +547,16 @@ templ orderCard(o waiterservice.OrderView) {
 				<!-- Items list -->
 				<div class="space-y-1.5 mb-4 mt-3">
 					for _, item := range o.Items {
-						<div class="flex justify-between items-center text-sm py-1 border-b border-slate-50 last:border-0">
+						<div class={
+							"flex justify-between items-center text-sm py-1 border-b last:border-0 px-1 rounded",
+							templ.KV("border-red-100 bg-red-50", item.HasIssue),
+							templ.KV("border-slate-50", !item.HasIssue),
+						}>
 							<div class="flex items-center gap-2">
-								<span class="text-slate-700">{ item.DishName }</span>
+								<span class={ "text-slate-700", templ.KV("text-red-700 font-medium", item.HasIssue) }>{ item.DishName }</span>
+								if item.HasIssue {
+									<span class="text-xs text-red-500">— немає інгредієнтів</span>
+								}
 							</div>
 							<span class="text-slate-500 mono text-[13px]">
 								{ strconv.Itoa(item.Qty) } × { fmt.Sprintf("%.2f", item.DishPrice) } ₴ = <span class="font-semibold text-slate-700">{ fmt.Sprintf("%.2f ₴", item.Subtotal) }</span>

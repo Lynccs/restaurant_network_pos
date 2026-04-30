@@ -19,6 +19,7 @@ templ Login(errMsg string) {
 			{ `.btn-primary:active { transform: scale(0.98); }` }
 			{ `@keyframes slideUp { from { opacity:0; transform:translateY(20px) scale(0.98); } to { opacity:1; transform:translateY(0) scale(1); } }` }
 			{ `.slide-up { animation: slideUp 0.22s ease; }` }
+			{ `@keyframes spin { to { transform: rotate(360deg); } }` }
 		</style>
 	</head>
 	<body class="bg-slate-900 overflow-hidden h-screen">
@@ -85,7 +86,7 @@ templ Login(errMsg string) {
 				</div>
 			</div>
 		</div>
-	<div id="toast-429" style="position:fixed;top:1.25rem;left:50%;transform:translateX(-50%) translateY(-120%);transition:transform .3s ease,opacity .3s ease;opacity:0;z-index:9999;background:#1e293b;color:#f8fafc;padding:.6rem 1.25rem;border-radius:.5rem;font-size:.85rem;white-space:nowrap;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.35);">
+	<div id="toast-429" style="position:fixed;top:1.25rem;left:50%;transform:translateX(-50%) translateY(-120%);transition:transform .3s ease,opacity .3s ease;opacity:0;z-index:9999;background:#ea580c;color:#fff;padding:.6rem 1.25rem;border-radius:.5rem;font-size:.85rem;white-space:nowrap;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.35);">
 		⚠ Забагато запитів — спробуйте пізніше
 	</div>
 	<script>
@@ -102,15 +103,18 @@ templ Login(errMsg string) {
 					t.style.transform = 'translateX(-50%) translateY(-120%)';
 				}, 3000);
 			}
+			var SPINNER = '<svg class="inline-block w-4 h-4 mr-2 animate-spin" style="animation:spin .7s linear infinite" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="40 20" stroke-linecap="round"/></svg>Зачекайте...';
 			var form = document.querySelector('form');
 			form.addEventListener('submit', function(e) {
 				e.preventDefault();
 				var btn = form.querySelector('button[type=submit]');
 				btn.disabled = true;
+				btn.innerHTML = SPINNER;
 				fetch('/login', { method: 'POST', body: new FormData(form) })
 					.then(function(res) {
 						if (res.status === 429) {
 							btn.disabled = false;
+							btn.innerHTML = 'Увійти';
 							showToast429();
 							return;
 						}
@@ -123,7 +127,7 @@ templ Login(errMsg string) {
 							document.body.innerHTML = doc.body.innerHTML;
 						});
 					})
-					.catch(function() { btn.disabled = false; });
+					.catch(function() { btn.disabled = false; btn.innerHTML = 'Увійти'; });
 			});
 		})();
 	</script>

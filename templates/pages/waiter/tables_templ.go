@@ -48,7 +48,44 @@ func TablesPage(tables []waiterservice.TableView, restaurantName string) templ.C
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</p></div><!-- Legend --><div class=\"flex gap-4 mb-5 flex-wrap\"><div class=\"flex items-center gap-1.5 text-xs text-slate-500\"><span class=\"w-2.5 h-2.5 rounded-full bg-green-400 inline-block\"></span> Вільний — натисніть, щоб створити замовлення</div><div class=\"flex items-center gap-1.5 text-xs text-slate-500\"><span class=\"w-2.5 h-2.5 rounded-full bg-red-400 inline-block\"></span> Зайнятий — натисніть, щоб додати позиції</div></div><!-- Grid --><div class=\"grid grid-cols-2 sm:grid-cols-4 gap-3\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</p></div><!-- Legend --><div class=\"flex gap-4 mb-5 flex-wrap\"><div class=\"flex items-center gap-1.5 text-xs text-slate-500\"><span class=\"w-2.5 h-2.5 rounded-full bg-green-400 inline-block\"></span> Вільний — натисніть, щоб створити замовлення</div><div class=\"flex items-center gap-1.5 text-xs text-slate-500\"><span class=\"w-2.5 h-2.5 rounded-full bg-red-400 inline-block\"></span> Зайнятий — натисніть, щоб додати позиції</div></div><!-- Grid -->")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = TableGrid(tables).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<!-- Floating action button (injected by JS) --><div id=\"tableAction\"></div></div><script>\n\t\tvar selectedTable = null;\n\t\tvar selectedStatus = null;\n\n\t\tfunction selectTable(number, status) {\n\t\t\tif (selectedTable === number) {\n\t\t\t\tselectedTable = null;\n\t\t\t\tselectedStatus = null;\n\t\t\t} else {\n\t\t\t\tselectedTable = number;\n\t\t\t\tselectedStatus = status;\n\t\t\t}\n\t\t\trenderTableSelection();\n\t\t}\n\n\t\tfunction handleActionClick(e, el) {\n\t\t\tif (el.dataset.loading) { e.preventDefault(); return; }\n\t\t\tel.dataset.loading = '1';\n\t\t\tel.style.opacity = '0.6';\n\t\t\tel.style.pointerEvents = 'none';\n\t\t\tel.textContent = 'Завантаження...';\n\t\t}\n\n\t\tfunction renderTableSelection() {\n\t\t\tdocument.querySelectorAll('.table-card').forEach(function(el) {\n\t\t\t\tel.classList.remove('ring-2', 'ring-blue-500', 'scale-105', 'shadow-xl', 'z-10');\n\t\t\t});\n\n\t\t\tvar actionEl = document.getElementById('tableAction');\n\t\t\tif (!selectedTable) {\n\t\t\t\tactionEl.innerHTML = '';\n\t\t\t\treturn;\n\t\t\t}\n\n\t\t\tvar card = document.getElementById('table-card-' + selectedTable);\n\t\t\tif (card) card.classList.add('ring-2', 'ring-blue-500', 'scale-105', 'shadow-xl', 'z-10');\n\n\t\t\tvar isOccupied = selectedStatus === 'occupied';\n\t\t\tvar btnText  = isOccupied ? 'Дозамовити' : 'Зробити замовлення';\n\t\t\tvar bgClass  = isOccupied ? 'bg-blue-600 hover:bg-blue-500' : 'bg-green-600 hover:bg-green-500';\n\t\t\tvar url      = '/waiter/tables/' + selectedTable + '/menu';\n\n\t\t\tactionEl.innerHTML =\n\t\t\t\t'<div class=\"fixed bottom-8 left-56 right-0 flex justify-center z-50 pointer-events-none\">' +\n\t\t\t\t'<a href=\"' + url + '\" id=\"tableActionBtn\" onclick=\"handleActionClick(event,this)\" class=\"pointer-events-auto shadow-2xl px-10 py-3.5 ' + bgClass + ' text-white font-semibold rounded-2xl text-base transition-all hover:-translate-y-1 slide-up\">' +\n\t\t\t\tbtnText + '</a></div>';\n\t\t}\n\t</script>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+func TableGrid(tables []waiterservice.TableView) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var3 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var3 == nil {
+			templ_7745c5c3_Var3 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div id=\"tables-grid\" class=\"grid grid-cols-2 sm:grid-cols-4 gap-3\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -58,7 +95,7 @@ func TablesPage(tables []waiterservice.TableView, restaurantName string) templ.C
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div><!-- Floating action button (injected by JS) --><div id=\"tableAction\"></div></div><script>\n\t\tvar selectedTable = null;\n\t\tvar selectedStatus = null;\n\n\t\tfunction selectTable(number, status) {\n\t\t\tif (selectedTable === number) {\n\t\t\t\tselectedTable = null;\n\t\t\t\tselectedStatus = null;\n\t\t\t} else {\n\t\t\t\tselectedTable = number;\n\t\t\t\tselectedStatus = status;\n\t\t\t}\n\t\t\trenderTableSelection();\n\t\t}\n\n\t\tfunction handleActionClick(e, el) {\n\t\t\tif (el.dataset.loading) { e.preventDefault(); return; }\n\t\t\tel.dataset.loading = '1';\n\t\t\tel.style.opacity = '0.6';\n\t\t\tel.style.pointerEvents = 'none';\n\t\t\tel.textContent = 'Завантаження...';\n\t\t}\n\n\t\tfunction renderTableSelection() {\n\t\t\tdocument.querySelectorAll('.table-card').forEach(function(el) {\n\t\t\t\tel.classList.remove('ring-2', 'ring-blue-500', 'scale-105', 'shadow-xl', 'z-10');\n\t\t\t});\n\n\t\t\tvar actionEl = document.getElementById('tableAction');\n\t\t\tif (!selectedTable) {\n\t\t\t\tactionEl.innerHTML = '';\n\t\t\t\treturn;\n\t\t\t}\n\n\t\t\tvar card = document.getElementById('table-card-' + selectedTable);\n\t\t\tif (card) card.classList.add('ring-2', 'ring-blue-500', 'scale-105', 'shadow-xl', 'z-10');\n\n\t\t\tvar isOccupied = selectedStatus === 'occupied';\n\t\t\tvar btnText  = isOccupied ? 'Дозамовити' : 'Зробити замовлення';\n\t\t\tvar bgClass  = isOccupied ? 'bg-blue-600 hover:bg-blue-500' : 'bg-green-600 hover:bg-green-500';\n\t\t\tvar url      = '/waiter/tables/' + selectedTable + '/menu';\n\n\t\t\tactionEl.innerHTML =\n\t\t\t\t'<div class=\"fixed bottom-8 left-56 right-0 flex justify-center z-50 pointer-events-none\">' +\n\t\t\t\t'<a href=\"' + url + '\" id=\"tableActionBtn\" onclick=\"handleActionClick(event,this)\" class=\"pointer-events-auto shadow-2xl px-10 py-3.5 ' + bgClass + ' text-white font-semibold rounded-2xl text-base transition-all hover:-translate-y-1 slide-up\">' +\n\t\t\t\tbtnText + '</a></div>';\n\t\t}\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -82,9 +119,9 @@ func tableCard(t waiterservice.TableView) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var3 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var3 == nil {
-			templ_7745c5c3_Var3 = templ.NopComponent
+		templ_7745c5c3_Var4 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var4 == nil {
+			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		if t.Status == "free" {
@@ -92,29 +129,29 @@ func tableCard(t waiterservice.TableView) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div id=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div id=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var4 string
-			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("table-card-%d", t.Number))
+			var templ_7745c5c3_Var5 string
+			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("table-card-%d", t.Number))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/tables.templ`, Line: 89, Col: 46}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/tables.templ`, Line: 93, Col: 46}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\" onclick=\"")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var5 templ.ComponentScript = templ.ComponentScript{Call: fmt.Sprintf("selectTable(%d,'free')", t.Number)}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5.Call)
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\" onclick=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\" class=\"table-card relative border-2 border-green-400 bg-green-50 rounded-2xl p-4 cursor-pointer transition-all duration-150 hover:shadow-xl hover:-translate-y-1 select-none min-h-[8rem]\">")
+			var templ_7745c5c3_Var6 templ.ComponentScript = templ.ComponentScript{Call: fmt.Sprintf("selectTable(%d,'free')", t.Number)}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6.Call)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\" class=\"table-card relative border-2 border-green-400 bg-green-50 rounded-2xl p-4 cursor-pointer transition-all duration-150 hover:shadow-xl hover:-translate-y-1 select-none min-h-[8rem]\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -122,7 +159,7 @@ func tableCard(t waiterservice.TableView) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -131,29 +168,29 @@ func tableCard(t waiterservice.TableView) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div id=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<div id=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var6 string
-			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("table-card-%d", t.Number))
+			var templ_7745c5c3_Var7 string
+			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("table-card-%d", t.Number))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/tables.templ`, Line: 97, Col: 46}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/tables.templ`, Line: 101, Col: 46}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\" onclick=\"")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var7 templ.ComponentScript = templ.ComponentScript{Call: fmt.Sprintf("selectTable(%d,'occupied')", t.Number)}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7.Call)
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\" onclick=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\" class=\"table-card relative border-2 border-red-300 bg-red-50 rounded-2xl p-4 cursor-pointer transition-all duration-150 hover:shadow-xl hover:-translate-y-1 select-none min-h-[8rem]\">")
+			var templ_7745c5c3_Var8 templ.ComponentScript = templ.ComponentScript{Call: fmt.Sprintf("selectTable(%d,'occupied')", t.Number)}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8.Call)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\" class=\"table-card relative border-2 border-red-300 bg-red-50 rounded-2xl p-4 cursor-pointer transition-all duration-150 hover:shadow-xl hover:-translate-y-1 select-none min-h-[8rem]\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -161,7 +198,7 @@ func tableCard(t waiterservice.TableView) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -186,81 +223,87 @@ func tableCardContent(t waiterservice.TableView) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var8 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var8 == nil {
-			templ_7745c5c3_Var8 = templ.NopComponent
+		templ_7745c5c3_Var9 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var9 == nil {
+			templ_7745c5c3_Var9 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div class=\"flex items-start justify-between mb-3\"><span class=\"text-[1.75rem] font-bold text-slate-700 mono leading-none\">№")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var9 string
-		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(t.Number))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/tables.templ`, Line: 108, Col: 101}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</span> ")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		if t.Status == "free" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<span class=\"w-2.5 h-2.5 rounded-full bg-green-400 mt-1 flex-shrink-0\"></span>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<span class=\"w-2.5 h-2.5 rounded-full bg-red-400 mt-1 flex-shrink-0\"></span>")
+		if t.HasIssue {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<div class=\"absolute -top-3 -right-3 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-[11px] font-bold animate-pulse z-10\">!</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</div><div class=\"text-sm text-slate-400 mb-1.5\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<div class=\"flex items-start justify-between mb-3\"><span class=\"text-[1.75rem] font-bold text-slate-700 mono leading-none\">№")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var10 string
-		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(t.Capacity))
+		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(t.Number))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/tables.templ`, Line: 115, Col: 70}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/tables.templ`, Line: 115, Col: 101}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, " місця</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</span> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if t.Status == "free" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<div class=\"text-xs font-medium text-green-700\">Натисніть для замовлення</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<span class=\"w-2.5 h-2.5 rounded-full bg-green-400 mt-1 flex-shrink-0\"></span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<div class=\"text-xs font-medium text-slate-600\">Зайнятий</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<span class=\"w-2.5 h-2.5 rounded-full bg-red-400 mt-1 flex-shrink-0\"></span>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</div><div class=\"text-sm text-slate-400 mb-1.5\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var11 string
+		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(t.Capacity))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/tables.templ`, Line: 122, Col: 70}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, " місця</div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if t.Status == "free" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<div class=\"text-xs font-medium text-green-700\">Натисніть для замовлення</div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<div class=\"text-xs font-medium text-slate-600\">Зайнятий</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if t.SeatTime != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<div class=\"mt-2 pt-2 border-t border-slate-200/70 text-xs text-slate-500 font-medium\">Час посадки: <span class=\"mono font-bold\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<div class=\"mt-2 pt-2 border-t border-slate-200/70 text-xs text-slate-500 font-medium\">Час посадки: <span class=\"mono font-bold\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var11 string
-				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(t.SeatTime)
+				var templ_7745c5c3_Var12 string
+				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(t.SeatTime)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/tables.templ`, Line: 122, Col: 68}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/waiter/tables.templ`, Line: 129, Col: 68}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</span></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</span></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

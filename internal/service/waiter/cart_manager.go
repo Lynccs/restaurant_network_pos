@@ -30,6 +30,7 @@ type dbDraftEntry struct {
 	DraftQty    int    // current in-memory qty (0 = delete at Submit)
 	CancelDelta int    // additional cancellations to apply at Submit (for "cooking" items)
 	Status      string // "new" | "cooking" | "done" — set from DB, never from frontend
+	HasIssue    bool
 }
 
 type cart struct {
@@ -238,6 +239,7 @@ func (m *CartManager) LoadActiveOrder(restaurantID, tableID int) error {
 			DraftQty:    item.Qty,
 			CancelDelta: 0,
 			Status:      item.Status,
+			HasIssue:    item.HasIssue,
 		}
 		c.dbDraftOrder = append(c.dbDraftOrder, item.OrderItemID)
 		c.dbDraftByDish[item.DishID] = item.OrderItemID
@@ -524,6 +526,7 @@ func (m *CartManager) GetFullCartView(restaurantID, tableID int) ([]CartItemView
 				CanPlus:     canPlus,
 				Status:      "new",
 				IsFromDB:    true,
+				HasIssue:    d.HasIssue,
 			})
 		case "cooking":
 			effectiveQty := d.OrigQty - d.CancelDelta
@@ -543,6 +546,7 @@ func (m *CartManager) GetFullCartView(restaurantID, tableID int) ([]CartItemView
 				CanPlus:      false,
 				Status:       "cooking",
 				IsFromDB:     true,
+				HasIssue:     d.HasIssue,
 			})
 		case "done":
 			sub := d.Price * float64(d.OrigQty)
@@ -557,6 +561,7 @@ func (m *CartManager) GetFullCartView(restaurantID, tableID int) ([]CartItemView
 				CanPlus:     false,
 				Status:      "done",
 				IsFromDB:    true,
+				HasIssue:    d.HasIssue,
 			})
 		}
 	}

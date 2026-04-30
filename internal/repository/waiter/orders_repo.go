@@ -30,17 +30,19 @@ type OrderListFilters struct {
 }
 
 type OrderListRow struct {
-	OrderID     int
-	OrderNumber string
-	TableNumber int
-	WaiterName  string
-	TotalAmount float64
-	CreatedAt   time.Time
-	StatusName  string
-	ItemID      int
-	DishName    string
-	DishPrice   float64
-	ItemQty     int
+	OrderID      int
+	OrderNumber  string
+	TableNumber  int
+	WaiterName   string
+	TotalAmount  float64
+	CreatedAt    time.Time
+	StatusName   string
+	ItemID       int
+	DishName     string
+	DishPrice    float64
+	ItemQty      int
+	HasIssue     bool // хоч одна позиція замовлення має order_item_has_issue=1
+	ItemHasIssue bool // ця конкретна позиція
 }
 
 type OrdersRepo struct {
@@ -108,7 +110,9 @@ func (r *OrdersRepo) GetActiveOrdersList(restaurantID int, f OrderListFilters) (
 			oi.order_item_id,
 			d.dish_name,
 			d.dish_price,
-			oi.order_item_quantity
+			oi.order_item_quantity,
+			CAST(MAX(CAST(oi.order_item_has_issue AS INT)) OVER (PARTITION BY fo.order_id) AS BIT) AS order_has_issue,
+			oi.order_item_has_issue
 		FROM FilteredOrders fo
 		JOIN order_items oi ON oi.order_id = fo.order_id
 		                   AND oi.order_item_quantity > oi.cancelled_quantity
@@ -135,6 +139,8 @@ func (r *OrdersRepo) GetActiveOrdersList(restaurantID int, f OrderListFilters) (
 			&row.DishName,
 			&row.DishPrice,
 			&row.ItemQty,
+			&row.HasIssue,
+			&row.ItemHasIssue,
 		); err != nil {
 			return nil, fmt.Errorf("GetActiveOrdersList scan: %w", err)
 		}

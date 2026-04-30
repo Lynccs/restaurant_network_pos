@@ -23,4 +23,5 @@ type CartItemView struct {
 	CanPlus      bool
 	Status       string  // "new" | "cooking" | "done" | "" (in-memory, treated as new)
 	IsFromDB     bool
+	HasIssue     bool
 }

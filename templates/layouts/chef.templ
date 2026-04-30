@@ -76,11 +76,51 @@ templ ChefLayout(name string, activePage string, content templ.Component) {
 				var h = parseInt(p[0], 10), m = parseInt(p[1], 10);
 				return (isFinite(h) && isFinite(m)) ? h * 60 + m : null;
 			}
-			function kdsSetFilter(key, value) { window.kdsFilters[key] = value; kdsApplyFilters(); }
-			function kdsClearFilters() {
-				window.kdsFilters = { status:'all', table:'', chef:'all', workshop:'all', dish:'all', from:'', to:'' };
-				kdsRestoreFilters();
+			function kdsSetFilter(key, value) {
+				var prev = window.kdsFilters[key];
+				window.kdsFilters[key] = value;
+				if (key === 'status') {
+					var row = document.getElementById('kds-ready-date-row');
+					if (value === 'ready') {
+						if (row) {
+							var inp = document.getElementById('kds-filter-ready-date');
+							if (inp && !inp.value) inp.value = new Date().toISOString().split('T')[0];
+							row.style.display = 'flex';
+						}
+						kdsApplyFilters(); // одразу фільтруємо поточну дошку
+						kdsLoadReadyBoard(); // потім асинхронно завантажуємо архів
+						return;
+					} else {
+						if (row) row.style.display = 'none';
+						if (prev === 'ready') {
+							// повертаємось до живої дошки через елемент з hx-get
+							var liveBtn = document.getElementById('kds-live-reload');
+							if (liveBtn) htmx.trigger(liveBtn, 'reload');
+							return;
+						}
+					}
+				}
 				kdsApplyFilters();
+			}
+			function kdsLoadReadyBoard() {
+				var inp = document.getElementById('kds-filter-ready-date');
+				if (!inp || !inp.value) return;
+				htmx.trigger(inp, 'ready-load');
+			}
+			function kdsClearFilters() {
+				var wasReady = window.kdsFilters.status === 'ready';
+				window.kdsFilters = { status:'all', table:'', chef:'all', workshop:'all', dish:'all', from:'', to:'' };
+				var row = document.getElementById('kds-ready-date-row');
+				if (row) row.style.display = 'none';
+				var inp = document.getElementById('kds-filter-ready-date');
+				if (inp) inp.value = '';
+				kdsRestoreFilters();
+				if (wasReady) {
+					var liveBtn = document.getElementById('kds-live-reload');
+					if (liveBtn) htmx.trigger(liveBtn, 'reload');
+				} else {
+					kdsApplyFilters();
+				}
 			}
 			function kdsRestoreFilters() {
 				var f = window.kdsFilters;
@@ -159,15 +199,17 @@ templ ChefLayout(name string, activePage string, content templ.Component) {
 			document.addEventListener('htmx:afterSwap',  kdsOnBoardReady);
 
 			// SSE: підписуємось на оновлення від сервера, при події оновлюємо дошку через HTMX
+			// В архівному режимі ("ready") SSE не перезаписує дошку.
 			(function() {
 				function connectSSE() {
 					var es = new EventSource('/chef/kitchen/events');
 					es.onopen = function() {
-						// при (пере)підключенні одразу оновлюємо дошку — щоб не пропустити події, що надійшли під час розриву
+						if (window.kdsFilters && window.kdsFilters.status === 'ready') return;
 						var board = document.getElementById('kitchen-board');
 						if (board) htmx.trigger(board, 'sse-refresh');
 					};
 					es.onmessage = function() {
+						if (window.kdsFilters && window.kdsFilters.status === 'ready') return;
 						var board = document.getElementById('kitchen-board');
 						if (board) htmx.trigger(board, 'sse-refresh');
 					};
@@ -250,7 +292,16 @@ templ ChefLayout(name string, activePage string, content templ.Component) {
 		</div>
 		<!-- Контейнер для модальних вікон (завантажуються через HTMX) -->
 		<div id="chef-modal"></div>
-	<div id="toast-429" style="position:fixed;top:1.25rem;left:50%;transform:translateX(-50%) translateY(-120%);transition:transform .3s ease,opacity .3s ease;opacity:0;z-index:9999;background:#1e293b;color:#f8fafc;padding:.6rem 1.25rem;border-radius:.5rem;font-size:.85rem;white-space:nowrap;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.35);">
+		<!-- Прихований тригер для повернення до живої дошки з архівного режиму -->
+		<div
+			id="kds-live-reload"
+			style="display:none;"
+			hx-get="/chef/kitchen/board"
+			hx-target="#kitchen-board"
+			hx-swap="outerHTML"
+			hx-trigger="reload"
+		></div>
+	<div id="toast-429" style="position:fixed;top:1.25rem;left:50%;transform:translateX(-50%) translateY(-120%);transition:transform .3s ease,opacity .3s ease;opacity:0;z-index:9999;background:#ea580c;color:#fff;padding:.6rem 1.25rem;border-radius:.5rem;font-size:.85rem;white-space:nowrap;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.35);">
 		⚠ Забагато запитів — спробуйте пізніше
 	</div>
 	<script>

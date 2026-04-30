@@ -109,6 +109,15 @@ templ MenuPage(tableNumber int, categories []string, activeCat string, dishes []
 					e.detail.elt.classList.add('active');
 				}
 			});
+
+			// Auto-dismiss cart error toast after 5 s.
+			document.body.addEventListener('htmx:afterSettle', function() {
+				var toast = document.getElementById('cart-error-toast');
+				if (toast && !toast._dismissScheduled) {
+					toast._dismissScheduled = true;
+					setTimeout(function() { toast.remove(); }, 5000);
+				}
+			});
 		</script>
 	</body>
 	</html>
@@ -214,6 +223,40 @@ templ CartPanel(tableNumber int, cart []waiterservice.CartItemView, total float6
 
 // CartItem renders one receipt line with status-aware styling.
 templ CartItem(tableNumber int, item waiterservice.CartItemView) {
+	if item.HasIssue {
+		<!-- Issue item: red background, minus active (waiter can remove), plus disabled -->
+		<div class="flex items-center gap-2 bg-red-50 border border-red-300 rounded-xl px-3 py-2.5">
+			<div class="flex-1 min-w-0">
+				<div class="flex items-center gap-1.5 mb-0.5">
+					<span class="text-xs font-semibold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full leading-none">⚠ Немає інгредієнтів</span>
+				</div>
+				<p class="text-xs font-medium text-red-800 leading-tight">{ item.Name }</p>
+				<p class="text-xs text-red-500 mt-0.5">Кухня не може приготувати цю страву</p>
+				<p class="text-xs text-slate-400 mono">
+					{ fmt.Sprintf("%.0f ₴ × %d = %.0f ₴", item.Price, item.Qty, item.Subtotal) }
+				</p>
+			</div>
+			<div class="flex items-center gap-1 flex-shrink-0">
+				<button
+					hx-post={ fmt.Sprintf("/waiter/tables/%d/menu/cart/remove", tableNumber) }
+					hx-vals={ fmt.Sprintf(`{"order_item_id":"%d","dish_id":"%d"}`, item.OrderItemID, item.DishID) }
+					hx-target="#cart-panel"
+					hx-swap="innerHTML"
+					hx-disable-elt="this"
+					class="w-6 h-6 rounded-full border border-red-300 text-red-600 hover:bg-red-100 flex items-center justify-center text-base leading-none font-bold transition-colors"
+				>−</button>
+				<span class="w-5 text-center text-xs font-bold mono text-red-800">{ strconv.Itoa(item.Qty) }</span>
+				<button
+						hx-post={ fmt.Sprintf("/waiter/tables/%d/menu/cart/add", tableNumber) }
+						hx-vals={ fmt.Sprintf(`{"dish_id":"%d","dish_name":"%s","price":"%.2f"}`, item.DishID, item.Name, item.Price) }
+						hx-target="#cart-panel"
+						hx-swap="innerHTML"
+						hx-disable-elt="this"
+						class="w-6 h-6 rounded-full border border-red-300 text-red-600 hover:bg-red-100 flex items-center justify-center text-base leading-none font-bold transition-colors"
+					>+</button>
+			</div>
+		</div>
+	} else {
 	switch item.Status {
 	case "cooking":
 		<!-- Cooking item: yellow background, cancel button active, add disabled -->
@@ -325,11 +368,12 @@ templ CartItem(tableNumber int, item waiterservice.CartItemView) {
 			</div>
 		</div>
 	}
+	} // end else (not HasIssue)
 }
 
-// CartError renders a small error toast fragment (409 response target).
+// CartError renders a small error toast (appended to body via HX-Retarget).
 templ CartError(msg string) {
-	<div class="fixed bottom-5 right-5 z-50 bg-red-600 text-white text-sm px-4 py-2.5 rounded-xl shadow-lg slide-up">
+	<div id="cart-error-toast" class="fixed bottom-5 right-5 z-50 bg-red-600 text-white text-base px-4 py-2.5 rounded-xl shadow-lg slide-up whitespace-nowrap">
 		{ msg }
 	</div>
 }

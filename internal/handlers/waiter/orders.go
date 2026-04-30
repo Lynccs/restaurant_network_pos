@@ -94,7 +94,14 @@ func (h *OrdersHandler) OrdersPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	layouts.WaiterLayout(name, "orders", waiterpages.OrdersPage(activeOrders, archiveOrders, dateFromDisplay, dateToDisplay)).Render(r.Context(), w)
+	hasAnyIssue := false
+	for _, o := range activeOrders {
+		if o.HasIssue {
+			hasAnyIssue = true
+			break
+		}
+	}
+	layouts.WaiterLayout(name, "orders", hasAnyIssue, waiterpages.OrdersPage(activeOrders, archiveOrders, dateFromDisplay, dateToDisplay)).Render(r.Context(), w)
 }
 
 func (h *OrdersHandler) OrdersList(w http.ResponseWriter, r *http.Request) {
