@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"math"
 	"time"
 )
 
@@ -357,34 +358,45 @@ func (r *KitchenRepo) RecordIngredientUsages(orderItemID, restaurantID int, usag
 		return fmt.Errorf("RecordIngredientUsages taskID: %w", err)
 	}
 
-	for ingID, qty := range usages {
-		if qty <= 0 {
+	for ingID, totalQty := range usages {
+		if totalQty <= 0 {
 			continue
 		}
-		var stockID int
-		err := r.db.QueryRow(`
-			SELECT TOP 1 stock_ingredient_id
-			FROM stock_ingredients
-			WHERE ingredient_id  = @ingID
-			  AND restaurant_id  = @restID
-			  AND stock_ingredient_expiration_date > GETUTCDATE()
-			ORDER BY stock_ingredient_received_at ASC`,
-			sql.Named("ingID", ingID),
-			sql.Named("restID", restaurantID),
-		).Scan(&stockID)
-		if err != nil {
-			kitchenRepoLog.Printf("RecordIngredientUsages: no stock for ingID=%d, skipping", ingID)
-			continue
-		}
-		if _, err := r.db.Exec(`
-			INSERT INTO ingredient_usages
-				(ingredient_usage_quantity, ingredient_usage_time, stock_ingredient_id, cooking_task_id)
-			VALUES (@qty, GETUTCDATE(), @stockID, @taskID)`,
-			sql.Named("qty", qty),
-			sql.Named("stockID", stockID),
-			sql.Named("taskID", taskID),
-		); err != nil {
-			return fmt.Errorf("RecordIngredientUsages insert ingID=%d: %w", ingID, err)
+		// FIFO по партіях: дренуємо найстаріші партії поки не спишемо потрібну кількість.
+		// Після кожного INSERT тригер одразу зменшує stock_ingredient_quantity тієї партії,
+		// тому наступний SELECT вже бачить оновлений залишок у межах тієї ж транзакції.
+		remaining := totalQty
+		for remaining > 1e-6 {
+			var stockID int
+			var available float64
+			err := r.db.QueryRow(`
+				SELECT TOP 1 stock_ingredient_id, stock_ingredient_quantity
+				FROM stock_ingredients
+				WHERE ingredient_id                    = @ingID
+				  AND restaurant_id                    = @restID
+				  AND stock_ingredient_expiration_date > GETUTCDATE()
+				  AND stock_ingredient_quantity        > 0
+				ORDER BY stock_ingredient_received_at ASC`,
+				sql.Named("ingID", ingID),
+				sql.Named("restID", restaurantID),
+			).Scan(&stockID, &available)
+			if err != nil {
+				// Партій більше немає — логуємо і виходимо з внутрішнього циклу
+				kitchenRepoLog.Printf("RecordIngredientUsages: stock exhausted for ingID=%d, remaining=%.3f", ingID, remaining)
+				break
+			}
+			take := math.Min(available, remaining)
+			if _, err := r.db.Exec(`
+				INSERT INTO ingredient_usages
+					(ingredient_usage_quantity, ingredient_usage_time, stock_ingredient_id, cooking_task_id)
+				VALUES (@qty, GETDATE(), @stockID, @taskID)`,
+				sql.Named("qty", take),
+				sql.Named("stockID", stockID),
+				sql.Named("taskID", taskID),
+			); err != nil {
+				return fmt.Errorf("RecordIngredientUsages insert ingID=%d: %w", ingID, err)
+			}
+			remaining -= take
 		}
 	}
 	return nil
@@ -443,7 +455,7 @@ func (r *KitchenRepo) StartCooking(orderItemID, chefID int) error {
 	kitchenRepoLog.Printf("StartCooking: orderItemID=%d chefID=%d", orderItemID, chefID)
 	_, err := r.db.Exec(`
 		UPDATE cooking_tasks
-		SET cooking_task_start_time = GETUTCDATE(),
+		SET cooking_task_start_time = GETDATE(),
 		    chef_id                 = @chefID
 		WHERE order_item_id            = @orderItemID
 		  AND cooking_task_start_time IS NULL;
@@ -451,7 +463,7 @@ func (r *KitchenRepo) StartCooking(orderItemID, chefID int) error {
 		IF @@ROWCOUNT = 0
 		BEGIN
 			INSERT INTO cooking_tasks (order_item_id, cooking_task_start_time, chef_id)
-			SELECT @orderItemID, GETUTCDATE(), @chefID
+			SELECT @orderItemID, GETDATE(), @chefID
 			WHERE NOT EXISTS (
 				SELECT 1 FROM cooking_tasks WHERE order_item_id = @orderItemID
 			)
@@ -471,7 +483,7 @@ func (r *KitchenRepo) FinishCooking(taskID int) error {
 	kitchenRepoLog.Printf("FinishCooking: taskID=%d", taskID)
 	_, err := r.db.Exec(`
 		UPDATE cooking_tasks
-		SET cooking_task_end_time = GETUTCDATE()
+		SET cooking_task_end_time = GETDATE()
 		WHERE cooking_task_id            = @taskID
 		  AND cooking_task_start_time IS NOT NULL
 		  AND cooking_task_end_time   IS NULL`,

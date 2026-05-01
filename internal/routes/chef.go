@@ -27,5 +27,8 @@ func SetupChefRoutes(r chi.Router, h *chefhandler.KitchenHandler) {
 		r.Post("/chef/kitchen/tasks/{id}/finish", h.FinishCooking)
 		r.Get("/chef/kitchen/tasks/{id}/issue-modal", h.IssueModal)
 		r.Post("/chef/kitchen/tasks/{id}/report-issue", h.ReportIssue)
+
+		r.Get("/chef/writeoff", h.WriteOffPage)
+		r.Get("/chef/writeoff/list", h.WriteOffList)
 	})
 }

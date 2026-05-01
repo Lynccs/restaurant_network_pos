@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	chefrepo "restaurant_network_pos/internal/repository/chef"
@@ -84,14 +85,29 @@ type kitchenRepoIface interface {
 	FinishCooking(taskID int) error
 	RecordIngredientUsages(orderItemID, restaurantID int, usages map[int]float64) error
 	ReportIssue(orderItemID int) (dishName string, tableNumber int, qty int, err error)
+	GetWriteOffData(restaurantID int, f chefrepo.WriteOffFilters, page int) ([]chefrepo.WriteOffRow, int, error)
+	GetWriteOffOptions(restaurantID int) (dishes []string, ingredients []string, err error)
+}
+
+type writeOffOptionsCache struct {
+	dishes      []string
+	ingredients []string
+	fetchedAt   time.Time
 }
 
 type KitchenService struct {
-	repo kitchenRepoIface
+	repo         kitchenRepoIface
+	optionsCache map[int]*writeOffOptionsCache // ключ — restaurantID
+	optionsMu    sync.Mutex
 }
 
+const writeOffOptionsTTL = 5 * time.Minute
+
 func NewKitchenService(repo kitchenRepoIface) *KitchenService {
-	return &KitchenService{repo: repo}
+	return &KitchenService{
+		repo:         repo,
+		optionsCache: make(map[int]*writeOffOptionsCache),
+	}
 }
 
 // GetReadyBoard повертає список тікетів з готовими стравами за вказану дату (архів).

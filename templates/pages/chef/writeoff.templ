@@ -1,0 +1,500 @@
+package chefpages
+
+import (
+	"encoding/json"
+	"fmt"
+	"strconv"
+
+	chefservice "restaurant_network_pos/internal/service/chef"
+)
+
+func ingredientOptionsJSON(opts []string) string {
+	b, _ := json.Marshal(opts)
+	return string(b)
+}
+
+// writeOffPageNums повертає номери сторінок для навігації; 0 означає "…".
+func writeOffPageNums(current, total int) []int {
+	if total <= 7 {
+		nums := make([]int, total)
+		for i := range nums {
+			nums[i] = i + 1
+		}
+		return nums
+	}
+	show := map[int]bool{1: true, total: true}
+	for _, p := range []int{current - 1, current, current + 1} {
+		if p >= 1 && p <= total {
+			show[p] = true
+		}
+	}
+	var pages []int
+	for p := 1; p <= total; p++ {
+		if show[p] {
+			pages = append(pages, p)
+		}
+	}
+	var result []int
+	for i, p := range pages {
+		if i > 0 && p-pages[i-1] > 1 {
+			result = append(result, 0)
+		}
+		result = append(result, p)
+	}
+	return result
+}
+
+func formatWriteOffTime(t interface{ Format(string) string }) string {
+	return t.Format("02.01.2006 15:04")
+}
+
+func formatWriteOffQty(q float64) string {
+	if q == float64(int(q)) {
+		return strconv.Itoa(int(q))
+	}
+	s := fmt.Sprintf("%.3f", q)
+	// Trim trailing zeros after decimal point
+	i := len(s) - 1
+	for i > 0 && s[i] == '0' {
+		i--
+	}
+	if s[i] == '.' {
+		i--
+	}
+	return s[:i+1]
+}
+
+// WriteOffPage — повна сторінка "Списані інгредієнти" для кухаря.
+templ WriteOffPage(view *chefservice.WriteOffPageView) {
+	<div class="h-full overflow-auto bg-slate-50">
+		<style>
+			.wo-order-body { max-height: 0; overflow: hidden; transition: max-height 0.28s ease-out; }
+			.wo-dish-body  { max-height: 0; overflow: hidden; transition: max-height 0.2s ease-out; }
+			.chevron-icon  { transition: transform 0.22s ease; }
+			.chevron-icon.rotated { transform: rotate(180deg); }
+			/* Override HTMX default opacity-only visibility so indicator takes no space when idle */
+			#wo-loading { display: none; }
+			#wo-loading.htmx-request { display: flex; }
+		</style>
+		<script>
+			function woToggle(bodyEl, chevronEl) {
+				if (!bodyEl) return;
+				var isOpen = bodyEl.dataset.woOpen === '1';
+				if (isOpen) {
+					bodyEl.dataset.woOpen = '0';
+					bodyEl.style.overflow = 'hidden';
+					bodyEl.style.maxHeight = bodyEl.scrollHeight + 'px';
+					bodyEl.offsetHeight; // force reflow so transition triggers
+					bodyEl.style.maxHeight = '0';
+				} else {
+					bodyEl.dataset.woOpen = '1';
+					bodyEl.style.overflow = 'hidden';
+					bodyEl.style.maxHeight = bodyEl.scrollHeight + 'px';
+					function onEnd(e) {
+						if (e.propertyName !== 'max-height') return;
+						bodyEl.removeEventListener('transitionend', onEnd);
+						if (bodyEl.dataset.woOpen === '1') {
+							bodyEl.style.maxHeight = 'none';
+							bodyEl.style.overflow = 'visible';
+						}
+					}
+					bodyEl.addEventListener('transitionend', onEnd);
+				}
+				if (chevronEl) chevronEl.classList.toggle('rotated');
+			}
+			function woToggleOrder(idx) {
+				woToggle(
+					document.getElementById('wo-order-body-'    + idx),
+					document.getElementById('wo-order-chevron-' + idx)
+				);
+			}
+			function woToggleDish(oidx, didx) {
+				woToggle(
+					document.getElementById('wo-dish-body-'    + oidx + '-' + didx),
+					document.getElementById('wo-dish-chevron-' + oidx + '-' + didx)
+				);
+			}
+		</script>
+		<div class="p-6 max-w-5xl mx-auto">
+			<!-- Header -->
+			<div class="mb-5">
+				<h1 class="text-xl font-semibold text-slate-900">Списані інгредієнти</h1>
+				<p class="text-slate-500 text-sm mt-0.5">Історія фактично використаних інгредієнтів під час приготування</p>
+			</div>
+			<!-- Filters -->
+			<div class="bg-white border border-slate-200 rounded-2xl p-4 mb-5">
+				<!-- Дані для JS autocomplete (JSON, не видимо) -->
+				<div id="wo-ing-store" data-opts={ ingredientOptionsJSON(view.IngredientOptions) } hidden></div>
+				<div class="flex justify-end mb-3">
+					<a
+						href="/chef/writeoff"
+						class="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors whitespace-nowrap font-medium"
+					>
+						Скинути фільтри
+					</a>
+				</div>
+				<form
+					id="wo-filter-form"
+					hx-get="/chef/writeoff/list"
+					hx-target="#writeoff-list-wrapper"
+					hx-swap="innerHTML"
+					hx-trigger="change, keyup delay:300ms from:input[name='order']"
+					hx-indicator="#wo-loading"
+					hx-sync="this:replace"
+					class="flex gap-3 items-center"
+				>
+					<!-- Прихований page-параметр; goToPage(n) встановлює його перед тригером форми -->
+					<input type="hidden" name="page" id="wo-page-input" value="1"/>
+					<input
+						type="text"
+						name="order"
+						value={ view.Filters.OrderNumber }
+						placeholder="№ замовлення"
+						inputmode="numeric"
+						oninput="this.value=this.value.replace(/\D/g,''); woResetPage()"
+						class="w-32 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
+					/>
+					<input
+						type="text"
+						id="wo-fp-from"
+						name="from"
+						value={ view.Filters.FromTime }
+						placeholder="дд.мм.рррр гг:хх"
+						readonly="readonly"
+						class="w-44 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400 cursor-pointer"
+					/>
+					<input
+						type="text"
+						id="wo-fp-to"
+						name="to"
+						value={ view.Filters.ToTime }
+						placeholder="дд.мм.рррр гг:хх"
+						readonly="readonly"
+						class="w-44 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400 cursor-pointer"
+					/>
+					<select
+						name="dish"
+						onchange="woResetPage()"
+						class="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600 focus:outline-none focus:border-blue-400"
+					>
+						<option value="all" selected?={ view.Filters.Dish == "all" }>Усі страви</option>
+						for _, d := range view.DishOptions {
+							<option value={ d } selected?={ view.Filters.Dish == d }>{ d }</option>
+						}
+					</select>
+					<!-- Кастомний autocomplete для інгредієнта -->
+					<div class="relative" id="wo-ing-wrap">
+						<input
+							type="text"
+							id="wo-ing-input"
+							name="ingredient"
+							value={ view.Filters.Ingredient }
+							placeholder="Інгредієнт"
+							autocomplete="off"
+							class="w-40 border border-slate-200 rounded-lg px-3 py-2 pr-7 text-sm focus:outline-none focus:border-blue-400"
+						/>
+						<button
+							type="button"
+							id="wo-ing-clear"
+							class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-lg leading-none hidden"
+							tabindex="-1"
+						>×</button>
+						<div
+							id="wo-ing-dropdown"
+							class="hidden absolute top-full left-0 z-50 bg-white border border-slate-200 rounded-xl shadow-lg mt-1 py-1 w-64 max-h-52 overflow-y-auto"
+						></div>
+					</div>
+				</form>
+			</div>
+			<!-- Loading indicator: поза writeoff-list-wrapper, бо HTMX замінює його вміст -->
+			<div
+				id="wo-loading"
+				class="htmx-indicator flex items-center justify-center gap-2 py-2 mb-3 text-sm text-slate-500"
+			>
+				<svg class="animate-spin w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24">
+					<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+					<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+				</svg>
+				Завантаження…
+			</div>
+			<!-- List -->
+			<div id="writeoff-list-wrapper">
+				@WriteOffList(view.Orders, view.Pagination)
+			</div>
+		</div>
+		<script>
+			// goToPage і woResetPage — глобальні функції, доступні з onclick у swapped-контенті.
+			function goToPage(n) {
+				document.getElementById('wo-page-input').value = n;
+				htmx.trigger(document.getElementById('wo-filter-form'), 'change');
+			}
+			function woResetPage() {
+				var el = document.getElementById('wo-page-input');
+				if (el) el.value = '1';
+			}
+
+			(function() {
+				// ── Flatpickr ────────────────────────────────────────────────
+				if (typeof flatpickr !== 'undefined' && flatpickr.l10ns && flatpickr.l10ns.uk) {
+					flatpickr.localize(flatpickr.l10ns.uk);
+				}
+				var fpCfg = {
+					enableTime: true, dateFormat: 'Y-m-d\\TH:i', time_24hr: true,
+					minuteIncrement: 1, disableMobile: true,
+					onChange: function(_, __, inst) {
+						woResetPage();
+						inst.input.dispatchEvent(new Event('change', { bubbles: true }));
+					}
+				};
+				var fromEl = document.getElementById('wo-fp-from');
+				var toEl   = document.getElementById('wo-fp-to');
+				flatpickr(fromEl, Object.assign({}, fpCfg, { defaultDate: fromEl.value || null }));
+				flatpickr(toEl,   Object.assign({}, fpCfg, { defaultDate: toEl.value   || null }));
+
+				// ── Ingredient autocomplete ───────────────────────────────────
+				var store    = document.getElementById('wo-ing-store');
+				var input    = document.getElementById('wo-ing-input');
+				var clearBtn = document.getElementById('wo-ing-clear');
+				var dropdown = document.getElementById('wo-ing-dropdown');
+				var form     = document.getElementById('wo-filter-form');
+				if (!store || !input) return;
+
+				var allOpts = JSON.parse(store.getAttribute('data-opts') || '[]');
+				var activeIdx = -1;
+
+				function syncClearBtn() {
+					clearBtn.classList.toggle('hidden', !input.value);
+				}
+				syncClearBtn();
+
+				function triggerFilter() {
+					hideDropdown();
+					woResetPage();
+					htmx.trigger(form, 'change');
+				}
+
+				function hideDropdown() {
+					dropdown.classList.add('hidden');
+					activeIdx = -1;
+				}
+
+				function highlight(idx) {
+					dropdown.querySelectorAll('[data-idx]').forEach(function(el, i) {
+						el.classList.toggle('bg-blue-50', i === idx);
+						el.classList.toggle('text-blue-700', i === idx);
+					});
+				}
+
+				function renderDropdown(val) {
+					if (!val) { hideDropdown(); return; }
+					var v = val.toLowerCase();
+					var matches = allOpts.filter(function(o) {
+						return o.toLowerCase().indexOf(v) !== -1;
+					}).slice(0, 15);
+					if (!matches.length) { hideDropdown(); return; }
+					activeIdx = -1;
+					dropdown.innerHTML = '';
+					matches.forEach(function(item, idx) {
+						var el = document.createElement('div');
+						el.className = 'px-3 py-1.5 text-sm text-slate-700 cursor-pointer rounded-md mx-1 transition-colors';
+						el.textContent = item;
+						el.dataset.idx = idx;
+						el.addEventListener('mousedown', function(e) {
+							e.preventDefault();
+							input.value = item;
+							syncClearBtn();
+							triggerFilter();
+						});
+						dropdown.appendChild(el);
+					});
+					dropdown.classList.remove('hidden');
+				}
+
+				input.addEventListener('input', function() {
+					syncClearBtn();
+					renderDropdown(this.value);
+				});
+
+				input.addEventListener('keydown', function(e) {
+					var items = dropdown.querySelectorAll('[data-idx]');
+					if (e.key === 'ArrowDown') {
+						e.preventDefault();
+						activeIdx = Math.min(activeIdx + 1, items.length - 1);
+						highlight(activeIdx);
+					} else if (e.key === 'ArrowUp') {
+						e.preventDefault();
+						activeIdx = Math.max(activeIdx - 1, 0);
+						highlight(activeIdx);
+					} else if (e.key === 'Enter') {
+						e.preventDefault();
+						if (activeIdx >= 0 && items[activeIdx]) {
+							input.value = items[activeIdx].textContent;
+							syncClearBtn();
+						}
+						triggerFilter();
+					} else if (e.key === 'Escape') {
+						hideDropdown();
+					}
+				});
+
+				input.addEventListener('blur', function() {
+					setTimeout(hideDropdown, 150);
+				});
+
+				clearBtn.addEventListener('click', function() {
+					input.value = '';
+					syncClearBtn();
+					triggerFilter();
+				});
+			})();
+		</script>
+	</div>
+}
+
+// WriteOffList — HTMX-фрагмент: тільки список замовлень (без фільтрів та layout).
+templ WriteOffList(orders []chefservice.WriteOffOrder, p chefservice.WriteOffPagination) {
+	if len(orders) == 0 {
+		<div class="bg-white border border-slate-200 rounded-2xl p-10 text-center text-slate-400 text-sm">
+			Немає даних за вибраними фільтрами
+		</div>
+	} else {
+		<div class="space-y-3">
+			for oidx, order := range orders {
+				@writeOffOrderCard(order, oidx)
+			}
+		</div>
+		@writeOffPaginationControls(p)
+	}
+}
+
+templ writeOffPaginationControls(p chefservice.WriteOffPagination) {
+	<div class="mt-4 flex items-center justify-between text-sm text-slate-500">
+		<span>
+			if p.TotalPages > 1 {
+				{ fmt.Sprintf("Замовлень: %d · Сторінка %d з %d", p.TotalOrders, p.Page, p.TotalPages) }
+			} else {
+				{ fmt.Sprintf("Замовлень: %d", p.TotalOrders) }
+			}
+		</span>
+		if p.TotalPages > 1 {
+			<div class="flex items-center gap-1">
+				if p.Page > 1 {
+					<button
+						type="button"
+						onclick={ templ.ComponentScript{Call: fmt.Sprintf("goToPage(%d)", p.Page-1)} }
+						class="px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+					>←</button>
+				} else {
+					<span class="px-3 py-1.5 border border-slate-100 rounded-lg text-slate-300 select-none">←</span>
+				}
+				for _, pn := range writeOffPageNums(p.Page, p.TotalPages) {
+					if pn == 0 {
+						<span class="px-1 text-slate-300 select-none">…</span>
+					} else if pn == p.Page {
+						<span class="px-3 py-1.5 bg-blue-500 text-white rounded-lg font-medium select-none">{ strconv.Itoa(pn) }</span>
+					} else {
+						<button
+							type="button"
+							onclick={ templ.ComponentScript{Call: fmt.Sprintf("goToPage(%d)", pn)} }
+							class="px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+						>{ strconv.Itoa(pn) }</button>
+					}
+				}
+				if p.Page < p.TotalPages {
+					<button
+						type="button"
+						onclick={ templ.ComponentScript{Call: fmt.Sprintf("goToPage(%d)", p.Page+1)} }
+						class="px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+					>→</button>
+				} else {
+					<span class="px-3 py-1.5 border border-slate-100 rounded-lg text-slate-300 select-none">→</span>
+				}
+			</div>
+		}
+	</div>
+}
+
+templ writeOffOrderCard(order chefservice.WriteOffOrder, oidx int) {
+	<div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+		<!-- Order header -->
+		<div
+			onclick={ templ.ComponentScript{Call: fmt.Sprintf("woToggleOrder(%d)", oidx)} }
+			class="cursor-pointer px-5 py-3.5 flex items-center justify-between hover:bg-slate-50 transition-colors select-none"
+		>
+			<div>
+				<div class="flex items-center gap-2">
+					<span class="mono font-bold text-slate-800">{ order.OrderNumber }</span>
+					<span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+						{ strconv.Itoa(len(order.Dishes)) } страв
+					</span>
+				</div>
+				<p class="text-xs text-slate-500 mt-0.5">
+					{ fmt.Sprintf("Стіл №%d · %s · %s", order.TableNumber, order.WaiterName, formatWriteOffTime(order.EventTime)) }
+				</p>
+			</div>
+			<svg
+				id={ fmt.Sprintf("wo-order-chevron-%d", oidx) }
+				class="w-4 h-4 text-slate-400 chevron-icon"
+				fill="none"
+				stroke="currentColor"
+				viewBox="0 0 24 24"
+			>
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+			</svg>
+		</div>
+		<!-- Dishes accordion body -->
+		<div id={ fmt.Sprintf("wo-order-body-%d", oidx) } class="wo-order-body">
+			<div class="px-5 pb-4 border-t border-slate-100 pt-3 space-y-2">
+				for didx, dish := range order.Dishes {
+					@writeOffDishCard(dish, oidx, didx)
+				}
+			</div>
+		</div>
+	</div>
+}
+
+templ writeOffDishCard(dish chefservice.WriteOffDish, oidx, didx int) {
+	<div class="border border-slate-200 rounded-lg overflow-hidden">
+		<!-- Dish header -->
+		<div
+			onclick={ templ.ComponentScript{Call: fmt.Sprintf("woToggleDish(%d,%d)", oidx, didx)} }
+			class="cursor-pointer px-3 py-2.5 bg-slate-50 hover:bg-slate-100 transition-colors flex items-center justify-between select-none"
+		>
+			<div class="text-sm text-slate-700 font-medium">
+				{ dish.DishName } · { strconv.Itoa(dish.Qty) } порц.
+			</div>
+			<svg
+				id={ fmt.Sprintf("wo-dish-chevron-%d-%d", oidx, didx) }
+				class="w-4 h-4 text-slate-400 chevron-icon"
+				fill="none"
+				stroke="currentColor"
+				viewBox="0 0 24 24"
+			>
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+			</svg>
+		</div>
+		<!-- Ingredients table accordion body -->
+		<div id={ fmt.Sprintf("wo-dish-body-%d-%d", oidx, didx) } class="wo-dish-body">
+			<div class="px-3 py-2.5 bg-white">
+				<table class="w-full text-sm">
+					<thead>
+						<tr class="text-left text-xs text-slate-500 uppercase tracking-wide border-b border-slate-100">
+							<th class="py-1.5 font-semibold">Інгредієнт</th>
+							<th class="py-1.5 text-right font-semibold">К-сть</th>
+							<th class="py-1.5 pl-2 font-semibold">Од.</th>
+						</tr>
+					</thead>
+					<tbody>
+						for _, ing := range dish.Ingredients {
+							<tr class="border-b border-slate-50 last:border-0">
+								<td class="py-1.5 text-slate-700">{ ing.Name }</td>
+								<td class="py-1.5 text-right mono text-slate-700">{ formatWriteOffQty(ing.Qty) }</td>
+								<td class="py-1.5 pl-2 text-slate-500">{ ing.Unit }</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+}

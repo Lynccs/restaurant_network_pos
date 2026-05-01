@@ -29,6 +29,8 @@ type KitchenBoardServicer interface {
 	FinishCooking(taskID int) error
 	RecordIngredientUsages(orderItemID, restaurantID int, usages map[int]float64) error
 	ReportIssue(orderItemID int) (string, error)
+	GetWriteOffPage(restaurantID int, f chefservice.WriteOffFilters, page int) (*chefservice.WriteOffPageView, error)
+	GetWriteOffOrders(restaurantID int, f chefservice.WriteOffFilters, page int) ([]chefservice.WriteOffOrder, chefservice.WriteOffPagination, error)
 }
 
 type KitchenHandler struct {

@@ -1539,7 +1539,7 @@ func IssueModal(taskID int, dishName string, qty int) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 117, " порц.</p></div><button onclick=\"document.getElementById('chef-modal').innerHTML=''\" class=\"text-slate-400 hover:text-slate-600\"><svg class=\"w-5 h-5\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M6 18L18 6M6 6l12 12\"></path></svg></button></div><div class=\"px-6 py-4\"><p class=\"text-sm text-slate-600\">Позицію буде видалено з черги. Офіціант отримає сповіщення.</p></div><div class=\"px-6 py-4 border-t border-slate-100 bg-slate-50 flex gap-3\"><button hx-post=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 117, " порц.</p></div><button onclick=\"document.getElementById('chef-modal').innerHTML=''\" class=\"text-slate-400 hover:text-slate-600\"><svg class=\"w-5 h-5\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M6 18L18 6M6 6l12 12\"></path></svg></button></div><div class=\"px-6 py-4\"><p class=\"text-sm text-slate-600\">Бажаєте сповістити офіціанта про проблеми на кухні? Позицію буде видалено з черги.</p></div><div class=\"px-6 py-4 border-t border-slate-100 bg-slate-50 flex gap-3\"><button hx-post=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
