@@ -151,7 +151,7 @@ func (h *Handler) CreateOrderWithItems(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "session error", http.StatusInternalServerError)
 		return
 	}
-	if err := r.ParseForm(); err != nil {
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
@@ -167,9 +167,9 @@ func (h *Handler) CreateOrderWithItems(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ingredientIDs := r.Form["ingredient_id[]"]
-	qtys := r.Form["qty[]"]
-	prices := r.Form["price[]"]
+	ingredientIDs := r.MultipartForm.Value["ingredient_id[]"]
+	qtys := r.MultipartForm.Value["qty[]"]
+	prices := r.MultipartForm.Value["price[]"]
 
 	if len(ingredientIDs) == 0 {
 		http.Error(w, "no items", http.StatusBadRequest)
@@ -198,7 +198,7 @@ func (h *Handler) CreateOrderWithItems(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("HX-Trigger", `{"closeModal":null,"refreshList":null,"showToast":"Замовлення успішно створено"}`)
+	w.Header().Set("HX-Trigger", `{"closeModal":null,"refreshList":null,"showToast":"orderCreated"}`)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -301,19 +301,32 @@ func (h *Handler) AddItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	detailID, _ := strconv.Atoi(r.FormValue("detail_id"))
 	ingredientID, _ := strconv.Atoi(r.FormValue("ingredient_id"))
 	qty, _ := strconv.ParseFloat(r.FormValue("qty"), 64)
 	price, _ := strconv.ParseFloat(r.FormValue("price"), 64)
 
-	if ingredientID <= 0 || qty <= 0 || price < 0 {
+	if qty <= 0 || price <= 0 {
 		http.Error(w, "invalid fields", http.StatusBadRequest)
 		return
 	}
 
-	if err := h.Svc.AddItem(orderID, ingredientID, qty, price); err != nil {
-		handlerLog.Printf("AddItem: %v", err)
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
+	if detailID > 0 {
+		if err := h.Svc.UpdateItem(orderID, detailID, qty, price); err != nil {
+			handlerLog.Printf("UpdateItem: %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		if ingredientID <= 0 {
+			http.Error(w, "invalid fields", http.StatusBadRequest)
+			return
+		}
+		if err := h.Svc.AddItem(orderID, ingredientID, qty, price); err != nil {
+			handlerLog.Printf("AddItem: %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	order, err := h.Svc.GetOrderDetails(orderID)
@@ -454,7 +467,7 @@ func (h *Handler) ReceiveBatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("HX-Trigger", `{"closeModal":null,"refreshList":null,"showToast":"Товар успішно прийнято на склад"}`)
+	w.Header().Set("HX-Trigger", `{"closeModal":null,"refreshList":null,"showToast":"batchReceived"}`)
 	w.WriteHeader(http.StatusOK)
 }
 

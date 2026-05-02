@@ -185,7 +185,13 @@ templ AdminLayout(name string, activePage string, content templ.Component) {
 				}
 				try {
 					var t = JSON.parse(hdr);
-					if (t.showToast) showAdminToast(t.showToast, 'success');
+					if (t.showToast) {
+						var _toastMap = {
+							'orderCreated': 'Замовлення успішно створено',
+							'batchReceived': 'Товар успішно прийнято на склад',
+						};
+						showAdminToast(_toastMap[t.showToast] || t.showToast, 'success');
+					}
 				} catch(_) {}
 			});
 

@@ -2,7 +2,9 @@ package adminpages
 
 import (
 	"fmt"
+	"math"
 	"strconv"
+	"strings"
 	"time"
 
 	adminservice "restaurant_network_pos/internal/service/admin"
@@ -33,6 +35,46 @@ func fmtQty(q float64) string {
 
 func fmtMoney(v float64) string {
 	return fmt.Sprintf("%.2f", v)
+}
+
+type DisplayValues struct {
+	Qty   float64
+	Unit  string
+	Price float64
+}
+
+type QtyUnit struct {
+	Qty  float64
+	Unit string
+}
+
+func isDivisibleByThousand(q float64) bool {
+	if q < 1000 {
+		return false
+	}
+	return math.Abs(math.Mod(q, 1000)) < 1e-9
+}
+
+func displayQtyPrice(q, price float64, unit string) DisplayValues {
+	u := strings.ToLower(unit)
+	if (u == "г" || strings.Contains(u, "грам")) && isDivisibleByThousand(q) {
+		return DisplayValues{Qty: q / 1000, Unit: "кг", Price: price * 1000}
+	}
+	if (u == "мл" || strings.Contains(u, "мілі") || strings.Contains(u, "літр")) && isDivisibleByThousand(q) {
+		return DisplayValues{Qty: q / 1000, Unit: "л", Price: price * 1000}
+	}
+	return DisplayValues{Qty: q, Unit: unit, Price: price}
+}
+
+func displayQtyUnit(q float64, unit string) QtyUnit {
+	u := strings.ToLower(unit)
+	if (u == "г" || strings.Contains(u, "грам")) && isDivisibleByThousand(q) {
+		return QtyUnit{Qty: q / 1000, Unit: "кг"}
+	}
+	if (u == "мл" || strings.Contains(u, "мілі") || strings.Contains(u, "літр")) && isDivisibleByThousand(q) {
+		return QtyUnit{Qty: q / 1000, Unit: "л"}
+	}
+	return QtyUnit{Qty: q, Unit: unit}
 }
 
 func boolVal(b bool, t, f string) string {
@@ -324,7 +366,7 @@ templ PurchasesPage(view *adminservice.PurchasesPageView) {
 				if (prevChev) prevChev.classList.remove('rotated');
 			}
 			if (!isOpen || _expandedId !== orderId) {
-				row.style.display = '';
+				row.style.display = 'table-row';
 				if (chevron) chevron.classList.add('rotated');
 				_expandedId = orderId;
 			} else {
@@ -455,7 +497,7 @@ templ purchaseOrderRow(o adminservice.PurchaseOrder, adminID int) {
 			<div class="mt-1 bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
 				<!-- Ingredient header -->
 				<div class="grid gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-500 uppercase tracking-wide"
-					style="grid-template-columns: 2fr 1.1fr 1fr 1fr 1.2fr auto">
+					style="grid-template-columns: 2fr 1.1fr 1fr 1fr 1.2fr 1fr">
 					<span>Інгредієнт</span>
 					<span class="text-center">Замовлено</span>
 					<span class="text-center">Од.</span>
@@ -469,28 +511,34 @@ templ purchaseOrderRow(o adminservice.PurchaseOrder, adminID int) {
 						<div class="px-3 py-4 text-center text-sm text-slate-400">Позицій немає</div>
 					} else {
 						for _, item := range o.Items {
+							{{ display := displayQtyPrice(item.Qty, item.Price, item.Unit) }}
+							{{ received := displayQtyUnit(item.ReceivedQty, item.Unit) }}
 							<div class="space-y-1">
 								<div class="grid gap-2 items-center px-3 py-2 bg-white border border-slate-200 rounded-lg"
-									style="grid-template-columns: 2fr 1.1fr 1fr 1fr 1.2fr auto">
+									style="grid-template-columns: 2fr 1.1fr 1fr 1fr 1.2fr 1fr">
 									<span class="text-sm text-slate-800 font-medium">{ item.Name }</span>
-									<span class="text-xs mono text-center text-slate-600">{ fmtQty(item.Qty) }</span>
-									<span class="text-xs text-center text-slate-600">{ item.Unit }</span>
-									<span class="text-xs mono text-right text-slate-700">{ fmtMoney(item.Price) } ₴</span>
+									<span class="text-xs mono text-center text-slate-600">{ fmtQty(display.Qty) }</span>
+									<span class="text-xs text-center text-slate-600">{ display.Unit }</span>
+									<span class="text-xs mono text-right text-slate-700">{ fmtMoney(display.Price) } ₴</span>
 									if item.ReceivedQty > 0 {
-										<span class="text-xs mono text-center text-green-700 font-semibold">{ fmtQty(item.ReceivedQty) }</span>
+										if received.Unit == display.Unit {
+											<span class="text-xs mono text-center text-green-700 font-semibold">{ fmtQty(received.Qty) }</span>
+										} else {
+											<span class="text-xs mono text-center text-green-700 font-semibold">{ fmtQty(received.Qty) } { received.Unit }</span>
+										}
 									} else {
 										<span class="text-xs mono text-center text-slate-400">—</span>
 									}
 									if o.Status == "Відправлено" {
 										<button
 											onclick="event.stopPropagation()"
-											class="inline-flex items-center bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors btn-primary whitespace-nowrap"
+											class="inline-flex items-center justify-center bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors btn-primary whitespace-nowrap"
 											hx-get={ "/admin/purchases/" + strconv.Itoa(o.ID) + "/items/" + strconv.Itoa(item.DetailID) + "/receive-modal" }
 											hx-target="#admin-modal-content"
 											hx-swap="innerHTML"
 										>Прийняти</button>
 									} else {
-										<span class="inline-flex items-center bg-slate-100 text-slate-400 text-xs font-semibold px-2.5 py-1 rounded-lg cursor-not-allowed whitespace-nowrap">Прийняти</span>
+										<span class="inline-flex items-center justify-center bg-slate-100 text-slate-400 text-xs font-semibold px-2.5 py-1.5 rounded-lg cursor-not-allowed whitespace-nowrap">Прийняти</span>
 									}
 								</div>
 								if len(item.Batches) > 0 {
@@ -524,7 +572,7 @@ templ purchaseOrderRow(o adminservice.PurchaseOrder, adminID int) {
 							hx-swap="innerHTML"
 						>
 							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-							Редагувати позиції
+							Редагувати замовлення
 						</button>
 						if len(o.Items) > 0 {
 							<button
@@ -651,7 +699,7 @@ templ OrderDraftItemsModal(supplierID int, supplierName string, expectedAt time.
 							}
 						</select>
 					</div>
-					<div class="w-20">
+						<div class="w-24">
 						<label class="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">К-сть</label>
 						<input type="number" id="draft-qty" min="0.001" step="0.001" placeholder="0" class="input-field w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mono text-center bg-white"/>
 					</div>
@@ -665,7 +713,8 @@ templ OrderDraftItemsModal(supplierID int, supplierName string, expectedAt time.
 						<label class="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Ціна за од. (₴)</label>
 						<input type="number" id="draft-price" min="0.001" step="0.001" placeholder="0.00" class="input-field w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mono text-center bg-white"/>
 					</div>
-					<button type="button" onclick="draftAddItem()" class="btn-primary flex-shrink-0 bg-slate-800 hover:bg-slate-700 text-white text-sm font-bold py-2 px-5 rounded-lg shadow-sm border border-slate-900 h-[38px]">+ Додати</button>
+					<button id="draft-add-btn" type="button" onclick="draftAddItem()" class="btn-primary flex-shrink-0 bg-slate-800 hover:bg-slate-700 text-white text-sm font-bold py-2 px-5 rounded-lg shadow-sm border border-slate-900 h-[38px]">+ Додати</button>
+					<button id="draft-cancel-btn" type="button" onclick="draftResetEdit()" class="hidden flex-shrink-0 bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-bold py-2 px-5 rounded-lg h-[38px]">Скасувати</button>
 				</div>
 			</div>
 
@@ -727,6 +776,7 @@ templ OrderDraftItemsModal(supplierID int, supplierName string, expectedAt time.
 	</div>
 	<script>
 		var _draftItems = [];
+		var _draftEditIndex = -1;
 
 		function draftOnIngredientChange(sel) {
 			var opt = sel.options[sel.selectedIndex];
@@ -755,7 +805,7 @@ templ OrderDraftItemsModal(supplierID int, supplierName string, expectedAt time.
 			if (ingredientID <= 0 || qty <= 0 || price <= 0) { return; }
 			var ingName = ingEl.options[ingEl.selectedIndex].textContent;
 			var unitLabel = unitSel.options[unitSel.selectedIndex].textContent;
-			_draftItems.push({
+			var nextItem = {
 				ingredient_id: ingredientID,
 				name: ingName,
 				qty_display: qty,
@@ -763,16 +813,76 @@ templ OrderDraftItemsModal(supplierID int, supplierName string, expectedAt time.
 				qty_actual: qty * multiplier,
 				price_display: price,
 				price_actual: price / multiplier
-			});
-			ingEl.selectedIndex = 0;
-			qtyEl.value = '';
-			priceEl.value = '';
-			unitSel.innerHTML = '<option value="1">—</option>';
+			};
+			if (_draftEditIndex >= 0) {
+				_draftItems[_draftEditIndex] = nextItem;
+				draftResetEdit();
+			} else {
+				_draftItems.push(nextItem);
+				ingEl.selectedIndex = 0;
+				qtyEl.value = '';
+				priceEl.value = '';
+				unitSel.innerHTML = '<option value="1">—</option>';
+			}
 			draftRenderItems();
 			draftUpdateBtn();
 		}
 
+		function draftStartEdit(idx) {
+			var item = _draftItems[idx];
+			if (!item) return;
+			var ingEl = document.getElementById('draft-ingredient');
+			var qtyEl = document.getElementById('draft-qty');
+			var priceEl = document.getElementById('draft-price');
+			var unitSel = document.getElementById('draft-unit-sel');
+			var addBtn = document.getElementById('draft-add-btn');
+			var cancelBtn = document.getElementById('draft-cancel-btn');
+			_draftEditIndex = idx;
+			if (ingEl) {
+				for (var i = 0; i < ingEl.options.length; i++) {
+					if (parseInt(ingEl.options[i].value) === item.ingredient_id) {
+						ingEl.selectedIndex = i;
+						break;
+					}
+				}
+				draftOnIngredientChange(ingEl);
+				ingEl.disabled = true;
+			}
+			if (unitSel) {
+				for (var j = 0; j < unitSel.options.length; j++) {
+					if (unitSel.options[j].textContent === item.unit_display) {
+						unitSel.selectedIndex = j;
+						break;
+					}
+				}
+				unitSel.disabled = true;
+			}
+			if (qtyEl) qtyEl.value = item.qty_display;
+			if (priceEl) priceEl.value = item.price_display;
+			if (addBtn) addBtn.textContent = 'Підтвердити';
+			if (cancelBtn) cancelBtn.classList.remove('hidden');
+		}
+
+		function draftResetEdit() {
+			var ingEl = document.getElementById('draft-ingredient');
+			var qtyEl = document.getElementById('draft-qty');
+			var priceEl = document.getElementById('draft-price');
+			var unitSel = document.getElementById('draft-unit-sel');
+			var addBtn = document.getElementById('draft-add-btn');
+			var cancelBtn = document.getElementById('draft-cancel-btn');
+			_draftEditIndex = -1;
+			if (ingEl) { ingEl.disabled = false; ingEl.selectedIndex = 0; }
+			if (qtyEl) qtyEl.value = '';
+			if (priceEl) priceEl.value = '';
+			if (unitSel) { unitSel.disabled = false; unitSel.innerHTML = '<option value="1">—</option>'; }
+			if (addBtn) addBtn.textContent = '+ Додати';
+			if (cancelBtn) cancelBtn.classList.add('hidden');
+		}
+
 		function draftRemoveItem(idx) {
+			if (_draftEditIndex === idx) {
+				draftResetEdit();
+			}
 			_draftItems.splice(idx, 1);
 			draftRenderItems();
 			draftUpdateBtn();
@@ -793,12 +903,12 @@ templ OrderDraftItemsModal(supplierID int, supplierName string, expectedAt time.
 			_draftItems.forEach(function(item, idx) {
 				var lineTotal = item.qty_actual * item.price_actual;
 				total += lineTotal;
-				html += '<tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50">' +
+				html += '<tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50 cursor-pointer" onclick="draftStartEdit(' + idx + ')">' +
 					'<td class="py-3 px-5 text-sm text-slate-700 font-medium w-full">' + item.name + '</td>' +
 					'<td class="py-3 px-5 text-sm mono text-center whitespace-nowrap text-slate-600">' + item.qty_display + ' ' + item.unit_display + '</td>' +
 					'<td class="py-3 px-5 text-sm mono text-center whitespace-nowrap text-slate-600">' + item.price_display.toFixed(2) + ' ₴/' + item.unit_display + '</td>' +
 					'<td class="py-3 px-5 text-sm font-bold mono text-right whitespace-nowrap text-slate-700">' + lineTotal.toFixed(2) + ' ₴</td>' +
-					'<td class="py-3 px-3 text-right"><button type="button" onclick="draftRemoveItem(' + idx + ')" class="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors">' +
+					'<td class="py-3 px-3 text-right"><button type="button" onclick="event.stopPropagation(); draftRemoveItem(' + idx + ')" class="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors">' +
 					'<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>' +
 					'</button></td></tr>';
 			});
@@ -834,6 +944,7 @@ templ OrderDraftItemsModal(supplierID int, supplierName string, expectedAt time.
 			var supplierID = orderData ? orderData.getAttribute('data-supplier-id') : '';
 			var expectedAt = orderData ? orderData.getAttribute('data-expected-at') : '';
 			if (!supplierID || !expectedAt || _draftItems.length === 0) return;
+			if (_draftEditIndex >= 0) return;
 			var btn = document.getElementById('draft-submit-btn');
 			btn.disabled = true;
 			btn.innerHTML = 'Збереження...';
@@ -847,29 +958,25 @@ templ OrderDraftItemsModal(supplierID int, supplierName string, expectedAt time.
 			});
 			fetch('/admin/purchases/create-with-items', { method: 'POST', body: fd })
 			.then(function(resp) {
-				var trigger = resp.headers.get('HX-Trigger');
-				if (trigger) {
-					try { var t = JSON.parse(trigger); if (t.showToast) showAdminToast(t.showToast, 'success'); } catch(e) {}
-					if (trigger.indexOf('closeModal') >= 0) adminCloseModal();
-					if (trigger.indexOf('refreshList') >= 0) {
-						var f = document.getElementById('purchases-filter-form');
-						if (f) htmx.trigger(f, 'submit');
-					}
+				if (resp.ok) {
+					showAdminToast('Замовлення успішно створено', 'success');
+					adminCloseModal();
+					var f = document.getElementById('purchases-filter-form');
+					if (f) htmx.trigger(f, 'submit');
+					return;
 				}
-				if (!resp.ok) {
-					showAdminToast('Помилка при створенні замовлення', 'error');
-					btn.disabled = false;
-					btn.innerHTML = '💾 Зберегти чернетку';
-					btn.classList.remove('bg-slate-300', 'cursor-not-allowed', 'opacity-70');
-					btn.classList.add('bg-blue-600', 'hover:bg-blue-500');
-				}
+				showAdminToast('Помилка при створенні замовлення', 'error');
+				btn.disabled = false;
+				btn.innerHTML = 'Створити замовлення';
+				btn.classList.remove('bg-slate-300', 'cursor-not-allowed', 'opacity-70');
+				btn.classList.add('bg-blue-600');
 			})
 			.catch(function() {
 				showAdminToast('Помилка мережі', 'error');
 				btn.disabled = false;
-				btn.innerHTML = '💾 Зберегти чернетку';
+				btn.innerHTML = 'Створити замовлення';
 				btn.classList.remove('bg-slate-300', 'cursor-not-allowed', 'opacity-70');
-				btn.classList.add('bg-blue-600', 'hover:bg-blue-500');
+				btn.classList.add('bg-blue-600');
 			});
 		}
 	</script>
@@ -904,10 +1011,11 @@ templ OrderDetailsModal(o adminservice.PurchaseOrder, ingredients []adminservice
 						hx-swap="innerHTML"
 						onsubmit="return purchaseItemPrepareSubmit()"
 					>
-						<div class="flex flex-wrap items-end gap-3 mb-1">
-							<div class="flex-1 min-w-[200px]">
+						<input type="hidden" id="new-item-detail-id" name="detail_id" value=""/>
+						<div class="flex flex-nowrap items-end gap-3 mb-1">
+							<div class="flex-1 min-w-[160px]">
 								<label class="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Назва</label>
-								<select name="ingredient_id" required class="input-field w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-700 bg-white font-medium" onchange="onNewItemIngredientChange(this)">
+								<select id="new-item-ingredient" name="ingredient_id" required class="input-field w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-700 bg-white font-medium" onchange="onNewItemIngredientChange(this)">
 									<option value="" disabled selected>Оберіть зі списку...</option>
 									for _, ing := range ingredients {
 										<option value={ strconv.Itoa(ing.ID) } data-unit={ ing.UnitName }>{ ing.Name }</option>
@@ -924,14 +1032,17 @@ templ OrderDetailsModal(o adminservice.PurchaseOrder, ingredients []adminservice
 									<option value="1">—</option>
 								</select>
 							</div>
-							<div class="w-36">
+							<div class="w-28">
 								<label class="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Ціна за од. (₴)</label>
 								<input type="number" name="price" id="new-item-price" min="0.001" step="0.001" required placeholder="0.00" class="input-field w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mono text-center bg-white"/>
 							</div>
-							<button type="submit" class="btn-primary flex-shrink-0 bg-slate-800 hover:bg-slate-700 text-white text-sm font-bold py-2 px-5 rounded-lg shadow-sm border border-slate-900 h-[38px]">+ Додати</button>
+							<button id="new-item-submit-btn" type="submit" class="btn-primary flex-shrink-0 bg-slate-800 hover:bg-slate-700 text-white text-sm font-bold py-2 px-4 rounded-lg shadow-sm border border-slate-900 h-[38px]">+ Додати</button>
+							<button id="new-item-cancel-btn" type="button" onclick="resetOrderItemEdit()" class="hidden flex-shrink-0 bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-bold py-2 px-4 rounded-lg h-[38px]">Скасувати</button>
 						</div>
 					</form>
 					<script>
+						var _orderItemEditId = 0;
+
 						function onNewItemIngredientChange(sel) {
 							var opt = sel.options[sel.selectedIndex];
 							var unit = opt ? (opt.getAttribute('data-unit') || '') : '';
@@ -945,6 +1056,70 @@ templ OrderDetailsModal(o adminservice.PurchaseOrder, ingredients []adminservice
 							} else {
 								unitSel.innerHTML = '<option value="1">шт</option>';
 							}
+						}
+
+						function startOrderItemEdit(row) {
+							if (!row || !row.dataset) return;
+							var detailID = parseInt(row.dataset.detailId || '0');
+							var ingredientID = parseInt(row.dataset.ingredientId || '0');
+							var qty = parseFloat(row.dataset.qty || '0');
+							var price = parseFloat(row.dataset.price || '0');
+							var unit = row.dataset.unit || '';
+							var ingSel = document.getElementById('new-item-ingredient');
+							var qtyInput = document.getElementById('new-item-qty');
+							var priceInput = document.getElementById('new-item-price');
+							var unitSel = document.getElementById('new-item-unit-sel');
+							var detailInput = document.getElementById('new-item-detail-id');
+							var submitBtn = document.getElementById('new-item-submit-btn');
+							var cancelBtn = document.getElementById('new-item-cancel-btn');
+							if (!ingSel || !qtyInput || !priceInput || !unitSel || !detailInput) return;
+							_orderItemEditId = detailID;
+							for (var i = 0; i < ingSel.options.length; i++) {
+								if (parseInt(ingSel.options[i].value) === ingredientID) {
+									ingSel.selectedIndex = i;
+									break;
+								}
+							}
+							onNewItemIngredientChange(ingSel);
+							if (unitSel.options.length > 0) {
+								for (var j = 0; j < unitSel.options.length; j++) {
+									if (unitSel.options[j].textContent === unit) {
+										unitSel.selectedIndex = j;
+										break;
+									}
+								}
+							}
+							qtyInput.value = qty;
+							priceInput.value = price;
+							ingSel.disabled = true;
+							unitSel.disabled = false;
+							detailInput.value = detailID.toString();
+							if (submitBtn) submitBtn.textContent = 'Підтвердити';
+							if (cancelBtn) cancelBtn.classList.remove('hidden');
+						}
+
+						function resetOrderItemEdit() {
+							var ingSel = document.getElementById('new-item-ingredient');
+							var qtyInput = document.getElementById('new-item-qty');
+							var priceInput = document.getElementById('new-item-price');
+							var unitSel = document.getElementById('new-item-unit-sel');
+							var detailInput = document.getElementById('new-item-detail-id');
+							var submitBtn = document.getElementById('new-item-submit-btn');
+							var cancelBtn = document.getElementById('new-item-cancel-btn');
+							_orderItemEditId = 0;
+							if (ingSel) {
+								ingSel.disabled = false;
+								ingSel.selectedIndex = 0;
+							}
+							if (qtyInput) qtyInput.value = '';
+							if (priceInput) priceInput.value = '';
+							if (unitSel) {
+								unitSel.disabled = false;
+								unitSel.innerHTML = '<option value="1">—</option>';
+							}
+							if (detailInput) detailInput.value = '';
+							if (submitBtn) submitBtn.textContent = '+ Додати';
+							if (cancelBtn) cancelBtn.classList.add('hidden');
 						}
 						function purchaseItemPrepareSubmit() {
 							var qtyInput = document.getElementById('new-item-qty');
@@ -985,15 +1160,24 @@ templ OrderDetailsModal(o adminservice.PurchaseOrder, ingredients []adminservice
 								</tr>
 							} else {
 								for _, item := range o.Items {
-									<tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-										<td class="py-3 px-5 text-sm text-slate-700 font-medium w-full">{ item.Name } <span class="text-slate-400">({ item.Unit })</span></td>
-										<td class="py-3 px-5 text-sm text-slate-500 mono text-center whitespace-nowrap">{ fmtQty(item.Qty) }</td>
-										<td class="py-3 px-5 text-sm text-slate-500 mono text-center whitespace-nowrap">{ fmtMoney(item.Price) } ₴</td>
-										<td class="py-3 px-5 text-sm text-slate-700 font-bold mono text-right whitespace-nowrap">{ fmtMoney(item.Qty * item.Price) } ₴</td>
-										if o.Status == "Створено" && o.AdminID == adminID {
+								{{ display := displayQtyPrice(item.Qty, item.Price, item.Unit) }}
+									if o.Status == "Створено" && o.AdminID == adminID {
+										<tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50 cursor-pointer"
+											data-detail-id={ strconv.Itoa(item.DetailID) }
+											data-ingredient-id={ strconv.Itoa(item.IngredientID) }
+											data-qty={ fmtQty(display.Qty) }
+											data-price={ fmtMoney(display.Price) }
+											data-unit={ display.Unit }
+											onclick="startOrderItemEdit(this)"
+										>
+											<td class="py-3 px-5 text-sm text-slate-700 font-medium w-full">{ item.Name } <span class="text-slate-400">({ display.Unit })</span></td>
+											<td class="py-3 px-5 text-sm text-slate-500 mono text-center whitespace-nowrap">{ fmtQty(display.Qty) }</td>
+											<td class="py-3 px-5 text-sm text-slate-500 mono text-center whitespace-nowrap">{ fmtMoney(display.Price) } ₴</td>
+											<td class="py-3 px-5 text-sm text-slate-700 font-bold mono text-right whitespace-nowrap">{ fmtMoney(display.Qty * display.Price) } ₴</td>
 											<td class="py-3 px-3 text-right">
 												<button
 													class="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors"
+													onclick="event.stopPropagation()"
 													hx-delete={ "/admin/purchases/" + strconv.Itoa(o.ID) + "/items/" + strconv.Itoa(item.DetailID) }
 													hx-target="#admin-modal-content"
 													hx-swap="innerHTML"
@@ -1002,8 +1186,15 @@ templ OrderDetailsModal(o adminservice.PurchaseOrder, ingredients []adminservice
 													<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
 												</button>
 											</td>
-										}
-									</tr>
+										</tr>
+									} else {
+										<tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+											<td class="py-3 px-5 text-sm text-slate-700 font-medium w-full">{ item.Name } <span class="text-slate-400">({ display.Unit })</span></td>
+											<td class="py-3 px-5 text-sm text-slate-500 mono text-center whitespace-nowrap">{ fmtQty(display.Qty) }</td>
+											<td class="py-3 px-5 text-sm text-slate-500 mono text-center whitespace-nowrap">{ fmtMoney(display.Price) } ₴</td>
+											<td class="py-3 px-5 text-sm text-slate-700 font-bold mono text-right whitespace-nowrap">{ fmtMoney(display.Qty * display.Price) } ₴</td>
+										</tr>
+									}
 								}
 							}
 						</tbody>
@@ -1021,30 +1212,21 @@ templ OrderDetailsModal(o adminservice.PurchaseOrder, ingredients []adminservice
 
 		<!-- Action buttons -->
 		<div class="px-6 py-4 border-t border-slate-100 bg-white flex-shrink-0 rounded-b-2xl">
-			if o.Status == "Створено" && o.AdminID == adminID {
-				if len(o.Items) == 0 {
-					<button disabled class="btn-primary w-full bg-slate-300 cursor-not-allowed text-white text-sm py-3 rounded-lg font-bold tracking-wide uppercase opacity-70">
-						💾 Зберегти чернетку
-					</button>
-				} else {
-					<div class="flex gap-3">
+				if o.Status == "Створено" && o.AdminID == adminID {
+					if len(o.Items) == 0 {
+						<button disabled class="btn-primary w-full bg-slate-300 cursor-not-allowed text-white text-sm py-3 rounded-lg font-bold tracking-wide uppercase opacity-70">
+							Зберегти
+						</button>
+					} else {
 						<button
 							type="button"
-							onclick="adminCloseModal()"
-							class="flex-1 border border-slate-200 bg-white text-slate-700 text-sm py-2.5 rounded-lg font-bold hover:bg-slate-50 transition-colors"
+							onclick="adminCloseModal(); var f = document.getElementById('purchases-filter-form'); if (f) htmx.trigger(f, 'submit');"
+							class="w-full bg-slate-800 hover:bg-slate-900 text-white text-sm py-2.5 rounded-lg font-bold transition-colors"
 						>
-							💾 Зберегти чернетку
+							Зберегти
 						</button>
-						<button
-							class="btn-primary flex-1 bg-amber-500 hover:bg-amber-600 text-white text-sm py-2.5 rounded-lg font-bold shadow-sm"
-							hx-post={ "/admin/purchases/" + strconv.Itoa(o.ID) + "/send" }
-							hx-confirm="Позначити замовлення як відправлене постачальником?"
-						>
-							🚚 Позначити як відправлене
-						</button>
-					</div>
-				}
-			} else if o.Status == "Відправлено" {
+					}
+				} else if o.Status == "Відправлено" {
 				<div class="flex gap-3">
 					<button
 						class="btn-primary flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm py-2.5 rounded-lg font-bold shadow-sm"

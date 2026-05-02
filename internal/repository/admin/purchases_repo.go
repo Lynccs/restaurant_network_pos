@@ -498,6 +498,28 @@ WHERE ingredient_order_id = @orderID;`,
 	return nil
 }
 
+func (r *PurchasesRepo) UpdateOrderItem(orderID, detailID int, qty, price float64) error {
+	_, err := r.db.Exec(`
+UPDATE ingredient_order_details
+SET detail_quantity = @qty, detail_purchase_price = @price
+WHERE ingredient_order_detail_id = @detailID AND ingredient_order_id = @orderID;
+UPDATE ingredient_orders
+SET ingredient_order_total_amount = (
+    SELECT ISNULL(SUM(detail_quantity * detail_purchase_price), 0)
+    FROM ingredient_order_details WHERE ingredient_order_id = @orderID
+)
+WHERE ingredient_order_id = @orderID;`,
+		sql.Named("qty", qty),
+		sql.Named("price", price),
+		sql.Named("detailID", detailID),
+		sql.Named("orderID", orderID),
+	)
+	if err != nil {
+		return fmt.Errorf("UpdateOrderItem: %w", err)
+	}
+	return nil
+}
+
 func (r *PurchasesRepo) UpdateOrderStatus(orderID int, statusName string) error {
 	_, err := r.db.Exec(`
 UPDATE ingredient_orders

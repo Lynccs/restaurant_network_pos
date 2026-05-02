@@ -89,6 +89,7 @@ type PurchasesServicer interface {
 	CreateOrder(adminID, supplierID int, expectedAt time.Time) (int, error)
 	CreateOrderWithItems(adminID, supplierID int, expectedAt time.Time, items []ItemDraftInput) error
 	AddItem(orderID, ingredientID int, qty, price float64) error
+	UpdateItem(orderID, detailID int, qty, price float64) error
 	RemoveItem(orderID, itemID int) error
 	MarkAsSent(orderID int) error
 	ReceiveBatches(restaurantID, adminID int, batches []BatchInput) error
@@ -295,6 +296,10 @@ func (s *PurchasesService) CreateOrderWithItems(adminID, supplierID int, expecte
 
 func (s *PurchasesService) AddItem(orderID, ingredientID int, qty, price float64) error {
 	return s.repo.AddOrderItem(orderID, ingredientID, qty, price)
+}
+
+func (s *PurchasesService) UpdateItem(orderID, detailID int, qty, price float64) error {
+	return s.repo.UpdateOrderItem(orderID, detailID, qty, price)
 }
 
 func (s *PurchasesService) RemoveItem(orderID, itemID int) error {
