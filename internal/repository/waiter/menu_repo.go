@@ -247,7 +247,7 @@ func (r *MenuRepo) CreateOrder(tableID, waiterID int, items []CartEntryForOrder)
 			(order_number, order_total_amount, order_created_at, order_status_id, table_id, waiter_id)
 		OUTPUT INSERTED.order_id
 		VALUES
-			(@number, @total, GETDATE(),
+			(@number, @total, GETUTCDATE(),
 			 (SELECT order_status_id FROM order_statuses WHERE order_status_name = N'Нове'),
 			 @tableID, @waiterID)`,
 		sql.Named("number", orderNumber),

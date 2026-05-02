@@ -389,7 +389,7 @@ func (r *KitchenRepo) RecordIngredientUsages(orderItemID, restaurantID int, usag
 			if _, err := r.db.Exec(`
 				INSERT INTO ingredient_usages
 					(ingredient_usage_quantity, ingredient_usage_time, stock_ingredient_id, cooking_task_id)
-				VALUES (@qty, GETDATE(), @stockID, @taskID)`,
+				VALUES (@qty, GETUTCDATE(), @stockID, @taskID)`,
 				sql.Named("qty", take),
 				sql.Named("stockID", stockID),
 				sql.Named("taskID", taskID),
@@ -455,7 +455,7 @@ func (r *KitchenRepo) StartCooking(orderItemID, chefID int) error {
 	kitchenRepoLog.Printf("StartCooking: orderItemID=%d chefID=%d", orderItemID, chefID)
 	_, err := r.db.Exec(`
 		UPDATE cooking_tasks
-		SET cooking_task_start_time = GETDATE(),
+		SET cooking_task_start_time = GETUTCDATE(),
 		    chef_id                 = @chefID
 		WHERE order_item_id            = @orderItemID
 		  AND cooking_task_start_time IS NULL;
@@ -463,7 +463,7 @@ func (r *KitchenRepo) StartCooking(orderItemID, chefID int) error {
 		IF @@ROWCOUNT = 0
 		BEGIN
 			INSERT INTO cooking_tasks (order_item_id, cooking_task_start_time, chef_id)
-			SELECT @orderItemID, GETDATE(), @chefID
+			SELECT @orderItemID, GETUTCDATE(), @chefID
 			WHERE NOT EXISTS (
 				SELECT 1 FROM cooking_tasks WHERE order_item_id = @orderItemID
 			)
@@ -483,7 +483,7 @@ func (r *KitchenRepo) FinishCooking(taskID int) error {
 	kitchenRepoLog.Printf("FinishCooking: taskID=%d", taskID)
 	_, err := r.db.Exec(`
 		UPDATE cooking_tasks
-		SET cooking_task_end_time = GETDATE()
+		SET cooking_task_end_time = GETUTCDATE()
 		WHERE cooking_task_id            = @taskID
 		  AND cooking_task_start_time IS NOT NULL
 		  AND cooking_task_end_time   IS NULL`,

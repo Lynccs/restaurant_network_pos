@@ -1,0 +1,1169 @@
+package adminpages
+
+import (
+	"fmt"
+	"strconv"
+	"time"
+
+	adminservice "restaurant_network_pos/internal/service/admin"
+)
+
+func fmtDate(t interface{ Format(string) string }) string {
+	return t.Format("02.01.2006")
+}
+
+func fmtShortDate(t time.Time) string {
+	return t.Format("02.01.06")
+}
+
+func fmtQty(q float64) string {
+	if q == float64(int(q)) {
+		return strconv.Itoa(int(q))
+	}
+	s := fmt.Sprintf("%.3f", q)
+	i := len(s) - 1
+	for i > 0 && s[i] == '0' {
+		i--
+	}
+	if s[i] == '.' {
+		i--
+	}
+	return s[:i+1]
+}
+
+func fmtMoney(v float64) string {
+	return fmt.Sprintf("%.2f", v)
+}
+
+func boolVal(b bool, t, f string) string {
+	if b {
+		return t
+	}
+	return f
+}
+
+func purchasePageNums(current, total int) []int {
+	if total <= 7 {
+		nums := make([]int, total)
+		for i := range nums {
+			nums[i] = i + 1
+		}
+		return nums
+	}
+	show := map[int]bool{1: true, total: true}
+	for _, p := range []int{current - 1, current, current + 1} {
+		if p >= 1 && p <= total {
+			show[p] = true
+		}
+	}
+	var pages []int
+	for p := 1; p <= total; p++ {
+		if show[p] {
+			pages = append(pages, p)
+		}
+	}
+	var result []int
+	for i, p := range pages {
+		if i > 0 && p-pages[i-1] > 1 {
+			result = append(result, 0)
+		}
+		result = append(result, p)
+	}
+	return result
+}
+
+func statusBadgeClass(status string) string {
+	switch status {
+	case "Створено":
+		return "bg-slate-100 text-slate-600"
+	case "Відправлено":
+		return "bg-amber-100 text-amber-700"
+	case "Отримано":
+		return "bg-green-100 text-green-700"
+	}
+	return "bg-gray-100 text-gray-600"
+}
+
+func statusLabel(status string) string {
+	return status
+}
+
+func rowBgClass(status string) string {
+	switch status {
+	case "Створено":
+		return "bg-slate-50/60 hover:bg-slate-100/70"
+	case "Відправлено":
+		return "bg-amber-50/60 hover:bg-amber-100/70"
+	case "Отримано":
+		return "bg-green-50/60 hover:bg-green-100/70"
+	}
+	return "bg-white hover:bg-slate-50"
+}
+
+func hasActiveFilters(f adminservice.PurchasesFilters) bool {
+	return f.Ownership != "" || f.SupplierID > 0 || f.CreatedFrom != "" ||
+		f.CreatedTo != "" || f.MinTotal != "" || f.MaxTotal != "" || f.StatusID > 0
+}
+
+// PurchasesPage — повна сторінка "Закупівлі".
+templ PurchasesPage(view *adminservice.PurchasesPageView) {
+	<div class="p-6 max-w-6xl mx-auto fade-in">
+		<style>
+			.tab-btn { transition: all 0.15s; border-bottom: 2px solid transparent; padding: 0.75rem 1.25rem; font-size: 0.875rem; font-weight: 500; color: #475569; }
+			.tab-btn:hover { color: #1e293b; }
+			.tab-btn.active { border-bottom-color: #3b82f6; color: #3b82f6; }
+			.input-field { transition: border-color 0.15s; }
+			.input-field:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+			.btn-primary { transition: all 0.15s; }
+			.btn-primary:hover { filter: brightness(1.08); }
+			.btn-primary:active { transform: scale(0.98); }
+			.supply-expand-row { display: none; }
+			.chevron-icon { transition: transform 0.2s ease; }
+			.chevron-icon.rotated { transform: rotate(180deg); }
+			#purchases-loading { display: none; }
+			#purchases-loading.htmx-request { display: flex; }
+		</style>
+
+		<!-- Header -->
+		<div class="flex items-start justify-between mb-6">
+			<div>
+				<h1 class="text-xl font-semibold text-slate-900">Закупівлі мережі</h1>
+				<p class="text-slate-500 text-sm mt-0.5">Реєстр замовлень постачальникам</p>
+			</div>
+			<button
+				class="btn-primary bg-blue-600 text-white text-sm px-4 py-2 rounded-lg font-medium flex items-center gap-2"
+				hx-get="/admin/purchases/new"
+				hx-target="#admin-modal-content"
+				hx-swap="innerHTML"
+			>
+				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+				</svg>
+				Створити замовлення
+			</button>
+		</div>
+
+		<!-- Tabs -->
+		<div class="flex gap-0 border-b border-slate-200 mb-5">
+			<button
+				id="tab-current"
+				class={ "tab-btn", templ.KV("active", !view.Filters.Archive) }
+				onclick="purchasesSetTab(false)"
+			>Поточні</button>
+			<button
+				id="tab-archive"
+				class={ "tab-btn", templ.KV("active", view.Filters.Archive) }
+				onclick="purchasesSetTab(true)"
+			>Архівні</button>
+		</div>
+
+		<!-- Filter bar -->
+		<div class="mb-4 flex items-center gap-3">
+			<button
+				id="purchases-filter-btn"
+				type="button"
+				class="btn-primary bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm text-sm px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors"
+			>
+				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+				</svg>
+				Фільтри
+			</button>
+			if hasActiveFilters(view.Filters) {
+				<button
+					type="button"
+					onclick="clearFilters()"
+					class="btn-primary bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 text-sm px-4 py-2 rounded-lg font-medium shadow-sm transition-colors flex items-center gap-1.5"
+				>
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+					Скинути всі фільтри
+				</button>
+			} else {
+				<button
+					type="button"
+					disabled
+					class="bg-slate-50 border border-slate-200 text-slate-400 text-sm px-4 py-2 rounded-lg font-medium flex items-center gap-1.5 cursor-not-allowed"
+				>
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+					Скинути всі фільтри
+				</button>
+			}
+		</div>
+
+		<!-- Hidden filter form (HTMX) -->
+		<form
+			id="purchases-filter-form"
+			hx-get="/admin/purchases/list"
+			hx-target="#purchases-list"
+			hx-swap="innerHTML"
+			hx-trigger="submit"
+			hx-indicator="#purchases-loading"
+			style="display:none;"
+		>
+			<input type="hidden" name="archive" id="filter-archive" value={ boolVal(view.Filters.Archive, "1", "0") }/>
+			<input type="hidden" name="ownership" id="filter-ownership" value={ view.Filters.Ownership }/>
+			<input type="hidden" name="supplier_id" id="filter-supplier-id" value={ strconv.Itoa(view.Filters.SupplierID) }/>
+			<input type="hidden" name="created_from" id="filter-created-from" value={ view.Filters.CreatedFrom }/>
+			<input type="hidden" name="created_to" id="filter-created-to" value={ view.Filters.CreatedTo }/>
+			<input type="hidden" name="min_total" id="filter-min-total" value={ view.Filters.MinTotal }/>
+			<input type="hidden" name="max_total" id="filter-max-total" value={ view.Filters.MaxTotal }/>
+			<input type="hidden" name="status_id" id="filter-status-id" value={ strconv.Itoa(view.Filters.StatusID) }/>
+			<input type="hidden" name="page" id="filter-page" value={ strconv.Itoa(view.Filters.Page) }/>
+		</form>
+
+		<!-- Loading indicator -->
+		<div id="purchases-loading" class="flex items-center justify-center py-8">
+			<div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+		</div>
+
+		<!-- List -->
+		<div id="purchases-list">
+			@PurchasesList(view)
+		</div>
+	</div>
+
+	<!-- Filter modal (JS-driven) -->
+	<div id="filter-modal" class="fixed inset-0 bg-black/40 z-50 hidden items-center justify-center p-4 backdrop-blur-sm" onclick="filterModalOverlayClick(event)">
+		<div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl slide-up overflow-hidden">
+			<div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+				<h3 class="font-semibold text-slate-800">Фільтри замовлень закупівлі</h3>
+				<button type="button" onclick="closeFilterModal()" class="text-slate-400 hover:text-slate-600">
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+				</button>
+			</div>
+			<div class="px-6 py-5 grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50/50">
+				<div>
+					<label class="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">Приналежність</label>
+					<select id="fm-ownership" class="input-field w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white">
+						<option value="">Усі</option>
+						<option value="mine">Мої</option>
+					</select>
+				</div>
+				<div>
+					<label class="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">Постачальник</label>
+					<select id="fm-supplier" class="input-field w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white">
+						<option value="0">Усі постачальники</option>
+						for _, s := range view.Suppliers {
+							<option value={ strconv.Itoa(s.ID) }>{ s.Name }</option>
+						}
+					</select>
+				</div>
+				<div>
+					<label class="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">Дата створення: від</label>
+					<input type="date" id="fm-created-from" class="input-field w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white"/>
+				</div>
+				<div>
+					<label class="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">Дата створення: до</label>
+					<input type="date" id="fm-created-to" class="input-field w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white"/>
+				</div>
+				<div>
+					<label class="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">Сума: від (₴)</label>
+					<input type="number" min="0" step="0.01" id="fm-min-total" class="input-field w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white"/>
+				</div>
+				<div>
+					<label class="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">Сума: до (₴)</label>
+					<input type="number" min="0" step="0.01" id="fm-max-total" class="input-field w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white"/>
+				</div>
+				<div class="md:col-span-2">
+					<label class="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">Статус</label>
+					<select id="fm-status" class="input-field w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white">
+						<option value="0">Усі</option>
+						for _, s := range view.Statuses {
+							<option value={ strconv.Itoa(s.ID) }>{ statusLabel(s.Name) }</option>
+						}
+					</select>
+				</div>
+			</div>
+			<div class="px-6 py-4 border-t border-slate-100 flex gap-3 bg-white">
+				<button type="button" onclick="applyFilters()" class="btn-primary flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm py-2.5 rounded-lg font-bold shadow-sm">Застосувати</button>
+				<button type="button" onclick="clearFilters(); closeFilterModal();" class="flex-1 bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 text-sm py-2.5 rounded-lg font-bold shadow-sm">Скинути всі</button>
+				<button type="button" onclick="closeFilterModal()" class="flex-1 border bg-white border-slate-200 text-slate-700 text-sm py-2.5 rounded-lg font-bold hover:bg-slate-50">Скасувати</button>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		// ── Tab switching ─────────────────────────────────────────────────────────
+		function purchasesSetTab(archive) {
+			document.getElementById('filter-archive').value = archive ? '1' : '0';
+			document.getElementById('filter-page').value = '1';
+			document.getElementById('filter-status-id').value = '0';
+			var tabCurrent = document.getElementById('tab-current');
+			var tabArchive = document.getElementById('tab-archive');
+			if (archive) {
+				tabArchive.className = 'tab-btn active'; tabCurrent.className = 'tab-btn';
+			} else {
+				tabCurrent.className = 'tab-btn active'; tabArchive.className = 'tab-btn';
+			}
+			submitFilters();
+		}
+
+		function submitFilters() {
+			var form = document.getElementById('purchases-filter-form');
+			if (form) htmx.trigger(form, 'submit');
+		}
+
+		// ── Pagination ────────────────────────────────────────────────────────────
+		function purchasesGoToPage(page) {
+			document.getElementById('filter-page').value = page;
+			submitFilters();
+		}
+
+		// ── Row accordion ─────────────────────────────────────────────────────────
+		var _expandedId = null;
+		function toggleExpand(orderId) {
+			var row = document.getElementById('expand-' + orderId);
+			var chevron = document.getElementById('chevron-' + orderId);
+			if (!row) return;
+			var isOpen = row.style.display !== 'none' && row.style.display !== '';
+			// Close all
+			if (_expandedId !== null) {
+				var prev = document.getElementById('expand-' + _expandedId);
+				var prevChev = document.getElementById('chevron-' + _expandedId);
+				if (prev) prev.style.display = 'none';
+				if (prevChev) prevChev.classList.remove('rotated');
+			}
+			if (!isOpen || _expandedId !== orderId) {
+				row.style.display = '';
+				if (chevron) chevron.classList.add('rotated');
+				_expandedId = orderId;
+			} else {
+				_expandedId = null;
+			}
+		}
+
+		// After list reload, reset expanded state
+		document.addEventListener('htmx:afterSwap', function(e) {
+			if (e.detail && e.detail.target && e.detail.target.id === 'purchases-list') {
+				_expandedId = null;
+			}
+		});
+
+		// ── Filter modal ──────────────────────────────────────────────────────────
+		function openFilterModal() {
+			var modal = document.getElementById('filter-modal');
+			modal.classList.remove('hidden'); modal.classList.add('flex');
+			document.getElementById('fm-ownership').value = document.getElementById('filter-ownership').value || '';
+			document.getElementById('fm-supplier').value = document.getElementById('filter-supplier-id').value || '0';
+			document.getElementById('fm-created-from').value = document.getElementById('filter-created-from').value || '';
+			document.getElementById('fm-created-to').value = document.getElementById('filter-created-to').value || '';
+			document.getElementById('fm-min-total').value = document.getElementById('filter-min-total').value || '';
+			document.getElementById('fm-max-total').value = document.getElementById('filter-max-total').value || '';
+			document.getElementById('fm-status').value = document.getElementById('filter-status-id').value || '0';
+		}
+		function closeFilterModal() {
+			var modal = document.getElementById('filter-modal');
+			modal.classList.add('hidden'); modal.classList.remove('flex');
+		}
+		function filterModalOverlayClick(e) {
+			if (e.target === document.getElementById('filter-modal')) closeFilterModal();
+		}
+		function applyFilters() {
+			document.getElementById('filter-ownership').value = document.getElementById('fm-ownership').value;
+			document.getElementById('filter-supplier-id').value = document.getElementById('fm-supplier').value;
+			document.getElementById('filter-created-from').value = document.getElementById('fm-created-from').value;
+			document.getElementById('filter-created-to').value = document.getElementById('fm-created-to').value;
+			document.getElementById('filter-min-total').value = document.getElementById('fm-min-total').value;
+			document.getElementById('filter-max-total').value = document.getElementById('fm-max-total').value;
+			document.getElementById('filter-status-id').value = document.getElementById('fm-status').value;
+			document.getElementById('filter-page').value = '1';
+			closeFilterModal();
+			submitFilters();
+		}
+		function clearFilters() {
+			document.getElementById('filter-ownership').value = '';
+			document.getElementById('filter-supplier-id').value = '0';
+			document.getElementById('filter-created-from').value = '';
+			document.getElementById('filter-created-to').value = '';
+			document.getElementById('filter-min-total').value = '';
+			document.getElementById('filter-max-total').value = '';
+			document.getElementById('filter-status-id').value = '0';
+			document.getElementById('filter-page').value = '1';
+			submitFilters();
+		}
+
+		document.addEventListener('DOMContentLoaded', function() {
+			document.getElementById('purchases-filter-btn').addEventListener('click', openFilterModal);
+		});
+	</script>
+}
+
+// PurchasesList — HTMX фрагмент.
+templ PurchasesList(view *adminservice.PurchasesPageView) {
+	if len(view.Orders) == 0 {
+		<div class="text-center py-10 text-sm text-slate-500">За вибраними фільтрами замовлень не знайдено.</div>
+	} else {
+		<div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+			<div class="overflow-x-auto">
+				<table class="w-full">
+					<thead class="bg-slate-50 border-b border-slate-200">
+						<tr>
+							<th class="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Номер</th>
+							<th class="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Постачальник</th>
+							<th class="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Дата створення</th>
+							<th class="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Очікується</th>
+							<th class="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Сума</th>
+							<th class="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Статус</th>
+							<th class="px-5 py-3"></th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-slate-100">
+						for _, o := range view.Orders {
+							@purchaseOrderRow(o, view.AdminID)
+						}
+					</tbody>
+				</table>
+			</div>
+		</div>
+		@purchasesPagination(view.Pagination)
+	}
+}
+
+templ purchaseOrderRow(o adminservice.PurchaseOrder, adminID int) {
+	<!-- Main row -->
+	<tr
+		class={ "cursor-pointer transition-colors group", rowBgClass(o.Status) }
+		onclick={ templ.ComponentScript{Call: "toggleExpand(" + strconv.Itoa(o.ID) + ")"} }
+	>
+		<td class="px-5 py-3.5 mono text-sm font-medium text-slate-700">{ o.Number }</td>
+		<td class="px-5 py-3.5 text-sm text-slate-700">{ o.Supplier }</td>
+		<td class="px-5 py-3.5 text-sm text-slate-500 mono">{ fmtDate(o.CreatedAt) }</td>
+		<td class="px-5 py-3.5 text-sm text-slate-500 mono">{ fmtDate(o.ExpectedAt) }</td>
+		<td class="px-5 py-3.5 text-sm font-semibold mono text-slate-800">
+			if o.Total > 0 {
+				{ fmtMoney(o.Total) } ₴
+			} else {
+				—
+			}
+		</td>
+		<td class="px-5 py-3.5">
+			<span class={ "status-badge px-2 py-0.5 rounded-full font-medium", statusBadgeClass(o.Status) }>
+				{ statusLabel(o.Status) }
+			</span>
+		</td>
+		<td class="px-5 py-3.5 text-right whitespace-nowrap">
+			<span class="inline-flex items-center text-slate-500">
+				<svg id={ "chevron-" + strconv.Itoa(o.ID) } class="w-4 h-4 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+				</svg>
+			</span>
+		</td>
+	</tr>
+	<!-- Expandable row (hidden by default) -->
+	<tr id={ "expand-" + strconv.Itoa(o.ID) } class={ "supply-expand-row", rowBgClass(o.Status) }>
+		<td colspan="7" class="px-5 pb-4 pt-0">
+			<div class="mt-1 bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
+				<!-- Ingredient header -->
+				<div class="grid gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-500 uppercase tracking-wide"
+					style="grid-template-columns: 2fr 1.1fr 1fr 1fr 1.2fr auto">
+					<span>Інгредієнт</span>
+					<span class="text-center">Замовлено</span>
+					<span class="text-center">Од.</span>
+					<span class="text-right">Ціна за од.</span>
+					<span class="text-center">Прийнято</span>
+					<span></span>
+				</div>
+				<!-- Ingredient rows -->
+				<div class="mt-2 space-y-1.5">
+					if len(o.Items) == 0 {
+						<div class="px-3 py-4 text-center text-sm text-slate-400">Позицій немає</div>
+					} else {
+						for _, item := range o.Items {
+							<div class="space-y-1">
+								<div class="grid gap-2 items-center px-3 py-2 bg-white border border-slate-200 rounded-lg"
+									style="grid-template-columns: 2fr 1.1fr 1fr 1fr 1.2fr auto">
+									<span class="text-sm text-slate-800 font-medium">{ item.Name }</span>
+									<span class="text-xs mono text-center text-slate-600">{ fmtQty(item.Qty) }</span>
+									<span class="text-xs text-center text-slate-600">{ item.Unit }</span>
+									<span class="text-xs mono text-right text-slate-700">{ fmtMoney(item.Price) } ₴</span>
+									if item.ReceivedQty > 0 {
+										<span class="text-xs mono text-center text-green-700 font-semibold">{ fmtQty(item.ReceivedQty) }</span>
+									} else {
+										<span class="text-xs mono text-center text-slate-400">—</span>
+									}
+									if o.Status == "Відправлено" {
+										<button
+											onclick="event.stopPropagation()"
+											class="inline-flex items-center bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors btn-primary whitespace-nowrap"
+											hx-get={ "/admin/purchases/" + strconv.Itoa(o.ID) + "/items/" + strconv.Itoa(item.DetailID) + "/receive-modal" }
+											hx-target="#admin-modal-content"
+											hx-swap="innerHTML"
+										>Прийняти</button>
+									} else {
+										<span class="inline-flex items-center bg-slate-100 text-slate-400 text-xs font-semibold px-2.5 py-1 rounded-lg cursor-not-allowed whitespace-nowrap">Прийняти</span>
+									}
+								</div>
+								if len(item.Batches) > 0 {
+									<div class="ml-4 space-y-1">
+										for _, b := range item.Batches {
+											<div class="flex items-center gap-2.5 px-3 py-1.5 bg-green-50 border border-green-100 rounded-lg text-xs text-slate-600">
+												<svg class="w-3 h-3 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+												</svg>
+												<span class="mono font-semibold text-green-700">{ fmtQty(b.Qty) } { item.Unit }</span>
+												<span class="text-slate-300">·</span>
+												<span class="text-slate-500">прибуло { fmtShortDate(b.ReceivedAt) }</span>
+												<span class="text-slate-300">·</span>
+												<span class="text-slate-500">придатний до { fmtShortDate(b.ExpDate) }</span>
+											</div>
+										}
+									</div>
+								}
+							</div>
+						}
+					}
+				</div>
+				<!-- Order actions -->
+				if o.Status == "Створено" && o.AdminID == adminID {
+					<div class="mt-3 pt-3 border-t border-slate-100 flex gap-3 justify-end">
+						<button
+							onclick="event.stopPropagation()"
+							class="btn-primary bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5"
+							hx-get={ "/admin/purchases/" + strconv.Itoa(o.ID) + "/details" }
+							hx-target="#admin-modal-content"
+							hx-swap="innerHTML"
+						>
+							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+							Редагувати позиції
+						</button>
+						if len(o.Items) > 0 {
+							<button
+								onclick="event.stopPropagation()"
+								class="btn-primary bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+								hx-post={ "/admin/purchases/" + strconv.Itoa(o.ID) + "/send" }
+								hx-confirm="Позначити замовлення як відправлене постачальником?"
+							>
+								🚚 Позначити як відправлене
+							</button>
+						}
+					</div>
+				} else if o.Status == "Відправлено" && o.AdminID == adminID {
+					<div class="mt-3 pt-3 border-t border-slate-100 flex justify-end">
+						<button
+							onclick="event.stopPropagation()"
+							class="btn-primary bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors shadow-sm"
+							hx-post={ "/admin/purchases/" + strconv.Itoa(o.ID) + "/complete" }
+							hx-confirm="Завершити замовлення (позначити як отримане)?"
+						>
+							✓ Завершити замовлення (Отримано)
+						</button>
+					</div>
+				} else if o.Status == "Відправлено" && o.AdminID != adminID {
+					<div class="mt-3 pt-3 border-t border-slate-100">
+						<p class="text-xs text-center text-slate-500 bg-slate-50 border border-slate-100 rounded-lg py-2">
+							Очікує фінального підтвердження від ініціатора: <span class="font-semibold text-slate-700">{ o.Initiator }</span>
+						</p>
+					</div>
+				}
+			</div>
+		</td>
+	</tr>
+}
+
+templ purchasesPagination(p adminservice.PurchasesPagination) {
+	if p.TotalPages > 1 {
+		<div class="flex items-center justify-between mt-4">
+			<p class="text-xs text-slate-500">Всього: { strconv.Itoa(p.TotalOrders) } замовлень</p>
+			<div class="flex items-center gap-1">
+				for _, n := range purchasePageNums(p.Page, p.TotalPages) {
+					if n == 0 {
+						<span class="px-2 py-1 text-slate-400 text-sm">…</span>
+					} else if n == p.Page {
+						<span class="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg">{ strconv.Itoa(n) }</span>
+					} else {
+						<button
+							type="button"
+							class="px-3 py-1.5 border border-slate-200 text-slate-600 text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors"
+							onclick={ templ.ComponentScript{Call: "purchasesGoToPage(" + strconv.Itoa(n) + ")"} }
+						>{ strconv.Itoa(n) }</button>
+					}
+				}
+			</div>
+		</div>
+	}
+}
+
+// CreateOrderModal — крок 1: вибір постачальника та дати поставки.
+templ CreateOrderModal(suppliers []adminservice.SupplierOption) {
+	<div class="bg-white rounded-2xl shadow-2xl w-full max-w-md slide-up">
+		<div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+			<h3 class="font-semibold text-slate-800">Нове замовлення постачальнику</h3>
+			<button type="button" onclick="adminCloseModal()" class="text-slate-400 hover:text-slate-600">
+				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+			</button>
+		</div>
+		<form
+			hx-post="/admin/purchases/draft-step2"
+			hx-target="#admin-modal-content"
+			hx-swap="innerHTML"
+		>
+			<div class="px-6 py-5 space-y-4">
+				<div>
+					<label class="text-xs font-medium text-slate-500 uppercase tracking-wider block mb-1.5">Постачальник</label>
+					<select name="supplier_id" required class="input-field w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm">
+						<option value="" disabled selected>Оберіть постачальника...</option>
+						for _, s := range suppliers {
+							<option value={ strconv.Itoa(s.ID) }>{ s.Name }</option>
+						}
+					</select>
+				</div>
+				<div>
+					<label class="text-xs font-medium text-slate-500 uppercase tracking-wider block mb-1.5">Очікувана дата поставки</label>
+					<input type="date" name="expected_at" required class="input-field w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm"/>
+				</div>
+			</div>
+			<div class="px-6 py-4 border-t border-slate-100 flex gap-3">
+				<button type="submit" class="btn-primary flex-1 bg-blue-600 text-white text-sm py-2.5 rounded-lg font-medium">Далі</button>
+				<button type="button" onclick="adminCloseModal()" class="flex-1 border border-slate-200 text-slate-600 text-sm py-2.5 rounded-lg font-medium hover:bg-slate-50">Скасувати</button>
+			</div>
+		</form>
+	</div>
+}
+
+// OrderDraftItemsModal — крок 2: наповнення замовлення інгредієнтами.
+templ OrderDraftItemsModal(supplierID int, supplierName string, expectedAt time.Time, ingredients []adminservice.IngredientOption) {
+	<div id="draft-order-data" data-supplier-id={ strconv.Itoa(supplierID) } data-expected-at={ expectedAt.Format("2006-01-02") } hidden></div>
+	<div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl slide-up flex flex-col" style="max-height:90vh;position:relative;">
+		<div class="flex items-center justify-between px-6 py-5 border-b border-slate-100 flex-shrink-0">
+			<div>
+				<div class="flex items-center gap-3">
+					<h3 class="font-bold text-slate-800 mono text-xl">Нове замовлення</h3>
+					<span class="status-badge px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-600">Створено</span>
+				</div>
+				<p class="text-sm font-medium text-slate-500 mt-1">Постачальник: <span class="text-slate-700">{ supplierName }</span></p>
+			</div>
+			<button type="button" onclick="draftConfirmCancel()" class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+			</button>
+		</div>
+
+		<div class="flex-1 overflow-y-auto scrollbar-thin px-6 py-5 space-y-5">
+			<!-- Форма додавання інгредієнта -->
+			<div class="bg-slate-50 rounded-xl p-4 border border-slate-200 shadow-sm">
+				<p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Додати інгредієнт</p>
+				<div class="flex flex-wrap items-end gap-3">
+					<div class="flex-1 min-w-[180px]">
+						<label class="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Назва</label>
+						<select id="draft-ingredient" class="input-field w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-700 bg-white font-medium" onchange="draftOnIngredientChange(this)">
+							<option value="" disabled selected>Оберіть зі списку...</option>
+							for _, ing := range ingredients {
+								<option value={ strconv.Itoa(ing.ID) } data-unit={ ing.UnitName }>{ ing.Name }</option>
+							}
+						</select>
+					</div>
+					<div class="w-20">
+						<label class="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">К-сть</label>
+						<input type="number" id="draft-qty" min="0.001" step="0.001" placeholder="0" class="input-field w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mono text-center bg-white"/>
+					</div>
+					<div class="w-16">
+						<label class="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Од.</label>
+						<select id="draft-unit-sel" class="input-field w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+							<option value="1">—</option>
+						</select>
+					</div>
+					<div class="w-36">
+						<label class="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Ціна за од. (₴)</label>
+						<input type="number" id="draft-price" min="0.001" step="0.001" placeholder="0.00" class="input-field w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mono text-center bg-white"/>
+					</div>
+					<button type="button" onclick="draftAddItem()" class="btn-primary flex-shrink-0 bg-slate-800 hover:bg-slate-700 text-white text-sm font-bold py-2 px-5 rounded-lg shadow-sm border border-slate-900 h-[38px]">+ Додати</button>
+				</div>
+			</div>
+
+			<!-- Таблиця позицій -->
+			<div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm flex-1 min-h-[200px] flex flex-col">
+				<div class="overflow-y-auto flex-1 h-full relative">
+					<table class="w-full text-left border-collapse">
+						<thead class="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
+							<tr>
+								<th class="text-xs font-bold text-slate-500 uppercase tracking-wider px-5 py-3 w-full">Інгредієнт</th>
+								<th class="text-center text-xs font-bold text-slate-500 uppercase tracking-wider px-5 py-3 whitespace-nowrap">К-сть</th>
+								<th class="text-center text-xs font-bold text-slate-500 uppercase tracking-wider px-5 py-3 whitespace-nowrap">Ціна за од. (₴)</th>
+								<th class="text-right text-xs font-bold text-slate-500 uppercase tracking-wider px-5 py-3 whitespace-nowrap">Сума до сплати (₴)</th>
+								<th class="px-3 py-3"></th>
+							</tr>
+						</thead>
+						<tbody id="draft-items-tbody">
+							<tr id="draft-empty-row">
+								<td colspan="5" class="py-6 text-center text-slate-400 text-sm">Позицій немає. Додайте інгредієнти.</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</div>
+
+			<!-- Загальна сума -->
+			<div id="draft-total-block" class="hidden">
+				<div class="flex justify-between items-center p-4 bg-slate-100 rounded-xl border border-slate-200 shadow-sm">
+					<span class="text-sm font-bold text-slate-600 uppercase tracking-wider">Загальна вартість:</span>
+					<span id="draft-total-amount" class="text-2xl font-bold mono text-slate-900">0.00 ₴</span>
+				</div>
+			</div>
+		</div>
+
+		<div class="px-6 py-4 border-t border-slate-100 bg-white flex-shrink-0 rounded-b-2xl flex gap-3">
+			<button id="draft-submit-btn" type="button" onclick="draftSubmit()" disabled
+				class="btn-primary flex-1 bg-slate-300 cursor-not-allowed opacity-70 text-white text-sm py-2.5 rounded-lg font-bold shadow-sm">
+				Створити замовлення
+			</button>
+		</div>
+		<!-- Confirmation overlay (shown on X click) -->
+		<div id="draft-cancel-confirm" style="display:none;position:absolute;inset:0;z-index:10;background:rgba(0,0,0,0.4);border-radius:1rem;display:none;align-items:center;justify-content:center;">
+			<div class="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 overflow-hidden">
+				<div class="p-6 text-center">
+					<div class="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-red-100 mb-5">
+						<svg class="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+						</svg>
+					</div>
+					<h3 class="text-xl font-bold leading-6 text-slate-900 mb-2">Скасувати замовлення?</h3>
+					<p class="text-sm text-slate-500">Ви дійсно хочете скасувати створення нового замовлення постачання? Всі додані позиції буде втрачено.</p>
+				</div>
+				<div class="px-6 py-4 bg-slate-50 flex flex-col sm:flex-row-reverse gap-3 rounded-b-2xl">
+					<button onclick="adminCloseModal()" class="w-full sm:w-auto inline-flex justify-center rounded-lg border border-transparent bg-red-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-red-700 transition-colors">Підтвердити</button>
+					<button onclick="draftHideConfirmCancel()" class="w-full sm:w-auto inline-flex justify-center rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors">Повернутися</button>
+				</div>
+			</div>
+		</div>
+	</div>
+	<script>
+		var _draftItems = [];
+
+		function draftOnIngredientChange(sel) {
+			var opt = sel.options[sel.selectedIndex];
+			var unit = (opt && opt.value) ? (opt.getAttribute('data-unit') || '') : '';
+			var unitSel = document.getElementById('draft-unit-sel');
+			if (!unitSel) return;
+			var u = unit.toLowerCase();
+			if (u === 'г' || u.indexOf('грам') >= 0) {
+				unitSel.innerHTML = '<option value="1">г</option><option value="1000">кг</option>';
+			} else if (u === 'мл' || u.indexOf('мілі') >= 0 || u.indexOf('літр') >= 0) {
+				unitSel.innerHTML = '<option value="1">мл</option><option value="1000">л</option>';
+			} else {
+				unitSel.innerHTML = '<option value="1">шт</option>';
+			}
+		}
+
+		function draftAddItem() {
+			var ingEl = document.getElementById('draft-ingredient');
+			var qtyEl = document.getElementById('draft-qty');
+			var priceEl = document.getElementById('draft-price');
+			var unitSel = document.getElementById('draft-unit-sel');
+			var ingredientID = parseInt(ingEl.value) || 0;
+			var qty = parseFloat(qtyEl.value) || 0;
+			var price = parseFloat(priceEl.value) || 0;
+			var multiplier = parseFloat(unitSel.value) || 1;
+			if (ingredientID <= 0 || qty <= 0 || price <= 0) { return; }
+			var ingName = ingEl.options[ingEl.selectedIndex].textContent;
+			var unitLabel = unitSel.options[unitSel.selectedIndex].textContent;
+			_draftItems.push({
+				ingredient_id: ingredientID,
+				name: ingName,
+				qty_display: qty,
+				unit_display: unitLabel,
+				qty_actual: qty * multiplier,
+				price_display: price,
+				price_actual: price / multiplier
+			});
+			ingEl.selectedIndex = 0;
+			qtyEl.value = '';
+			priceEl.value = '';
+			unitSel.innerHTML = '<option value="1">—</option>';
+			draftRenderItems();
+			draftUpdateBtn();
+		}
+
+		function draftRemoveItem(idx) {
+			_draftItems.splice(idx, 1);
+			draftRenderItems();
+			draftUpdateBtn();
+		}
+
+		function draftRenderItems() {
+			var tbody = document.getElementById('draft-items-tbody');
+			var totalBlock = document.getElementById('draft-total-block');
+			var totalEl = document.getElementById('draft-total-amount');
+			if (_draftItems.length === 0) {
+				tbody.innerHTML = '<tr id="draft-empty-row"><td colspan="5" class="py-6 text-center text-slate-400 text-sm">Позицій немає. Додайте інгредієнти.</td></tr>';
+				if (totalBlock) totalBlock.classList.add('hidden');
+				return;
+			}
+			if (totalBlock) totalBlock.classList.remove('hidden');
+			var total = 0;
+			var html = '';
+			_draftItems.forEach(function(item, idx) {
+				var lineTotal = item.qty_actual * item.price_actual;
+				total += lineTotal;
+				html += '<tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50">' +
+					'<td class="py-3 px-5 text-sm text-slate-700 font-medium w-full">' + item.name + '</td>' +
+					'<td class="py-3 px-5 text-sm mono text-center whitespace-nowrap text-slate-600">' + item.qty_display + ' ' + item.unit_display + '</td>' +
+					'<td class="py-3 px-5 text-sm mono text-center whitespace-nowrap text-slate-600">' + item.price_display.toFixed(2) + ' ₴/' + item.unit_display + '</td>' +
+					'<td class="py-3 px-5 text-sm font-bold mono text-right whitespace-nowrap text-slate-700">' + lineTotal.toFixed(2) + ' ₴</td>' +
+					'<td class="py-3 px-3 text-right"><button type="button" onclick="draftRemoveItem(' + idx + ')" class="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors">' +
+					'<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>' +
+					'</button></td></tr>';
+			});
+			tbody.innerHTML = html;
+			if (totalEl) totalEl.textContent = total.toFixed(2) + ' ₴';
+		}
+
+		function draftUpdateBtn() {
+			var btn = document.getElementById('draft-submit-btn');
+			var ready = _draftItems.length > 0;
+			btn.disabled = !ready;
+			if (ready) {
+				btn.classList.remove('bg-slate-300', 'cursor-not-allowed', 'opacity-70');
+				btn.classList.add('bg-blue-600');
+			} else {
+				btn.classList.remove('bg-blue-600');
+				btn.classList.add('bg-slate-300', 'cursor-not-allowed', 'opacity-70');
+			}
+		}
+
+		function draftConfirmCancel() {
+			var el = document.getElementById('draft-cancel-confirm');
+			if (el) { el.style.display = 'flex'; }
+		}
+
+		function draftHideConfirmCancel() {
+			var el = document.getElementById('draft-cancel-confirm');
+			if (el) { el.style.display = 'none'; }
+		}
+
+		function draftSubmit() {
+			var orderData = document.getElementById('draft-order-data');
+			var supplierID = orderData ? orderData.getAttribute('data-supplier-id') : '';
+			var expectedAt = orderData ? orderData.getAttribute('data-expected-at') : '';
+			if (!supplierID || !expectedAt || _draftItems.length === 0) return;
+			var btn = document.getElementById('draft-submit-btn');
+			btn.disabled = true;
+			btn.innerHTML = 'Збереження...';
+			var fd = new FormData();
+			fd.append('supplier_id', supplierID);
+			fd.append('expected_at', expectedAt);
+			_draftItems.forEach(function(item) {
+				fd.append('ingredient_id[]', item.ingredient_id.toString());
+				fd.append('qty[]', item.qty_actual.toString());
+				fd.append('price[]', item.price_actual.toString());
+			});
+			fetch('/admin/purchases/create-with-items', { method: 'POST', body: fd })
+			.then(function(resp) {
+				var trigger = resp.headers.get('HX-Trigger');
+				if (trigger) {
+					try { var t = JSON.parse(trigger); if (t.showToast) showAdminToast(t.showToast, 'success'); } catch(e) {}
+					if (trigger.indexOf('closeModal') >= 0) adminCloseModal();
+					if (trigger.indexOf('refreshList') >= 0) {
+						var f = document.getElementById('purchases-filter-form');
+						if (f) htmx.trigger(f, 'submit');
+					}
+				}
+				if (!resp.ok) {
+					showAdminToast('Помилка при створенні замовлення', 'error');
+					btn.disabled = false;
+					btn.innerHTML = '💾 Зберегти чернетку';
+					btn.classList.remove('bg-slate-300', 'cursor-not-allowed', 'opacity-70');
+					btn.classList.add('bg-blue-600', 'hover:bg-blue-500');
+				}
+			})
+			.catch(function() {
+				showAdminToast('Помилка мережі', 'error');
+				btn.disabled = false;
+				btn.innerHTML = '💾 Зберегти чернетку';
+				btn.classList.remove('bg-slate-300', 'cursor-not-allowed', 'opacity-70');
+				btn.classList.add('bg-blue-600', 'hover:bg-blue-500');
+			});
+		}
+	</script>
+}
+
+// OrderDetailsModal — деталі замовлення з формою додавання позицій (тільки для нових замовлень).
+templ OrderDetailsModal(o adminservice.PurchaseOrder, ingredients []adminservice.IngredientOption, adminID int) {
+	<div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl slide-up flex flex-col" style="max-height:90vh;">
+		<div class="flex items-center justify-between px-6 py-5 border-b border-slate-100 flex-shrink-0">
+			<div>
+				<div class="flex items-center gap-3">
+					<h3 class="font-bold text-slate-800 mono text-xl">{ o.Number }</h3>
+					<span class={ "status-badge px-2 py-0.5 rounded-full font-medium", statusBadgeClass(o.Status) }>
+						{ statusLabel(o.Status) }
+					</span>
+				</div>
+				<p class="text-sm font-medium text-slate-500 mt-1">Постачальник: <span class="text-slate-700">{ o.Supplier }</span></p>
+			</div>
+			<button type="button" onclick="adminCloseModal()" class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors flex-shrink-0">
+				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+			</button>
+		</div>
+
+		<div class="flex-1 overflow-y-auto scrollbar-thin px-6 py-5 flex flex-col gap-5">
+			<!-- Add ingredient section (only for created orders by the initiator) -->
+			if o.Status == "Створено" && o.AdminID == adminID {
+				<div class="bg-slate-50 rounded-xl p-5 border border-slate-200 shadow-sm">
+					<p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Додати інгредієнт</p>
+					<form
+						hx-post={ "/admin/purchases/" + strconv.Itoa(o.ID) + "/items" }
+						hx-target="#admin-modal-content"
+						hx-swap="innerHTML"
+						onsubmit="return purchaseItemPrepareSubmit()"
+					>
+						<div class="flex flex-wrap items-end gap-3 mb-1">
+							<div class="flex-1 min-w-[200px]">
+								<label class="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Назва</label>
+								<select name="ingredient_id" required class="input-field w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-700 bg-white font-medium" onchange="onNewItemIngredientChange(this)">
+									<option value="" disabled selected>Оберіть зі списку...</option>
+									for _, ing := range ingredients {
+										<option value={ strconv.Itoa(ing.ID) } data-unit={ ing.UnitName }>{ ing.Name }</option>
+									}
+								</select>
+							</div>
+							<div class="w-20">
+								<label class="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">К-сть</label>
+								<input type="number" name="qty" id="new-item-qty" min="0.001" step="0.001" required placeholder="0" class="input-field w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mono text-center bg-white"/>
+							</div>
+							<div class="w-16">
+								<label class="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Од.</label>
+								<select id="new-item-unit-sel" class="input-field w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+									<option value="1">—</option>
+								</select>
+							</div>
+							<div class="w-36">
+								<label class="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Ціна за од. (₴)</label>
+								<input type="number" name="price" id="new-item-price" min="0.001" step="0.001" required placeholder="0.00" class="input-field w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mono text-center bg-white"/>
+							</div>
+							<button type="submit" class="btn-primary flex-shrink-0 bg-slate-800 hover:bg-slate-700 text-white text-sm font-bold py-2 px-5 rounded-lg shadow-sm border border-slate-900 h-[38px]">+ Додати</button>
+						</div>
+					</form>
+					<script>
+						function onNewItemIngredientChange(sel) {
+							var opt = sel.options[sel.selectedIndex];
+							var unit = opt ? (opt.getAttribute('data-unit') || '') : '';
+							var unitSel = document.getElementById('new-item-unit-sel');
+							if (!unitSel) return;
+							var u = unit.toLowerCase();
+							if (u === 'г' || u.indexOf('грам') >= 0) {
+								unitSel.innerHTML = '<option value="1">г</option><option value="1000">кг</option>';
+							} else if (u === 'мл' || u.indexOf('мілі') >= 0 || u.indexOf('літр') >= 0) {
+								unitSel.innerHTML = '<option value="1">мл</option><option value="1000">л</option>';
+							} else {
+								unitSel.innerHTML = '<option value="1">шт</option>';
+							}
+						}
+						function purchaseItemPrepareSubmit() {
+							var qtyInput = document.getElementById('new-item-qty');
+							var priceInput = document.getElementById('new-item-price');
+							var unitSel = document.getElementById('new-item-unit-sel');
+							if (qtyInput && unitSel) {
+								var multiplier = parseFloat(unitSel.value) || 1;
+								qtyInput.value = ((parseFloat(qtyInput.value) || 0) * multiplier).toString();
+								if (priceInput && multiplier !== 1) {
+									priceInput.value = ((parseFloat(priceInput.value) || 0) / multiplier).toString();
+								}
+							}
+							return true;
+						}
+					</script>
+				</div>
+			}
+
+			<!-- Items table -->
+			<div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm flex-1 min-h-[200px] flex flex-col">
+				<div class="overflow-y-auto flex-1 h-full relative">
+					<table class="w-full text-left border-collapse">
+						<thead class="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
+							<tr>
+								<th class="text-xs font-bold text-slate-500 uppercase tracking-wider px-5 py-3 w-full">Інгредієнт</th>
+								<th class="text-center text-xs font-bold text-slate-500 uppercase tracking-wider px-5 py-3 whitespace-nowrap">К-сть</th>
+								<th class="text-center text-xs font-bold text-slate-500 uppercase tracking-wider px-5 py-3 whitespace-nowrap">Ціна за од. (₴)</th>
+								<th class="text-right text-xs font-bold text-slate-500 uppercase tracking-wider px-5 py-3 whitespace-nowrap">Сума до сплати (₴)</th>
+								if o.Status == "Створено" && o.AdminID == adminID {
+									<th class="px-5 py-3"></th>
+								}
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-slate-100">
+							if len(o.Items) == 0 {
+								<tr>
+									<td colspan="5" class="py-6 text-center text-slate-400 text-sm">Позицій немає. Додайте інгредієнти.</td>
+								</tr>
+							} else {
+								for _, item := range o.Items {
+									<tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+										<td class="py-3 px-5 text-sm text-slate-700 font-medium w-full">{ item.Name } <span class="text-slate-400">({ item.Unit })</span></td>
+										<td class="py-3 px-5 text-sm text-slate-500 mono text-center whitespace-nowrap">{ fmtQty(item.Qty) }</td>
+										<td class="py-3 px-5 text-sm text-slate-500 mono text-center whitespace-nowrap">{ fmtMoney(item.Price) } ₴</td>
+										<td class="py-3 px-5 text-sm text-slate-700 font-bold mono text-right whitespace-nowrap">{ fmtMoney(item.Qty * item.Price) } ₴</td>
+										if o.Status == "Створено" && o.AdminID == adminID {
+											<td class="py-3 px-3 text-right">
+												<button
+													class="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors"
+													hx-delete={ "/admin/purchases/" + strconv.Itoa(o.ID) + "/items/" + strconv.Itoa(item.DetailID) }
+													hx-target="#admin-modal-content"
+													hx-swap="innerHTML"
+													hx-confirm="Видалити цю позицію?"
+												>
+													<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+												</button>
+											</td>
+										}
+									</tr>
+								}
+							}
+						</tbody>
+					</table>
+				</div>
+			</div>
+
+			if o.Total > 0 {
+				<div class="flex justify-between items-center p-4 bg-slate-100 rounded-xl border border-slate-200 shadow-sm mt-auto">
+					<span class="text-sm font-bold text-slate-600 uppercase tracking-wider">Загальна вартість:</span>
+					<span class="text-2xl font-bold mono text-slate-900">{ fmtMoney(o.Total) } ₴</span>
+				</div>
+			}
+		</div>
+
+		<!-- Action buttons -->
+		<div class="px-6 py-4 border-t border-slate-100 bg-white flex-shrink-0 rounded-b-2xl">
+			if o.Status == "Створено" && o.AdminID == adminID {
+				if len(o.Items) == 0 {
+					<button disabled class="btn-primary w-full bg-slate-300 cursor-not-allowed text-white text-sm py-3 rounded-lg font-bold tracking-wide uppercase opacity-70">
+						💾 Зберегти чернетку
+					</button>
+				} else {
+					<div class="flex gap-3">
+						<button
+							type="button"
+							onclick="adminCloseModal()"
+							class="flex-1 border border-slate-200 bg-white text-slate-700 text-sm py-2.5 rounded-lg font-bold hover:bg-slate-50 transition-colors"
+						>
+							💾 Зберегти чернетку
+						</button>
+						<button
+							class="btn-primary flex-1 bg-amber-500 hover:bg-amber-600 text-white text-sm py-2.5 rounded-lg font-bold shadow-sm"
+							hx-post={ "/admin/purchases/" + strconv.Itoa(o.ID) + "/send" }
+							hx-confirm="Позначити замовлення як відправлене постачальником?"
+						>
+							🚚 Позначити як відправлене
+						</button>
+					</div>
+				}
+			} else if o.Status == "Відправлено" {
+				<div class="flex gap-3">
+					<button
+						class="btn-primary flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm py-2.5 rounded-lg font-bold shadow-sm"
+						hx-get={ "/admin/purchases/" + strconv.Itoa(o.ID) + "/receive-modal" }
+						hx-target="#admin-modal-content"
+						hx-swap="innerHTML"
+					>
+						📦 Прийняти партію на склад
+					</button>
+					if o.AdminID == adminID {
+						<button
+							class="btn-primary flex-1 bg-green-600 hover:bg-green-700 text-white text-sm py-2.5 rounded-lg font-bold shadow-sm"
+							hx-post={ "/admin/purchases/" + strconv.Itoa(o.ID) + "/complete" }
+							hx-confirm="Завершити замовлення (позначити як отримане)?"
+						>
+							✓ Завершити замовлення
+						</button>
+					} else {
+						<div class="flex-1 flex items-center justify-center text-sm text-slate-500 bg-slate-50 rounded-lg border border-slate-200 px-3">
+							Очікує від ініціатора: { o.Initiator }
+						</div>
+					}
+				</div>
+			} else if o.Status == "Отримано" {
+				<p class="text-center text-sm text-green-600 font-medium">✓ Замовлення завершено</p>
+			}
+		</div>
+	</div>
+}
+
+// ReceiveBatchModal — приймання всієї партії.
+templ ReceiveBatchModal(o adminservice.PurchaseOrder) {
+	<div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl slide-up flex flex-col" style="max-height:90vh;">
+		<div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0">
+			<div>
+				<h3 class="font-semibold text-slate-800">Приймання партії на склад</h3>
+				<p class="text-xs text-slate-500 mt-0.5 mono">{ o.Number } · { o.Supplier }</p>
+			</div>
+			<button
+				type="button"
+				class="text-slate-400 hover:text-slate-600"
+				hx-get={ "/admin/purchases/" + strconv.Itoa(o.ID) + "/details" }
+				hx-target="#admin-modal-content"
+				hx-swap="innerHTML"
+			>
+				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+			</button>
+		</div>
+		<form hx-post={ "/admin/purchases/" + strconv.Itoa(o.ID) + "/receive" } class="flex flex-col flex-1 overflow-hidden">
+			<div class="flex-1 overflow-y-auto scrollbar-thin px-6 py-4 bg-slate-50/50">
+				<p class="text-xs text-slate-500 mb-4">Оберіть інгредієнти з замовлення, вкажіть фактичну кількість та термін придатності.</p>
+				<div class="space-y-3">
+					for _, item := range o.Items {
+						<div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+							<div class="mb-3">
+								<label class="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Інгредієнт</label>
+								<div class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 font-medium">
+									{ item.Name } ({ item.Unit }) — замовлено: { fmtQty(item.Qty) }
+								</div>
+								<input type="hidden" name="detail_id[]" value={ strconv.Itoa(item.DetailID) }/>
+								<input type="hidden" name="ingredient_id[]" value={ strconv.Itoa(item.IngredientID) }/>
+							</div>
+							<div class="grid grid-cols-2 gap-3">
+								<div>
+									<label class="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Прийнято факт.</label>
+									<input type="number" name="qty[]" step="0.001" min="0.001" required placeholder="0" class="input-field w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mono bg-white"/>
+								</div>
+								<div>
+									<label class="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Придатний до</label>
+									<input type="date" name="exp_date[]" required class="input-field w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"/>
+								</div>
+							</div>
+						</div>
+					}
+				</div>
+			</div>
+			<div class="px-6 py-4 border-t border-slate-100 bg-white flex-shrink-0">
+				<button type="submit" class="btn-primary w-full bg-green-600 hover:bg-green-700 text-white text-sm py-3 rounded-lg font-bold shadow-sm">
+					✓ Підтвердити приймання партії
+				</button>
+			</div>
+		</form>
+	</div>
+}
+
+// ReceiveItemModal — приймання одного інгредієнта.
+templ ReceiveItemModal(orderID int, item adminservice.PurchaseItem) {
+	<div class="bg-white rounded-2xl shadow-2xl w-full max-w-md slide-up">
+		<div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+			<h3 class="font-semibold text-slate-800">Приймання інгредієнта</h3>
+			<button type="button" onclick="adminCloseModal()" class="text-slate-400 hover:text-slate-600">
+				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+			</button>
+		</div>
+		<form hx-post={ "/admin/purchases/" + strconv.Itoa(orderID) + "/receive" }>
+			<input type="hidden" name="detail_id[]" value={ strconv.Itoa(item.DetailID) }/>
+			<input type="hidden" name="ingredient_id[]" value={ strconv.Itoa(item.IngredientID) }/>
+			<div class="px-6 py-5 space-y-4">
+				<div>
+					<label class="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Інгредієнт</label>
+					<div class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 font-medium">
+						{ item.Name } ({ item.Unit }) — замовлено: { fmtQty(item.Qty) }
+					</div>
+				</div>
+				<div>
+					<label class="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Прийнято факт.</label>
+					<input type="number" name="qty[]" step="0.001" min="0.001" required placeholder="0" class="input-field w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm mono bg-white"/>
+				</div>
+				<div>
+					<label class="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Термін придатності</label>
+					<input type="date" name="exp_date[]" required class="input-field w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white"/>
+				</div>
+			</div>
+			<div class="px-6 py-4 border-t border-slate-100 flex gap-3">
+				<button type="submit" class="btn-primary flex-1 bg-green-600 hover:bg-green-700 text-white text-sm py-2.5 rounded-lg font-bold shadow-sm">
+					✓ Підтвердити приймання
+				</button>
+				<button type="button" onclick="adminCloseModal()" class="flex-1 border border-slate-200 text-slate-600 text-sm py-2.5 rounded-lg font-medium hover:bg-slate-50">Скасувати</button>
+			</div>
+		</form>
+	</div>
+}

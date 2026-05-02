@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"time"
 
 	chefservice "restaurant_network_pos/internal/service/chef"
 )
@@ -44,8 +45,8 @@ func writeOffPageNums(current, total int) []int {
 	return result
 }
 
-func formatWriteOffTime(t interface{ Format(string) string }) string {
-	return t.Format("02.01.2006 15:04")
+func formatWriteOffTime(t time.Time) string {
+	return t.Local().Format("02.01.2006 15:04")
 }
 
 func formatWriteOffQty(q float64) string {

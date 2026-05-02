@@ -245,7 +245,7 @@ templ TicketCol(ticket chefservice.KitchenTicket, currentChefID int) {
 				templ.KV("bg-red-700 text-white border-red-600", ticket.IsOverdue),
 				templ.KV("bg-slate-800 text-amber-400 border-slate-700", !ticket.IsOverdue),
 			}>
-				{ ticket.CreatedAt.Format("15:04") }
+				{ ticket.CreatedAt.Local().Format("15:04") }
 			</div>
 		</div>
 		<!-- Картки страв -->
@@ -407,7 +407,7 @@ templ readyHistoryTicketCol(ticket chefservice.KitchenTicket) {
 				</div>
 			</div>
 			<div class="text-sm font-bold mono px-2 py-1 rounded border bg-slate-800 text-amber-400 border-slate-700">
-				{ ticket.CreatedAt.Format("15:04") }
+				{ ticket.CreatedAt.Local().Format("15:04") }
 			</div>
 		</div>
 		<div class="flex-1 overflow-y-auto space-y-3 p-3 scrollbar-thin">

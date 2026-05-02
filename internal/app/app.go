@@ -4,14 +4,17 @@ import (
 	"database/sql"
 	"net/http"
 	"restaurant_network_pos/internal/handlers"
+	adminhandler "restaurant_network_pos/internal/handlers/admin"
 	chefhandler "restaurant_network_pos/internal/handlers/chef"
 	waiterhandler "restaurant_network_pos/internal/handlers/waiter"
 	"restaurant_network_pos/internal/middleware"
 	"restaurant_network_pos/internal/repository"
+	adminrepo "restaurant_network_pos/internal/repository/admin"
 	chefrepo "restaurant_network_pos/internal/repository/chef"
 	waiterrepo "restaurant_network_pos/internal/repository/waiter"
 	"restaurant_network_pos/internal/routes"
 	"restaurant_network_pos/internal/service"
+	adminservice "restaurant_network_pos/internal/service/admin"
 	chefservice "restaurant_network_pos/internal/service/chef"
 	"restaurant_network_pos/internal/sse"
 	waiterservice "restaurant_network_pos/internal/service/waiter"
@@ -56,8 +59,12 @@ func SetupRouter(db *sql.DB, store sessions.Store) (*chi.Mux, func()) {
 	kitchenSvc := chefservice.NewKitchenService(kitchenRepo)
 	kitchenH := chefhandler.NewKitchenHandler(kitchenSvc, store, broadcaster)
 
+	purchasesRepo := adminrepo.NewPurchasesRepo(db)
+	purchasesSvc := adminservice.NewPurchasesService(purchasesRepo)
+	adminH := adminhandler.NewHandler(purchasesSvc, store)
+
 	routes.SetupAuthRoutes(r, authH)
-	routes.SetupAdminRoutes(r, store)
+	routes.SetupAdminRoutes(r, adminH, store)
 	routes.SetupWaiterRoutes(r, waiterH, menuH, ordersH)
 	routes.SetupChefRoutes(r, kitchenH)
 
