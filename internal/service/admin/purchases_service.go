@@ -11,10 +11,13 @@ type PurchasesFilters = adminrepo.PurchasesFilters
 type BatchInput = adminrepo.BatchInput
 
 type PurchaseBatch struct {
-	BatchID    int
-	Qty        float64
-	ExpDate    time.Time
-	ReceivedAt time.Time
+	BatchID           int
+	Qty               float64
+	ExpDate           time.Time
+	ReceivedAt        time.Time
+	RestaurantName    string
+	RestaurantAddress string
+	AdminName         string
 }
 
 type PurchaseItem struct {
@@ -29,18 +32,18 @@ type PurchaseItem struct {
 }
 
 type PurchaseOrder struct {
-	ID          int
-	Number      string
-	SupplierID  int
-	Supplier    string
-	CreatedAt   time.Time
-	ExpectedAt  time.Time
-	Status      string
-	StatusID    int
-	AdminID     int
-	Initiator   string
-	Total       float64
-	Items       []PurchaseItem
+	ID         int
+	Number     string
+	SupplierID int
+	Supplier   string
+	CreatedAt  time.Time
+	ExpectedAt time.Time
+	Status     string
+	StatusID   int
+	AdminID    int
+	Initiator  string
+	Total      float64
+	Items      []PurchaseItem
 }
 
 type PurchasesPagination struct {
@@ -155,10 +158,13 @@ func buildOrders(rows []adminrepo.PurchaseOrderRow) []PurchaseOrder {
 
 		if row.BatchID.Valid {
 			item.Batches = append(item.Batches, PurchaseBatch{
-				BatchID:    int(row.BatchID.Int64),
-				Qty:        row.BatchQty.Float64,
-				ExpDate:    row.BatchExpDate.Time,
-				ReceivedAt: row.BatchArrival.Time,
+				BatchID:           int(row.BatchID.Int64),
+				Qty:               row.BatchQty.Float64,
+				ExpDate:           row.BatchExpDate.Time,
+				ReceivedAt:        row.BatchArrival.Time,
+				RestaurantName:    row.BatchRestaurantName.String,
+				RestaurantAddress: row.BatchRestaurantAddress.String,
+				AdminName:         row.BatchAdminName.String,
 			})
 			item.ReceivedQty += row.BatchQty.Float64
 		}

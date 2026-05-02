@@ -22,28 +22,31 @@ type PurchasesFilters struct {
 }
 
 type PurchaseOrderRow struct {
-	OrderID        int
-	OrderNumber    string
-	CreatedAt      time.Time
-	ExpectedAt     time.Time
-	TotalAmount    float64
-	StatusID       int
-	StatusName     string
-	AdminID        int
-	AdminName      string
-	SupplierID     int
-	SupplierName   string
-	TotalCount     int
-	DetailID       sql.NullInt64
-	DetailQty      sql.NullFloat64
-	DetailPrice    sql.NullFloat64
-	IngredientID   sql.NullInt64
-	IngredientName sql.NullString
-	UnitName       sql.NullString
-	BatchID        sql.NullInt64
-	BatchQty       sql.NullFloat64
-	BatchExpDate   sql.NullTime
-	BatchArrival   sql.NullTime
+	OrderID                int
+	OrderNumber            string
+	CreatedAt              time.Time
+	ExpectedAt             time.Time
+	TotalAmount            float64
+	StatusID               int
+	StatusName             string
+	AdminID                int
+	AdminName              string
+	SupplierID             int
+	SupplierName           string
+	TotalCount             int
+	DetailID               sql.NullInt64
+	DetailQty              sql.NullFloat64
+	DetailPrice            sql.NullFloat64
+	IngredientID           sql.NullInt64
+	IngredientName         sql.NullString
+	UnitName               sql.NullString
+	BatchID                sql.NullInt64
+	BatchQty               sql.NullFloat64
+	BatchExpDate           sql.NullTime
+	BatchArrival           sql.NullTime
+	BatchRestaurantName    sql.NullString
+	BatchRestaurantAddress sql.NullString
+	BatchAdminName         sql.NullString
 }
 
 type SupplierRow struct {
@@ -166,12 +169,18 @@ SELECT
     pb.product_batch_id,
     pb.product_batch_accepted_quantity,
     pb.product_batch_expiration_date,
-    pb.product_batch_arrival_date
+	pb.product_batch_arrival_date,
+	r.restaurant_name,
+	r.restaurant_address,
+	a2.administrator_full_name
 FROM paged p
 LEFT JOIN ingredient_order_details iod ON iod.ingredient_order_id = p.ingredient_order_id
 LEFT JOIN ingredients i ON i.ingredient_id = iod.ingredient_id
 LEFT JOIN ingredient_units iu ON iu.ingredient_unit_id = i.ingredient_unit_id
 LEFT JOIN product_batches pb ON pb.ingredient_order_detail_id = iod.ingredient_order_detail_id
+LEFT JOIN stock_ingredients si ON si.stock_ingredient_id = pb.stock_ingredient_id
+LEFT JOIN restaurants r ON r.restaurant_id = si.restaurant_id
+LEFT JOIN administrators a2 ON a2.administrator_id = pb.administrator_id
 ORDER BY p.rn, iod.ingredient_order_detail_id, pb.product_batch_id
 OPTION (RECOMPILE)`, where.String())
 
@@ -194,6 +203,7 @@ OPTION (RECOMPILE)`, where.String())
 			&row.DetailID, &row.DetailQty, &row.DetailPrice,
 			&row.IngredientID, &row.IngredientName, &row.UnitName,
 			&row.BatchID, &row.BatchQty, &row.BatchExpDate, &row.BatchArrival,
+			&row.BatchRestaurantName, &row.BatchRestaurantAddress, &row.BatchAdminName,
 		); err != nil {
 			return nil, 0, fmt.Errorf("GetPurchasesData scan: %w", err)
 		}
@@ -229,7 +239,10 @@ SELECT
     pb.product_batch_id,
     pb.product_batch_accepted_quantity,
     pb.product_batch_expiration_date,
-    pb.product_batch_arrival_date
+	pb.product_batch_arrival_date,
+	r.restaurant_name,
+	r.restaurant_address,
+	a2.administrator_full_name
 FROM ingredient_orders io
 JOIN administrators a ON a.administrator_id = io.administrator_id
 JOIN suppliers s ON s.supplier_id = io.supplier_id
@@ -238,6 +251,9 @@ LEFT JOIN ingredient_order_details iod ON iod.ingredient_order_id = io.ingredien
 LEFT JOIN ingredients i ON i.ingredient_id = iod.ingredient_id
 LEFT JOIN ingredient_units iu ON iu.ingredient_unit_id = i.ingredient_unit_id
 LEFT JOIN product_batches pb ON pb.ingredient_order_detail_id = iod.ingredient_order_detail_id
+LEFT JOIN stock_ingredients si ON si.stock_ingredient_id = pb.stock_ingredient_id
+LEFT JOIN restaurants r ON r.restaurant_id = si.restaurant_id
+LEFT JOIN administrators a2 ON a2.administrator_id = pb.administrator_id
 WHERE io.ingredient_order_id = @orderID
 ORDER BY iod.ingredient_order_detail_id, pb.product_batch_id`
 
@@ -259,6 +275,7 @@ ORDER BY iod.ingredient_order_detail_id, pb.product_batch_id`
 			&row.DetailID, &row.DetailQty, &row.DetailPrice,
 			&row.IngredientID, &row.IngredientName, &row.UnitName,
 			&row.BatchID, &row.BatchQty, &row.BatchExpDate, &row.BatchArrival,
+			&row.BatchRestaurantName, &row.BatchRestaurantAddress, &row.BatchAdminName,
 		); err != nil {
 			return nil, fmt.Errorf("GetOrderDetails scan: %w", err)
 		}
@@ -537,10 +554,10 @@ WHERE ingredient_order_id = @orderID`,
 }
 
 type BatchInput struct {
-	DetailID   int
+	DetailID     int
 	IngredientID int
-	Qty        float64
-	ExpDate    time.Time
+	Qty          float64
+	ExpDate      time.Time
 }
 
 func (r *PurchasesRepo) ReceiveBatches(restaurantID, adminID int, batches []BatchInput) error {
