@@ -271,6 +271,10 @@ func (h *Handler) OrderDetails(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	if order.AdminID != adminID {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 
 	ingredients, err := h.Svc.GetIngredients()
 	if err != nil {
@@ -298,6 +302,16 @@ func (h *Handler) AddItem(w http.ResponseWriter, r *http.Request) {
 
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+
+	order, err := h.Svc.GetOrderDetails(orderID)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if order.AdminID != adminID {
+		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 
@@ -329,7 +343,7 @@ func (h *Handler) AddItem(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	order, err := h.Svc.GetOrderDetails(orderID)
+	order, err = h.Svc.GetOrderDetails(orderID)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
@@ -362,13 +376,23 @@ func (h *Handler) RemoveItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	order, err := h.Svc.GetOrderDetails(orderID)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if order.AdminID != adminID {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
 	if err := h.Svc.RemoveItem(orderID, itemID); err != nil {
 		handlerLog.Printf("RemoveItem: %v", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	order, err := h.Svc.GetOrderDetails(orderID)
+	order, err = h.Svc.GetOrderDetails(orderID)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
@@ -384,9 +408,24 @@ func (h *Handler) RemoveItem(w http.ResponseWriter, r *http.Request) {
 
 // MarkAsSent — POST /admin/purchases/{id}/send
 func (h *Handler) MarkAsSent(w http.ResponseWriter, r *http.Request) {
+	_, adminID, _, err := h.sessionData(r)
+	if err != nil {
+		http.Error(w, "session error", http.StatusInternalServerError)
+		return
+	}
 	orderID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
 		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	order, err := h.Svc.GetOrderDetails(orderID)
+	if err != nil {
+		handlerLog.Printf("MarkAsSent details: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if order.AdminID != adminID {
+		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 	if err := h.Svc.MarkAsSent(orderID); err != nil {
@@ -433,6 +472,20 @@ func (h *Handler) ReceiveBatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	order, err := h.Svc.GetOrderDetails(orderID)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	remainingByDetail := make(map[int]float64, len(order.Items))
+	for _, item := range order.Items {
+		remaining := item.Qty - item.ReceivedQty
+		if remaining < 0 {
+			remaining = 0
+		}
+		remainingByDetail[item.DetailID] = remaining
+	}
+
 	detailIDs := r.Form["detail_id[]"]
 	ingredientIDs := r.Form["ingredient_id[]"]
 	qtys := r.Form["qty[]"]
@@ -453,6 +506,15 @@ func (h *Handler) ReceiveBatch(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "invalid batch data", http.StatusBadRequest)
 			return
 		}
+		remaining, ok := remainingByDetail[detailID]
+		if !ok {
+			http.Error(w, "invalid batch data", http.StatusBadRequest)
+			return
+		}
+		if qty-remaining > 1e-9 {
+			http.Error(w, "qty exceeds remaining", http.StatusBadRequest)
+			return
+		}
 		batches = append(batches, adminservice.BatchInput{
 			DetailID:     detailID,
 			IngredientID: ingredientID,
@@ -467,15 +529,46 @@ func (h *Handler) ReceiveBatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	refreshed, err := h.Svc.GetOrderDetails(orderID)
+	if err == nil && refreshed.Status != "Отримано" {
+		allReceived := len(refreshed.Items) > 0
+		for _, item := range refreshed.Items {
+			if item.Qty-item.ReceivedQty > 1e-9 {
+				allReceived = false
+				break
+			}
+		}
+		if allReceived {
+			if err := h.Svc.CompleteOrder(orderID); err != nil {
+				handlerLog.Printf("AutoComplete orderID=%d: %v", orderID, err)
+			}
+		}
+	}
+
 	w.Header().Set("HX-Trigger", `{"closeModal":null,"refreshList":null,"showToast":"batchReceived"}`)
 	w.WriteHeader(http.StatusOK)
 }
 
 // CompleteOrder — POST /admin/purchases/{id}/complete
 func (h *Handler) CompleteOrder(w http.ResponseWriter, r *http.Request) {
+	_, adminID, _, err := h.sessionData(r)
+	if err != nil {
+		http.Error(w, "session error", http.StatusInternalServerError)
+		return
+	}
 	orderID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
 		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	order, err := h.Svc.GetOrderDetails(orderID)
+	if err != nil {
+		handlerLog.Printf("CompleteOrder details: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if order.AdminID != adminID {
+		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 	if err := h.Svc.CompleteOrder(orderID); err != nil {
@@ -512,6 +605,105 @@ func (h *Handler) ReceiveItemModal(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	http.Error(w, "item not found", http.StatusNotFound)
+}
+
+// PurchaseItemBatches — GET /admin/purchases/items/{detailID}/batches
+func (h *Handler) PurchaseItemBatches(w http.ResponseWriter, r *http.Request) {
+	_, adminID, _, err := h.sessionData(r)
+	if err != nil {
+		http.Error(w, "session error", http.StatusInternalServerError)
+		return
+	}
+	detailID, err := strconv.Atoi(chi.URLParam(r, "detailID"))
+	if err != nil {
+		http.Error(w, "invalid detailID", http.StatusBadRequest)
+		return
+	}
+	view, err := h.Svc.GetDetailBatches(detailID)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	adminpages.PurchaseItemBatches(view, adminID).Render(r.Context(), w)
+}
+
+// EditBatchModal — GET /admin/purchases/batches/{batchID}/edit-modal
+func (h *Handler) EditBatchModal(w http.ResponseWriter, r *http.Request) {
+	_, adminID, _, err := h.sessionData(r)
+	if err != nil {
+		http.Error(w, "session error", http.StatusInternalServerError)
+		return
+	}
+	batchID, err := strconv.Atoi(chi.URLParam(r, "batchID"))
+	if err != nil {
+		http.Error(w, "invalid batchID", http.StatusBadRequest)
+		return
+	}
+	data, err := h.Svc.GetBatchEditData(batchID)
+	if err != nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	if data.AdminID != adminID {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	maxAllowed := data.OrderQty - (data.TotalReceived - data.BatchQty)
+	if maxAllowed < 0 {
+		maxAllowed = 0
+	}
+	data.MaxAllowed = maxAllowed
+	adminpages.EditBatchModal(data).Render(r.Context(), w)
+}
+
+// UpdateBatch — POST /admin/purchases/batches/{batchID}/update
+func (h *Handler) UpdateBatch(w http.ResponseWriter, r *http.Request) {
+	_, adminID, _, err := h.sessionData(r)
+	if err != nil {
+		http.Error(w, "session error", http.StatusInternalServerError)
+		return
+	}
+	batchID, err := strconv.Atoi(chi.URLParam(r, "batchID"))
+	if err != nil {
+		http.Error(w, "invalid batchID", http.StatusBadRequest)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	qty, _ := strconv.ParseFloat(r.FormValue("qty"), 64)
+	expDate, err := time.Parse("2006-01-02", r.FormValue("exp_date"))
+	if err != nil || qty <= 0 {
+		http.Error(w, "invalid data", http.StatusBadRequest)
+		return
+	}
+
+	data, err := h.Svc.GetBatchEditData(batchID)
+	if err != nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	if data.AdminID != adminID {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	maxAllowed := data.OrderQty - (data.TotalReceived - data.BatchQty)
+	if maxAllowed < 0 {
+		maxAllowed = 0
+	}
+	if qty-maxAllowed > 1e-9 {
+		http.Error(w, "qty exceeds remaining", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.Svc.UpdateBatch(adminID, batchID, qty, expDate); err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	common := `{"closeModal":null,"refreshList":null,"showToast":"batchUpdated"}`
+	w.Header().Set("HX-Trigger", common)
+	w.WriteHeader(http.StatusOK)
 }
 
 // GetIngredientsJSON — GET /admin/purchases/ingredients (JSON)

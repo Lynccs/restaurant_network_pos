@@ -235,25 +235,14 @@ templ PurchasesPage(view *adminservice.PurchasesPageView) {
 				</svg>
 				Фільтри
 			</button>
-			if hasActiveFilters(view.Filters) {
-				<button
-					type="button"
-					onclick="clearFilters()"
-					class="btn-primary bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 text-sm px-4 py-2 rounded-lg font-medium shadow-sm transition-colors flex items-center gap-1.5"
-				>
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-					Скинути всі фільтри
-				</button>
-			} else {
-				<button
-					type="button"
-					disabled
-					class="bg-slate-50 border border-slate-200 text-slate-400 text-sm px-4 py-2 rounded-lg font-medium flex items-center gap-1.5 cursor-not-allowed"
-				>
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-					Скинути всі фільтри
-				</button>
-			}
+			<button
+				type="button"
+				onclick="clearFilters()"
+				class="btn-primary bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 text-sm px-4 py-2 rounded-lg font-medium shadow-sm transition-colors flex items-center gap-1.5"
+			>
+				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+				Скинути всі фільтри
+			</button>
 		</div>
 
 		<!-- Hidden filter form (HTMX) -->
@@ -348,6 +337,44 @@ templ PurchasesPage(view *adminservice.PurchasesPageView) {
 		</div>
 	</div>
 
+	<!-- Complete order confirm modal -->
+	<div id="complete-confirm-modal" class="fixed inset-0 bg-black/40 z-50 hidden items-center justify-center p-4 backdrop-blur-sm" onclick="completeConfirmOverlayClick(event)">
+		<div class="bg-white rounded-2xl shadow-2xl w-full max-w-md slide-up overflow-hidden">
+			<div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+				<h3 class="font-semibold text-slate-800">Підтвердження</h3>
+				<button type="button" onclick="closeCompleteConfirm()" class="text-slate-400 hover:text-slate-600">
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+				</button>
+			</div>
+			<div class="px-6 py-5">
+				<p class="text-sm text-slate-600">Завершити замовлення та позначити його як отримане?</p>
+			</div>
+			<div class="px-6 py-4 border-t border-slate-100 flex gap-3 bg-white">
+				<button type="button" onclick="confirmCompleteOrder()" class="btn-primary flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm py-2.5 rounded-lg font-bold shadow-sm">Підтвердити</button>
+				<button type="button" onclick="closeCompleteConfirm()" class="flex-1 border bg-white border-slate-200 text-slate-700 text-sm py-2.5 rounded-lg font-bold hover:bg-slate-50">Скасувати</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- Send order confirm modal -->
+	<div id="send-confirm-modal" class="fixed inset-0 bg-black/40 z-50 hidden items-center justify-center p-4 backdrop-blur-sm" onclick="sendConfirmOverlayClick(event)">
+		<div class="bg-white rounded-2xl shadow-2xl w-full max-w-md slide-up overflow-hidden">
+			<div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+				<h3 class="font-semibold text-slate-800">Підтвердження</h3>
+				<button type="button" onclick="closeSendConfirm()" class="text-slate-400 hover:text-slate-600">
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+				</button>
+			</div>
+			<div class="px-6 py-5">
+				<p class="text-sm text-slate-600">Позначити замовлення як відправлене постачальником?</p>
+			</div>
+			<div class="px-6 py-4 border-t border-slate-100 flex gap-3 bg-white">
+				<button type="button" onclick="confirmSendOrder()" class="btn-primary flex-1 bg-amber-500 hover:bg-amber-600 text-white text-sm py-2.5 rounded-lg font-bold shadow-sm">Підтвердити</button>
+				<button type="button" onclick="closeSendConfirm()" class="flex-1 border bg-white border-slate-200 text-slate-700 text-sm py-2.5 rounded-lg font-bold hover:bg-slate-50">Скасувати</button>
+			</div>
+		</div>
+	</div>
+
 	<script>
 		// ── Tab switching ─────────────────────────────────────────────────────────
 		function purchasesSetTab(archive) {
@@ -417,6 +444,13 @@ templ PurchasesPage(view *adminservice.PurchasesPageView) {
 			} else {
 				row.style.display = 'block';
 				if (chevron) chevron.classList.add('rotated');
+				if (row.getAttribute('data-loaded') !== '1') {
+					var url = row.getAttribute('data-url');
+					if (url && window.htmx) {
+						row.setAttribute('data-loaded', '1');
+						htmx.ajax('GET', url, { target: row, swap: 'innerHTML' });
+					}
+				}
 			}
 		}
 
@@ -470,6 +504,52 @@ templ PurchasesPage(view *adminservice.PurchasesPageView) {
 			submitFilters();
 		}
 
+		var _completeOrderId = null;
+		function openCompleteConfirm(orderId) {
+			_completeOrderId = orderId;
+			var modal = document.getElementById('complete-confirm-modal');
+			modal.classList.remove('hidden');
+			modal.classList.add('flex');
+		}
+		function closeCompleteConfirm() {
+			_completeOrderId = null;
+			var modal = document.getElementById('complete-confirm-modal');
+			modal.classList.add('hidden');
+			modal.classList.remove('flex');
+		}
+		function completeConfirmOverlayClick(e) {
+			if (e.target === document.getElementById('complete-confirm-modal')) closeCompleteConfirm();
+		}
+		function confirmCompleteOrder() {
+			if (!_completeOrderId || !window.htmx) return;
+			var url = '/admin/purchases/' + _completeOrderId + '/complete';
+			htmx.ajax('POST', url, { target: '#purchases-list', swap: 'none' });
+			closeCompleteConfirm();
+		}
+
+		var _sendOrderId = null;
+		function openSendConfirm(orderId) {
+			_sendOrderId = orderId;
+			var modal = document.getElementById('send-confirm-modal');
+			modal.classList.remove('hidden');
+			modal.classList.add('flex');
+		}
+		function closeSendConfirm() {
+			_sendOrderId = null;
+			var modal = document.getElementById('send-confirm-modal');
+			modal.classList.add('hidden');
+			modal.classList.remove('flex');
+		}
+		function sendConfirmOverlayClick(e) {
+			if (e.target === document.getElementById('send-confirm-modal')) closeSendConfirm();
+		}
+		function confirmSendOrder() {
+			if (!_sendOrderId || !window.htmx) return;
+			var url = '/admin/purchases/' + _sendOrderId + '/send';
+			htmx.ajax('POST', url, { target: '#purchases-list', swap: 'none' });
+			closeSendConfirm();
+		}
+
 		document.addEventListener('DOMContentLoaded', function() {
 			document.getElementById('purchases-filter-btn').addEventListener('click', openFilterModal);
 		});
@@ -513,7 +593,14 @@ templ purchaseOrderRow(o adminservice.PurchaseOrder, adminID int) {
 		class={ "cursor-pointer transition-colors group", rowBgClass(o.Status), orderBorderClass(o.Status) }
 		onclick={ templ.ComponentScript{Call: "toggleExpand(" + strconv.Itoa(o.ID) + ")"} }
 	>
-		<td class="px-5 py-3.5 mono text-sm font-medium text-slate-700">{ o.Number }</td>
+		<td class="px-5 py-3.5 mono text-sm font-medium text-slate-700">
+			<div class="flex items-center gap-2">
+				<span>{ o.Number }</span>
+				if o.AdminID == adminID {
+					<span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-semibold uppercase tracking-wide">Моє</span>
+				}
+			</div>
+		</td>
 		<td class="px-5 py-3.5 text-sm text-slate-700">{ o.Supplier }</td>
 		<td class="px-5 py-3.5 text-sm text-slate-500 mono">{ fmtDate(o.CreatedAt) }</td>
 		<td class="px-5 py-3.5 text-sm text-slate-500 mono">{ fmtDate(o.ExpectedAt) }</td>
@@ -543,10 +630,9 @@ templ purchaseOrderRow(o adminservice.PurchaseOrder, adminID int) {
 			<div class="mt-1 bg-white rounded-xl p-3 shadow-sm">
 				<!-- Ingredient header -->
 				<div class="grid gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-500 uppercase tracking-wide"
-					style="grid-template-columns: 2fr 1.1fr 1fr 1fr 1.2fr 1fr">
+					style="grid-template-columns: 2fr 1.4fr 1fr 1.2fr 1fr">
 					<span>Інгредієнт</span>
 					<span class="text-center">Замовлено</span>
-					<span class="text-center">Од.</span>
 					<span class="text-right">Ціна за од.</span>
 					<span class="text-center">Прийнято</span>
 					<span></span>
@@ -559,10 +645,11 @@ templ purchaseOrderRow(o adminservice.PurchaseOrder, adminID int) {
 						for _, item := range o.Items {
 							{{ display := displayQtyPrice(item.Qty, item.Price, item.Unit) }}
 							{{ received := displayQtyUnit(item.ReceivedQty, item.Unit) }}
-							{{ hasBatches := len(item.Batches) > 0 }}
+							{{ hasBatches := item.BatchCount > 0 }}
+							{{ remaining := item.Qty - item.ReceivedQty }}
 							<div class="space-y-1">
 								<div id={ "ing-row-" + strconv.Itoa(item.DetailID) } class={ "grid gap-2 items-center px-3 py-2 bg-white border border-slate-200 rounded-lg", templ.KV("cursor-pointer", hasBatches) }
-									style="grid-template-columns: 2fr 1.1fr 1fr 1fr 1.2fr 1fr"
+									style="grid-template-columns: 2fr 1.4fr 1fr 1.2fr 1fr"
 									if hasBatches {
 										onclick={ templ.ComponentScript{Call: "toggleIngredient(" + strconv.Itoa(item.DetailID) + ")"} }
 									}
@@ -577,19 +664,14 @@ templ purchaseOrderRow(o adminservice.PurchaseOrder, adminID int) {
 										}
 										{ item.Name }
 									</span>
-									<span class="text-sm mono text-center text-slate-600">{ fmtQty(display.Qty) }</span>
-									<span class="text-sm text-center text-slate-600">{ display.Unit }</span>
+									<span class="text-sm mono text-center text-slate-600">{ fmtQty(display.Qty) } { display.Unit }</span>
 									<span class="text-sm mono text-right text-slate-700">{ fmtMoney(display.Price) } ₴</span>
 									if item.ReceivedQty > 0 {
-										if received.Unit == display.Unit {
-											<span class="text-sm mono text-center text-green-700 font-semibold">{ fmtQty(received.Qty) }</span>
-										} else {
-											<span class="text-sm mono text-center text-green-700 font-semibold">{ fmtQty(received.Qty) } { received.Unit }</span>
-										}
+										<span class="text-sm mono text-center text-green-700 font-semibold">{ fmtQty(received.Qty) } { received.Unit }</span>
 									} else {
 										<span class="text-sm mono text-center text-slate-400">—</span>
 									}
-									if o.Status == "Відправлено" {
+									if o.Status == "Відправлено" && remaining > 0 {
 										<button
 											onclick="event.stopPropagation()"
 											class="inline-flex items-center justify-center bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors btn-primary whitespace-nowrap"
@@ -602,42 +684,11 @@ templ purchaseOrderRow(o adminservice.PurchaseOrder, adminID int) {
 									}
 								</div>
 								if hasBatches {
-									<div id={ "ing-batches-" + strconv.Itoa(item.DetailID) } class="hidden ml-6 mt-2 space-y-2 ing-batches-card ing-batches-accent border rounded-lg p-2">
-										<div class="grid gap-2 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-500 uppercase tracking-wide"
-											style="grid-template-columns: 1fr 1fr 1fr 1.2fr 1.5fr 1.2fr">
-											<span class="text-center">Прийнято</span>
-											<span class="text-center">Прибуття</span>
-											<span class="text-center">Термін</span>
-											<span>Ресторан</span>
-											<span>Адреса</span>
-											<span>Адміністратор</span>
-										</div>
-										<div class="space-y-1">
-											for _, b := range item.Batches {
-												{{ batchDisplay := displayQtyUnit(b.Qty, item.Unit) }}
-												<div class="grid gap-2 items-center px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-600"
-													style="grid-template-columns: 1fr 1fr 1fr 1.2fr 1.5fr 1.2fr">
-													<span class="mono font-semibold text-green-700 text-center">{ fmtQty(batchDisplay.Qty) } { batchDisplay.Unit }</span>
-													<span class="text-center">{ fmtShortDate(b.ReceivedAt) }</span>
-													<span class="text-center">{ fmtShortDate(b.ExpDate) }</span>
-													if b.RestaurantName != "" {
-														<span>{ b.RestaurantName }</span>
-													} else {
-														<span class="text-slate-400">—</span>
-													}
-													if b.RestaurantAddress != "" {
-														<span>{ b.RestaurantAddress }</span>
-													} else {
-														<span class="text-slate-400">—</span>
-													}
-													if b.AdminName != "" {
-														<span>{ b.AdminName }</span>
-													} else {
-														<span class="text-slate-400">—</span>
-													}
-												</div>
-											}
-										</div>
+									<div id={ "ing-batches-" + strconv.Itoa(item.DetailID) }
+										data-url={ "/admin/purchases/items/" + strconv.Itoa(item.DetailID) + "/batches" }
+										data-loaded="0"
+										class="hidden ml-6 mt-2 space-y-2 ing-batches-card ing-batches-accent border rounded-lg p-2">
+										<div class="px-3 py-2 text-xs text-slate-500">Завантаження партій...</div>
 									</div>
 								}
 							</div>
@@ -659,10 +710,8 @@ templ purchaseOrderRow(o adminservice.PurchaseOrder, adminID int) {
 						</button>
 						if len(o.Items) > 0 {
 							<button
-								onclick="event.stopPropagation()"
 								class="btn-primary bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
-								hx-post={ "/admin/purchases/" + strconv.Itoa(o.ID) + "/send" }
-								hx-confirm="Позначити замовлення як відправлене постачальником?"
+								onclick={ templ.ComponentScript{Call: "event.stopPropagation(); openSendConfirm(" + strconv.Itoa(o.ID) + ")"} }
 							>
 								🚚 Позначити як відправлене
 							</button>
@@ -671,10 +720,8 @@ templ purchaseOrderRow(o adminservice.PurchaseOrder, adminID int) {
 				} else if o.Status == "Відправлено" && o.AdminID == adminID {
 					<div class="mt-3 pt-3 border-t border-slate-100 flex justify-end">
 						<button
-							onclick="event.stopPropagation()"
-							class="btn-primary bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors shadow-sm"
-							hx-post={ "/admin/purchases/" + strconv.Itoa(o.ID) + "/complete" }
-							hx-confirm="Завершити замовлення (позначити як отримане)?"
+							class="btn-primary bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors shadow-sm"
+							onclick={ templ.ComponentScript{Call: "event.stopPropagation(); openCompleteConfirm(" + strconv.Itoa(o.ID) + ")"} }
 						>
 							Закрити замовлення
 						</button>
@@ -689,6 +736,76 @@ templ purchaseOrderRow(o adminservice.PurchaseOrder, adminID int) {
 			</div>
 		</td>
 	</tr>
+}
+
+// PurchaseItemBatches — HTMX fragment for batches.
+templ PurchaseItemBatches(view adminservice.BatchesView, adminID int) {
+	{{ showBatchEdit := view.OrderStatus != "Отримано" }}
+	if len(view.Batches) == 0 {
+		<div class="px-3 py-2 text-xs text-slate-500">Партій немає</div>
+	} else {
+		if showBatchEdit {
+			<div class="grid gap-5 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-500 uppercase tracking-wide"
+				style="grid-template-columns: 1fr 1fr 1fr 1.1fr 1.1fr 1.1fr 0.4fr">
+				<span class="text-center">Прийнято</span>
+				<span class="text-center">Прибуття</span>
+				<span class="text-center">Термін</span>
+				<span>Ресторан</span>
+				<span>Адреса</span>
+				<span>Адміністратор</span>
+				<span></span>
+			</div>
+		} else {
+			<div class="grid gap-5 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-500 uppercase tracking-wide"
+				style="grid-template-columns: 1fr 1fr 1fr 1.1fr 1.1fr 1.1fr">
+				<span class="text-center">Прийнято</span>
+				<span class="text-center">Прибуття</span>
+				<span class="text-center">Термін</span>
+				<span>Ресторан</span>
+				<span>Адреса</span>
+				<span>Адміністратор</span>
+			</div>
+		}
+		<div class="space-y-1">
+			for _, b := range view.Batches {
+				{{ batchDisplay := displayQtyUnit(b.Qty, view.Unit) }}
+				<div class="grid gap-5 items-center px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-600"
+					style={ boolVal(showBatchEdit, "grid-template-columns: 1fr 1fr 1fr 1.1fr 1.1fr 1.1fr 0.4fr", "grid-template-columns: 1fr 1fr 1fr 1.1fr 1.1fr 1.1fr") }>
+					<span class="mono font-semibold text-green-700 text-center">{ fmtQty(batchDisplay.Qty) } { batchDisplay.Unit }</span>
+					<span class="text-center">{ fmtShortDate(b.ReceivedAt) }</span>
+					<span class="text-center">{ fmtShortDate(b.ExpDate) }</span>
+					if b.RestaurantName != "" {
+						<span>{ b.RestaurantName }</span>
+					} else {
+						<span class="text-slate-400">—</span>
+					}
+					if b.RestaurantAddress != "" {
+						<span>{ b.RestaurantAddress }</span>
+					} else {
+						<span class="text-slate-400">—</span>
+					}
+					if b.AdminName != "" {
+						<span>{ b.AdminName }</span>
+					} else {
+						<span class="text-slate-400">—</span>
+					}
+					if showBatchEdit && b.AdminID == adminID {
+						<button
+							onclick="event.stopPropagation()"
+							class="text-slate-500 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition-colors"
+							hx-get={ "/admin/purchases/batches/" + strconv.Itoa(b.BatchID) + "/edit-modal" }
+							hx-target="#admin-modal-content"
+							hx-swap="innerHTML"
+						>
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+						</button>
+					} else if showBatchEdit {
+						<span></span>
+					}
+				</div>
+			}
+		</div>
+	}
 }
 
 templ purchasesPagination(p adminservice.PurchasesPagination) {
@@ -784,7 +901,7 @@ templ OrderDraftItemsModal(supplierID int, supplierName string, expectedAt time.
 					</div>
 						<div class="w-24">
 						<label class="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">К-сть</label>
-						<input type="number" id="draft-qty" min="0.001" step="0.001" placeholder="0" class="input-field w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mono text-center bg-white"/>
+						<input type="number" id="draft-qty" min="0.001" step="0.001" placeholder="0" class="input-field w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mono text-center bg-white" onkeydown="if (event.key === '+' || event.key === '-') event.preventDefault();"/>
 					</div>
 					<div class="w-16">
 						<label class="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Од.</label>
@@ -1107,7 +1224,7 @@ templ OrderDetailsModal(o adminservice.PurchaseOrder, ingredients []adminservice
 							</div>
 							<div class="w-20">
 								<label class="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">К-сть</label>
-								<input type="number" name="qty" id="new-item-qty" min="0.001" step="0.001" required placeholder="0" class="input-field w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mono text-center bg-white"/>
+								<input type="number" name="qty" id="new-item-qty" min="0.001" step="0.001" required placeholder="0" class="input-field w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mono text-center bg-white" onkeydown="if (event.key === '+' || event.key === '-') event.preventDefault();"/>
 							</div>
 							<div class="w-16">
 								<label class="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Од.</label>
@@ -1322,8 +1439,7 @@ templ OrderDetailsModal(o adminservice.PurchaseOrder, ingredients []adminservice
 					if o.AdminID == adminID {
 						<button
 							class="btn-primary flex-1 bg-green-600 hover:bg-green-700 text-white text-sm py-2.5 rounded-lg font-bold shadow-sm"
-							hx-post={ "/admin/purchases/" + strconv.Itoa(o.ID) + "/complete" }
-							hx-confirm="Завершити замовлення (позначити як отримане)?"
+							onclick={ templ.ComponentScript{Call: "openCompleteConfirm(" + strconv.Itoa(o.ID) + ")"} }
 						>
 							✓ Завершити замовлення
 						</button>
@@ -1397,9 +1513,11 @@ templ ReceiveBatchModal(o adminservice.PurchaseOrder) {
 
 // ReceiveItemModal — приймання одного інгредієнта.
 templ ReceiveItemModal(orderID int, item adminservice.PurchaseItem) {
+	{{ disp := displayQtyUnit(item.Qty, item.Unit) }}
+	{{ remaining := item.Qty - item.ReceivedQty }}
 	<div class="bg-white rounded-2xl shadow-2xl w-full max-w-md slide-up">
 		<div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-			<h3 class="font-semibold text-slate-800">Приймання інгредієнта</h3>
+			<h3 class="font-semibold text-slate-800">Приймання партії</h3>
 			<button type="button" onclick="adminCloseModal()" class="text-slate-400 hover:text-slate-600">
 				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
 			</button>
@@ -1411,12 +1529,18 @@ templ ReceiveItemModal(orderID int, item adminservice.PurchaseItem) {
 				<div>
 					<label class="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Інгредієнт</label>
 					<div class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 font-medium">
-						{ item.Name } ({ item.Unit }) — замовлено: { fmtQty(item.Qty) }
+						{ item.Name } — замовлено { fmtQty(disp.Qty) } { disp.Unit }
 					</div>
 				</div>
-				<div>
+				<div class="grid grid-cols-2 gap-3">
+					<div>
 					<label class="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Прийнято факт.</label>
-					<input type="number" name="qty[]" step="0.001" min="0.001" required placeholder="0" class="input-field w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm mono bg-white"/>
+						<input type="number" id="receive-item-qty" name="qty[]" step="0.001" min="0.001" max={ fmt.Sprintf("%.3f", remaining) } data-remaining={ fmt.Sprintf("%.3f", remaining) } required placeholder="0" class="input-field w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm mono bg-white" onkeydown="if (event.key === '+' || event.key === '-') event.preventDefault();"/>
+					</div>
+					<div>
+						<label class="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Одиниці виміру</label>
+						<select id="receive-item-unit" data-unit={ item.Unit } class="input-field w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white"></select>
+					</div>
 				</div>
 				<div>
 					<label class="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Термін придатності</label>
@@ -1424,11 +1548,131 @@ templ ReceiveItemModal(orderID int, item adminservice.PurchaseItem) {
 				</div>
 			</div>
 			<div class="px-6 py-4 border-t border-slate-100 flex gap-3">
-				<button type="submit" class="btn-primary flex-1 bg-green-600 hover:bg-green-700 text-white text-sm py-2.5 rounded-lg font-bold shadow-sm">
-					✓ Підтвердити приймання
+				<button type="submit" onclick="return prepareReceiveItemSubmit()" class="btn-primary flex-1 bg-green-600 hover:bg-green-700 text-white text-sm py-2.5 rounded-lg font-bold shadow-sm">
+					Підтвердити приймання
 				</button>
 				<button type="button" onclick="adminCloseModal()" class="flex-1 border border-slate-200 text-slate-600 text-sm py-2.5 rounded-lg font-medium hover:bg-slate-50">Скасувати</button>
 			</div>
 		</form>
+		<script>
+			(function initReceiveItemUnits() {
+				var unitSel = document.getElementById('receive-item-unit');
+				if (!unitSel) return;
+				var u = (unitSel.getAttribute('data-unit') || '').toLowerCase();
+				if (u === 'г' || u.indexOf('грам') >= 0) {
+					unitSel.innerHTML = '<option value="1">г</option><option value="1000">кг</option>';
+				} else if (u === 'мл' || u.indexOf('мілі') >= 0 || u.indexOf('літр') >= 0) {
+					unitSel.innerHTML = '<option value="1">мл</option><option value="1000">л</option>';
+				} else {
+					unitSel.innerHTML = '<option value="1">шт</option>';
+					unitSel.disabled = true;
+				}
+			})();
+			function prepareReceiveItemSubmit() {
+				var qtyInput = document.getElementById('receive-item-qty');
+				var unitSel = document.getElementById('receive-item-unit');
+				if (qtyInput && unitSel) {
+					var multiplier = unitSel.disabled ? 1 : (parseFloat(unitSel.value) || 1);
+					var raw = parseFloat(qtyInput.value) || 0;
+					var qty = raw * multiplier;
+					var remaining = parseFloat(qtyInput.getAttribute('data-remaining')) || 0;
+					if (remaining > 0 && qty-remaining > 1e-9) {
+						if (typeof showAdminToast === 'function') {
+							showAdminToast('Перевищено залишок до приймання', 'error');
+						} else {
+							alert('Перевищено залишок до приймання');
+						}
+						return false;
+					}
+					qtyInput.value = qty.toString();
+				}
+				return true;
+			}
+		</script>
+	</div>
+}
+
+// EditBatchModal — редагування партії.
+templ EditBatchModal(b adminservice.BatchEditData) {
+	{{ ordered := displayQtyUnit(b.OrderQty, b.Unit) }}
+	{{ maxDisplay := displayQtyUnit(b.MaxAllowed, b.Unit) }}
+	{{ current := displayQtyUnit(b.BatchQty, b.Unit) }}
+	<div class="bg-white rounded-2xl shadow-2xl w-full max-w-md slide-up">
+		<div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+			<h3 class="font-semibold text-slate-800">Редагування партії</h3>
+			<button type="button" onclick="adminCloseModal()" class="text-slate-400 hover:text-slate-600">
+				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+			</button>
+		</div>
+		<form hx-post={ "/admin/purchases/batches/" + strconv.Itoa(b.BatchID) + "/update" }>
+			<div class="px-6 py-5 space-y-4">
+				<div>
+					<label class="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Інгредієнт</label>
+					<div class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 font-medium">
+						{ b.Ingredient } — замовлено { fmtQty(ordered.Qty) } { ordered.Unit }
+					</div>
+					<p class="text-xs text-slate-500 mt-1">Можна змінити до { fmtQty(maxDisplay.Qty) } { maxDisplay.Unit }</p>
+				</div>
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label class="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Кількість</label>
+						<input type="number" id="edit-batch-qty" name="qty" step="0.001" min="0.001" max={ fmt.Sprintf("%.3f", b.MaxAllowed) } data-remaining={ fmt.Sprintf("%.3f", b.MaxAllowed) } required class="input-field w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm mono bg-white" onkeydown="if (event.key === '+' || event.key === '-') event.preventDefault();" value={ fmtQty(current.Qty) }/>
+					</div>
+					<div>
+						<label class="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Одиниці виміру</label>
+						<select id="edit-batch-unit" data-unit={ b.Unit } data-display-unit={ current.Unit } class="input-field w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white"></select>
+					</div>
+				</div>
+				<div>
+					<label class="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Термін придатності</label>
+					<input type="date" name="exp_date" required class="input-field w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white" value={ b.ExpDate.Format("2006-01-02") }/>
+				</div>
+			</div>
+			<div class="px-6 py-4 border-t border-slate-100 flex gap-3">
+				<button type="submit" onclick="return prepareEditBatchSubmit()" class="btn-primary flex-1 bg-green-600 hover:bg-green-700 text-white text-sm py-2.5 rounded-lg font-bold shadow-sm">
+					Зберегти зміни
+				</button>
+				<button type="button" onclick="adminCloseModal()" class="flex-1 border border-slate-200 text-slate-600 text-sm py-2.5 rounded-lg font-medium hover:bg-slate-50">Скасувати</button>
+			</div>
+		</form>
+		<script>
+			(function initEditBatchUnits() {
+				var unitSel = document.getElementById('edit-batch-unit');
+				if (!unitSel) return;
+				var u = (unitSel.getAttribute('data-unit') || '').toLowerCase();
+				if (u === 'г' || u.indexOf('грам') >= 0) {
+					unitSel.innerHTML = '<option value="1">г</option><option value="1000">кг</option>';
+				} else if (u === 'мл' || u.indexOf('мілі') >= 0 || u.indexOf('літр') >= 0) {
+					unitSel.innerHTML = '<option value="1">мл</option><option value="1000">л</option>';
+				} else {
+					unitSel.innerHTML = '<option value="1">шт</option>';
+					unitSel.disabled = true;
+				}
+				var displayUnit = (unitSel.getAttribute('data-display-unit') || '').toLowerCase();
+				if (displayUnit === 'кг' || displayUnit === 'л') {
+					unitSel.value = '1000';
+				}
+			})();
+			function prepareEditBatchSubmit() {
+				var qtyInput = document.getElementById('edit-batch-qty');
+				var unitSel = document.getElementById('edit-batch-unit');
+				if (qtyInput && unitSel) {
+					var multiplier = unitSel.disabled ? 1 : (parseFloat(unitSel.value) || 1);
+					var raw = parseFloat(qtyInput.value) || 0;
+					var qty = raw * multiplier;
+					var remaining = parseFloat(qtyInput.getAttribute('data-remaining')) || 0;
+					if (remaining > 0 && qty-remaining > 1e-9) {
+						if (typeof showAdminToast === 'function') {
+							showAdminToast('Перевищено залишок до редагування', 'error');
+						} else {
+							alert('Перевищено залишок до редагування');
+						}
+						return false;
+					}
+					qtyInput.value = qty.toString();
+				}
+				return true;
+			}
+		</script>
 	</div>
 }

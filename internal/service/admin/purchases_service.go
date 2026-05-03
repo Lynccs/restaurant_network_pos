@@ -18,6 +18,21 @@ type PurchaseBatch struct {
 	RestaurantName    string
 	RestaurantAddress string
 	AdminName         string
+	AdminID           int
+}
+
+type BatchEditData struct {
+	BatchID       int
+	DetailID      int
+	IngredientID  int
+	Ingredient    string
+	Unit          string
+	BatchQty      float64
+	ExpDate       time.Time
+	OrderQty      float64
+	TotalReceived float64
+	AdminID       int
+	MaxAllowed    float64
 }
 
 type PurchaseItem struct {
@@ -29,6 +44,14 @@ type PurchaseItem struct {
 	Price        float64
 	ReceivedQty  float64
 	Batches      []PurchaseBatch
+	BatchCount   int
+}
+
+type BatchesView struct {
+	DetailID    int
+	Unit        string
+	OrderStatus string
+	Batches     []PurchaseBatch
 }
 
 type PurchaseOrder struct {
@@ -96,6 +119,9 @@ type PurchasesServicer interface {
 	RemoveItem(orderID, itemID int) error
 	MarkAsSent(orderID int) error
 	ReceiveBatches(restaurantID, adminID int, batches []BatchInput) error
+	GetDetailBatches(detailID int) (BatchesView, error)
+	GetBatchEditData(batchID int) (BatchEditData, error)
+	UpdateBatch(adminID, batchID int, qty float64, expDate time.Time) error
 	CompleteOrder(orderID int) error
 }
 
@@ -152,6 +178,12 @@ func buildOrders(rows []adminrepo.PurchaseOrderRow) []PurchaseOrder {
 				Unit:         row.UnitName.String,
 				Price:        row.DetailPrice.Float64,
 			}
+			if row.DetailReceivedQty.Valid {
+				item.ReceivedQty = row.DetailReceivedQty.Float64
+			}
+			if row.DetailBatchCount.Valid {
+				item.BatchCount = int(row.DetailBatchCount.Int64)
+			}
 			st.itemMap[did] = item
 			st.itemIDs = append(st.itemIDs, did)
 		}
@@ -165,8 +197,10 @@ func buildOrders(rows []adminrepo.PurchaseOrderRow) []PurchaseOrder {
 				RestaurantName:    row.BatchRestaurantName.String,
 				RestaurantAddress: row.BatchRestaurantAddress.String,
 				AdminName:         row.BatchAdminName.String,
+				AdminID:           int(row.BatchAdminID.Int64),
 			})
 			item.ReceivedQty += row.BatchQty.Float64
+			item.BatchCount++
 		}
 	}
 
@@ -318,6 +352,60 @@ func (s *PurchasesService) MarkAsSent(orderID int) error {
 
 func (s *PurchasesService) ReceiveBatches(restaurantID, adminID int, batches []BatchInput) error {
 	return s.repo.ReceiveBatches(restaurantID, adminID, batches)
+}
+
+func (s *PurchasesService) GetDetailBatches(detailID int) (BatchesView, error) {
+	rows, err := s.repo.GetDetailBatches(detailID)
+	if err != nil {
+		return BatchesView{}, err
+	}
+	if len(rows) == 0 {
+		return BatchesView{DetailID: detailID}, nil
+	}
+	view := BatchesView{
+		DetailID:    rows[0].DetailID,
+		Unit:        rows[0].UnitName,
+		OrderStatus: rows[0].OrderStatus,
+	}
+	for _, row := range rows {
+		if !row.BatchID.Valid {
+			continue
+		}
+		view.Batches = append(view.Batches, PurchaseBatch{
+			BatchID:           int(row.BatchID.Int64),
+			Qty:               row.BatchQty.Float64,
+			ExpDate:           row.BatchExpDate.Time,
+			ReceivedAt:        row.BatchArrival.Time,
+			RestaurantName:    row.BatchRestaurantName.String,
+			RestaurantAddress: row.BatchRestaurantAddress.String,
+			AdminName:         row.BatchAdminName.String,
+			AdminID:           int(row.BatchAdminID.Int64),
+		})
+	}
+	return view, nil
+}
+
+func (s *PurchasesService) GetBatchEditData(batchID int) (BatchEditData, error) {
+	row, err := s.repo.GetBatchEditData(batchID)
+	if err != nil {
+		return BatchEditData{}, err
+	}
+	return BatchEditData{
+		BatchID:       row.BatchID,
+		DetailID:      row.DetailID,
+		IngredientID:  row.IngredientID,
+		Ingredient:    row.Ingredient,
+		Unit:          row.Unit,
+		BatchQty:      row.BatchQty,
+		ExpDate:       row.BatchExpDate,
+		OrderQty:      row.OrderQty,
+		TotalReceived: row.TotalReceived,
+		AdminID:       row.BatchAdminID,
+	}, nil
+}
+
+func (s *PurchasesService) UpdateBatch(adminID, batchID int, qty float64, expDate time.Time) error {
+	return s.repo.UpdateBatch(batchID, adminID, qty, expDate)
 }
 
 func (s *PurchasesService) CompleteOrder(orderID int) error {

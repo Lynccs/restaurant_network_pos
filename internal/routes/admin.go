@@ -32,7 +32,10 @@ func SetupAdminRoutes(r chi.Router, h *adminhandler.Handler, store sessions.Stor
 		r.Post("/admin/purchases/{id}/send", h.MarkAsSent)
 		r.Get("/admin/purchases/{id}/receive-modal", h.ReceiveBatchModal)
 		r.Get("/admin/purchases/{id}/items/{detailID}/receive-modal", h.ReceiveItemModal)
+		r.Get("/admin/purchases/items/{detailID}/batches", h.PurchaseItemBatches)
 		r.Post("/admin/purchases/{id}/receive", h.ReceiveBatch)
+		r.Get("/admin/purchases/batches/{batchID}/edit-modal", h.EditBatchModal)
+		r.Post("/admin/purchases/batches/{batchID}/update", h.UpdateBatch)
 		r.Post("/admin/purchases/{id}/complete", h.CompleteOrder)
 	})
 }
