@@ -1,0 +1,321 @@
+package adminpages
+
+import (
+	"fmt"
+	"math"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+
+	adminservice "restaurant_network_pos/internal/service/admin"
+)
+
+func warehouseExpClass(days int) string {
+	switch {
+	case days < 0:
+		return "text-red-700 font-bold"
+	case days < 3:
+		return "text-red-600 font-medium"
+	case days < 7:
+		return "text-amber-600 font-medium"
+	default:
+		return "text-slate-600 font-medium"
+	}
+}
+
+func warehouseExpMeta(days int) string {
+	switch {
+	case days < 0:
+		return "ПРОСТРОЧЕНО (" + strconv.Itoa(-days) + " дн)"
+	case days < 7:
+		return "(" + strconv.Itoa(days) + " дн.)"
+	default:
+		return "(" + strconv.Itoa(days) + " дн.)"
+	}
+}
+
+func warehouseSelectedIngredientsMap(values []string) map[string]bool {
+	result := make(map[string]bool, len(values))
+	for _, value := range values {
+		result[value] = true
+	}
+	return result
+}
+
+func warehouseHasActiveFilters(f adminservice.WarehouseFilters, defaultRestaurantID int) bool {
+	return len(f.Ingredients) > 0 || f.MinQty != "" || f.MaxQty != "" ||
+		f.ArrivalFrom != "" || f.ArrivalTo != "" || f.ExpFrom != "" || f.ExpTo != "" || f.Status != "" ||
+		(defaultRestaurantID > 0 && f.RestaurantID != 0 && f.RestaurantID != defaultRestaurantID)
+}
+
+func warehousePageLink(f adminservice.WarehouseFilters, page int) string {
+	values := url.Values{}
+	if f.RestaurantID > 0 {
+		values.Set("restaurant_id", strconv.Itoa(f.RestaurantID))
+	}
+	for _, ingredient := range f.Ingredients {
+		values.Add("ingredient", ingredient)
+	}
+	if f.Status != "" {
+		values.Set("status", f.Status)
+	}
+	if f.ArrivalFrom != "" {
+		values.Set("arrival_from", f.ArrivalFrom)
+	}
+	if f.ArrivalTo != "" {
+		values.Set("arrival_to", f.ArrivalTo)
+	}
+	if f.ExpFrom != "" {
+		values.Set("exp_from", f.ExpFrom)
+	}
+	if f.ExpTo != "" {
+		values.Set("exp_to", f.ExpTo)
+	}
+	if f.MinQty != "" {
+		values.Set("min_qty", f.MinQty)
+	}
+	if f.MaxQty != "" {
+		values.Set("max_qty", f.MaxQty)
+	}
+	values.Set("page", strconv.Itoa(page))
+	return "/admin/warehouse?" + values.Encode()
+}
+
+func warehouseFmtDate(t time.Time) string {
+	return t.Format("2006-01-02")
+}
+
+func warehouseQtyDisplay(qty float64, unit string) (string, string) {
+	displayQty := qty
+	displayUnit := unit
+	if (unit == "г" || unit == "мл") && math.Abs(math.Mod(qty, 1000)) < 0.0001 {
+		displayQty = qty / 1000
+		switch unit {
+		case "г":
+			displayUnit = "кг"
+		case "мл":
+			displayUnit = "л"
+		}
+	}
+	return fmtQty(displayQty), displayUnit
+}
+
+templ WarehousePage(view *adminservice.WarehousePageView) {
+	{{ selectedIngredients := warehouseSelectedIngredientsMap(view.Filters.Ingredients) }}
+	<div class="p-6 max-w-6xl mx-auto fade-in">
+		<style>
+			.input-field { transition: border-color 0.15s; }
+			.input-field:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+			#warehouse-filter-modal { display: none; }
+			#warehouse-filter-modal.open { display: flex; }
+		</style>
+
+		<div class="mb-6">
+			<h1 class="text-xl font-semibold text-slate-900">Склад</h1>
+			<div class="mt-1">
+				<p class="text-slate-700 text-sm font-medium">{ view.RestaurantName }</p>
+				if view.RestaurantAddress != "" {
+					<p class="text-slate-500 text-xs">{ view.RestaurantAddress }</p>
+				}
+			</div>
+		</div>
+
+		<div class="mb-4 flex items-center justify-between">
+			<div class="flex items-center gap-3">
+				<button type="button" onclick="warehouseOpenFilters()" class="btn-primary bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm text-sm px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors">
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+					Фільтри
+				</button>
+				if warehouseHasActiveFilters(view.Filters, view.DefaultRestaurantID) {
+					<a href="/admin/warehouse" class="bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 text-sm px-4 py-2 rounded-lg font-medium shadow-sm transition-colors flex items-center gap-1.5">
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+						Скинути всі фільтри
+					</a>
+				} else {
+					<button disabled class="bg-slate-50 border border-slate-200 text-slate-400 text-sm px-4 py-2 rounded-lg font-medium flex items-center gap-1.5 cursor-not-allowed">
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+						Скинути всі фільтри
+					</button>
+				}
+			</div>
+			<button type="button" onclick="warehouseWriteOffPlaceholder()" class="px-4 py-2 border border-slate-300 text-slate-700 bg-white hover:bg-slate-100 font-medium rounded-lg text-sm transition-colors shadow-sm flex items-center gap-2">
+				Списати інгредієнти
+			</button>
+		</div>
+
+		<div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+			<div class="overflow-x-auto md:overflow-x-visible">
+				<table class="w-full table-fixed">
+					<thead class="bg-slate-50 border-b border-slate-200">
+						<tr>
+							<th class="w-[16%] text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-3">Інгредієнт</th>
+							<th class="w-[12%] text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-3">Кількість</th>
+							<th class="w-[15%] text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-3">Зона зберігання</th>
+							<th class="w-[17%] text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-3">Ресторан</th>
+							<th class="w-[16%] text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-3">Постачальник</th>
+							<th class="w-[10%] text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-3">Дата надходження</th>
+							<th class="w-[14%] text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-3">Придатний до</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-slate-100">
+						for _, item := range view.Items {
+							<tr class="hover:bg-slate-50">
+								<td class="px-3 py-3 text-sm font-medium text-slate-800 align-top break-words whitespace-normal">
+									{ item.Ingredient }
+								</td>
+								{{ qtyValue, qtyUnit := warehouseQtyDisplay(item.Qty, item.Unit) }}
+								<td class="px-3 py-3 text-sm mono font-semibold text-slate-700 align-top whitespace-nowrap">{ qtyValue } { qtyUnit }</td>
+								<td class="px-3 py-3 text-sm align-top break-words"><span class="bg-slate-100 px-2 py-0.5 rounded-full text-xs text-slate-600">{ item.StorageZone }</span></td>
+								<td class="px-3 py-3 text-sm text-slate-600 align-top break-words">
+									<div class="flex flex-col">
+										<span class="font-medium text-slate-700">{ item.RestaurantName }</span>
+										if item.RestaurantAddress != "" {
+											<span class="text-xs text-slate-500">{ item.RestaurantAddress }</span>
+										}
+									</div>
+								</td>
+								<td class="px-3 py-3 text-sm text-slate-500 align-top break-words">{ item.Supplier }</td>
+								<td class="px-3 py-3 text-sm mono text-slate-500 align-top whitespace-nowrap">{ warehouseFmtDate(item.ReceivedAt) }</td>
+								<td class={ "px-3 py-3 text-sm mono align-top", warehouseExpClass(item.DaysLeft) }>
+									<div class="flex flex-col items-start">
+										<span>{ warehouseFmtDate(item.ExpDate) }</span>
+										if item.DaysLeft < 0 {
+											<span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wide mt-1">{ warehouseExpMeta(item.DaysLeft) }</span>
+										} else {
+											<span class="text-xs opacity-70 mt-1 block">{ warehouseExpMeta(item.DaysLeft) }</span>
+										}
+									</div>
+								</td>
+							</tr>
+						}
+						if len(view.Items) == 0 {
+							<tr>
+								<td colspan="7" class="px-5 py-8 text-center text-sm text-slate-400">Немає записів за поточними фільтрами</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+			if view.Pagination.TotalPages > 1 {
+				<div class="px-5 py-4 border-t border-slate-100 flex items-center justify-between text-sm text-slate-500">
+					<span>{ fmt.Sprintf("Сторінка %d з %d · усього записів: %d", view.Pagination.Page, view.Pagination.TotalPages, view.Pagination.TotalOrders) }</span>
+					<div class="flex items-center gap-1">
+						for _, pn := range purchasePageNums(view.Pagination.Page, view.Pagination.TotalPages) {
+							if pn == 0 {
+								<span class="px-1 text-slate-300">…</span>
+							} else if pn == view.Pagination.Page {
+								<span class="px-3 py-1.5 bg-blue-500 text-white rounded-lg font-medium">{ strconv.Itoa(pn) }</span>
+							} else {
+								<a href={ warehousePageLink(view.Filters, pn) } class="px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">{ strconv.Itoa(pn) }</a>
+							}
+						}
+					</div>
+				</div>
+			}
+		</div>
+
+		<div id="warehouse-filter-modal" class="fixed inset-0 bg-black/40 z-50 items-center justify-center p-4 backdrop-blur-sm" onclick="warehouseFilterOverlayClick(event)">
+			<form method="GET" action="/admin/warehouse" class="bg-white rounded-2xl shadow-2xl w-full max-w-lg slide-up max-h-[90vh] flex flex-col overflow-hidden">
+				<div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+					<h3 class="font-bold text-slate-800 text-lg">Фільтрація запасів</h3>
+					<button type="button" onclick="warehouseCloseFilters()" class="text-slate-400 hover:text-slate-600"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+				</div>
+				<div class="px-6 py-5 overflow-y-auto scrollbar-thin flex-1 space-y-5">
+					<div>
+						<label class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Заклад</label>
+						<select name="restaurant_id" class="input-field w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none">
+							for _, restaurant := range view.RestaurantOptions {
+								<option value={ strconv.Itoa(restaurant.ID) } selected?={ restaurant.ID == view.Filters.RestaurantID }>
+									{ restaurant.Name }
+									if restaurant.Address != "" {
+										{ " — " + restaurant.Address }
+									}
+								</option>
+							}
+						</select>
+					</div>
+
+					<div>
+						<label class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Статус</label>
+						<select name="status" class="input-field w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none">
+							<option value="">Усі</option>
+							<option value="normal" selected?={ view.Filters.Status == "normal" }>Норма</option>
+							<option value="expiring" selected?={ view.Filters.Status == "expiring" }>Скоро спливає</option>
+							<option value="expired" selected?={ view.Filters.Status == "expired" }>Прострочено</option>
+						</select>
+					</div>
+
+					<div class="grid grid-cols-2 gap-4">
+						<div>
+							<label class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Кількість (від-до)</label>
+							<div class="flex items-center gap-2">
+								<input type="number" name="min_qty" value={ view.Filters.MinQty } class="input-field w-full border border-slate-200 rounded-lg px-2 py-2 text-sm text-center mono outline-none" min="0"/>
+								<span class="text-slate-400">-</span>
+								<input type="number" name="max_qty" value={ view.Filters.MaxQty } class="input-field w-full border border-slate-200 rounded-lg px-2 py-2 text-sm text-center mono outline-none" min="0"/>
+							</div>
+						</div>
+					</div>
+
+					<div class="grid grid-cols-2 gap-4">
+						<div>
+							<label class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Дата надходження</label>
+							<input type="date" name="arrival_from" value={ view.Filters.ArrivalFrom } class="input-field w-full border border-slate-200 rounded-lg px-2 py-2 text-sm outline-none mb-2"/>
+							<input type="date" name="arrival_to" value={ view.Filters.ArrivalTo } class="input-field w-full border border-slate-200 rounded-lg px-2 py-2 text-sm outline-none"/>
+						</div>
+						<div>
+							<label class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Термін придатності</label>
+							<input type="date" name="exp_from" value={ view.Filters.ExpFrom } class="input-field w-full border border-slate-200 rounded-lg px-2 py-2 text-sm outline-none mb-2"/>
+							<input type="date" name="exp_to" value={ view.Filters.ExpTo } class="input-field w-full border border-slate-200 rounded-lg px-2 py-2 text-sm outline-none"/>
+						</div>
+					</div>
+
+					<div>
+						<label class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Продукти (мультивибір)</label>
+						<input type="text" id="warehouse-ing-search" placeholder="Пошук інгредієнта..." oninput="warehouseFilterIngredientList(this.value)" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none mb-2"/>
+						<div class="mt-2 max-h-48 overflow-y-auto scrollbar-thin pr-1 border border-slate-200 rounded-lg p-2 bg-slate-50" id="warehouse-ingredient-list">
+							for _, ingredient := range view.IngredientOptions {
+								<label class="warehouse-ing-lbl flex items-center justify-between bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium cursor-pointer hover:bg-slate-50 transition-colors mb-1" data-name={ strings.ToLower(ingredient) }>
+									<span>{ ingredient }</span>
+									<input type="checkbox" name="ingredient" value={ ingredient } class="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" checked?={ selectedIngredients[ingredient] }/>
+								</label>
+							}
+						</div>
+					</div>
+				</div>
+				<input type="hidden" name="page" value="1"/>
+				<div class="px-6 py-4 border-t border-slate-100 flex gap-3 bg-slate-50 rounded-b-2xl">
+					<button type="submit" class="btn-primary flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm py-2.5 rounded-lg font-bold shadow-sm transition-colors">Застосувати</button>
+					<a href="/admin/warehouse" class="flex-1 bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 text-sm py-2.5 rounded-lg font-bold shadow-sm transition-colors text-center">Скинути всі</a>
+					<button type="button" onclick="warehouseCloseFilters()" class="flex-1 border bg-white border-slate-200 text-slate-700 text-sm py-2.5 rounded-lg font-bold hover:bg-slate-50 transition-colors">Скасувати</button>
+				</div>
+			</form>
+		</div>
+
+		<script>
+			function warehouseOpenFilters() {
+				var modal = document.getElementById('warehouse-filter-modal');
+				if (modal) modal.classList.add('open');
+			}
+			function warehouseCloseFilters() {
+				var modal = document.getElementById('warehouse-filter-modal');
+				if (modal) modal.classList.remove('open');
+			}
+			function warehouseFilterOverlayClick(event) {
+				var modal = document.getElementById('warehouse-filter-modal');
+				if (event.target === modal) warehouseCloseFilters();
+			}
+			function warehouseFilterIngredientList(val) {
+				var query = (val || '').toLowerCase();
+				document.querySelectorAll('.warehouse-ing-lbl').forEach(function(el) {
+					el.style.display = el.dataset.name.indexOf(query) >= 0 ? 'flex' : 'none';
+				});
+			}
+			function warehouseWriteOffPlaceholder() {
+				if (typeof showAdminToast === 'function') {
+					showAdminToast('Списання інгредієнтів додамо наступним кроком', 'error');
+				}
+			}
+		</script>
+	</div>
+}

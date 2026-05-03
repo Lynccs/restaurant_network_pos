@@ -109,6 +109,7 @@ type ItemDraftInput struct {
 type PurchasesServicer interface {
 	GetPurchasesPage(restaurantID, adminID int, f PurchasesFilters) (*PurchasesPageView, error)
 	GetPurchasesList(restaurantID, adminID int, f PurchasesFilters) (*PurchasesPageView, error)
+	GetWarehousePage(restaurantID int, f WarehouseFilters) (*WarehousePageView, error)
 	GetOrderDetails(orderID int) (PurchaseOrder, error)
 	GetIngredients() ([]IngredientOption, error)
 	GetSuppliers() ([]SupplierOption, error)
@@ -347,7 +348,7 @@ func (s *PurchasesService) RemoveItem(orderID, itemID int) error {
 }
 
 func (s *PurchasesService) MarkAsSent(orderID int) error {
-	return s.repo.UpdateOrderStatus(orderID, "Відправлено")
+	return s.repo.UpdateOrderStatus(orderID, "Р’С–РґРїСЂР°РІР»РµРЅРѕ")
 }
 
 func (s *PurchasesService) ReceiveBatches(restaurantID, adminID int, batches []BatchInput) error {
@@ -409,5 +410,5 @@ func (s *PurchasesService) UpdateBatch(adminID, batchID int, qty float64, expDat
 }
 
 func (s *PurchasesService) CompleteOrder(orderID int) error {
-	return s.repo.UpdateOrderStatus(orderID, "Отримано")
+	return s.repo.UpdateOrderStatus(orderID, "РћС‚СЂРёРјР°РЅРѕ")
 }

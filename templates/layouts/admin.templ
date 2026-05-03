@@ -30,9 +30,7 @@ templ AdminLayout(name string, activePage string, content templ.Component) {
 	</head>
 	<body class="bg-slate-50 overflow-hidden h-screen">
 	<div class="flex h-screen overflow-hidden">
-		<!-- Sidebar -->
 		<div class="w-56 bg-slate-900 flex-shrink-0 flex flex-col">
-			<!-- Logo -->
 			<div class="px-4 py-4 border-b border-slate-700/50">
 				<div class="flex items-center gap-2">
 					<div class="w-7 h-7 bg-blue-500 rounded-md flex items-center justify-center flex-shrink-0">
@@ -43,7 +41,6 @@ templ AdminLayout(name string, activePage string, content templ.Component) {
 					<span class="text-white font-semibold text-sm tracking-tight">RestaurantOS</span>
 				</div>
 			</div>
-			<!-- User info -->
 			<div class="px-3 py-3 border-b border-slate-700/50">
 				<div class="flex items-center gap-2.5">
 					<div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
@@ -57,7 +54,6 @@ templ AdminLayout(name string, activePage string, content templ.Component) {
 					</div>
 				</div>
 			</div>
-			<!-- Nav -->
 			<nav class="flex-1 px-2 py-3 space-y-0.5">
 				<a
 					href="/admin/purchases"
@@ -69,8 +65,8 @@ templ AdminLayout(name string, activePage string, content templ.Component) {
 					Закупівлі
 				</a>
 				<a
-					href="#"
-					class="sidebar-item w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-slate-600 text-xs cursor-not-allowed"
+					href="/admin/warehouse"
+					class={ "sidebar-item w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-slate-400 hover:text-white text-xs", templ.KV("active text-white", activePage == "warehouse") }
 				>
 					<svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
@@ -105,7 +101,6 @@ templ AdminLayout(name string, activePage string, content templ.Component) {
 					Меню
 				</a>
 			</nav>
-			<!-- Logout -->
 			<div class="px-2 py-3 border-t border-slate-700/50">
 				<form method="POST" action="/logout">
 					<button
@@ -120,16 +115,13 @@ templ AdminLayout(name string, activePage string, content templ.Component) {
 				</form>
 			</div>
 		</div>
-		<!-- Content area -->
 		<div class="flex-1 overflow-auto bg-slate-50">
 			@content
 		</div>
 	</div>
-		<!-- Modal overlay -->
 		<div id="admin-modal-overlay" style="display:none;" onclick="adminModalOverlayClick(event)">
 			<div id="admin-modal-content"></div>
 		</div>
-		<!-- Toast notification -->
 		<div id="admin-toast" style="position:fixed;bottom:1.5rem;right:1.5rem;transform:translateY(120%);transition:transform .3s ease,opacity .3s ease;opacity:0;z-index:9999;padding:.7rem 1.25rem;border-radius:.6rem;font-size:.85rem;white-space:nowrap;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.18);"></div>
 		<div id="toast-429" style="position:fixed;top:1.25rem;left:50%;transform:translateX(-50%) translateY(-120%);transition:transform .3s ease,opacity .3s ease;opacity:0;z-index:9999;background:#ea580c;color:#fff;padding:.6rem 1.25rem;border-radius:.5rem;font-size:.85rem;white-space:nowrap;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.35);">
 			⚠ Забагато запитів — спробуйте пізніше
