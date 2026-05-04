@@ -18,12 +18,14 @@ import (
 var handlerLog = log.New(log.Writer(), "[AdminHandler] ", log.LstdFlags|log.Lshortfile)
 
 type Handler struct {
-	Svc   adminservice.PurchasesServicer
-	Store sessions.Store
+	Svc          adminservice.PurchasesServicer
+	SuppliersSvc adminservice.SuppliersServicer
+	NetworkSvc   adminservice.NetworkServicer
+	Store        sessions.Store
 }
 
-func NewHandler(svc adminservice.PurchasesServicer, store sessions.Store) *Handler {
-	return &Handler{Svc: svc, Store: store}
+func NewHandler(svc adminservice.PurchasesServicer, suppliersSvc adminservice.SuppliersServicer, networkSvc adminservice.NetworkServicer, store sessions.Store) *Handler {
+	return &Handler{Svc: svc, SuppliersSvc: suppliersSvc, NetworkSvc: networkSvc, Store: store}
 }
 
 func (h *Handler) sessionData(r *http.Request) (restaurantID, adminID int, name string, err error) {
@@ -135,11 +137,19 @@ func (h *Handler) CreateOrderDraftStep2(w http.ResponseWriter, r *http.Request) 
 			break
 		}
 	}
-	ingredients, err := h.Svc.GetIngredients()
+	ingredientsView, err := h.SuppliersSvc.GetSupplierIngredientsView(supplierID)
 	if err != nil {
-		handlerLog.Printf("CreateOrderDraftStep2 ingredients: %v", err)
+		handlerLog.Printf("CreateOrderDraftStep2 supplier ingredients: %v", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
+	}
+	ingredients := make([]adminservice.IngredientOption, 0, len(ingredientsView.Ingredients))
+	if len(ingredientsView.SelectedIDs) > 0 {
+		for _, ing := range ingredientsView.Ingredients {
+			if ingredientsView.SelectedIDs[ing.ID] {
+				ingredients = append(ingredients, ing)
+			}
+		}
 	}
 	adminpages.OrderDraftItemsModal(supplierID, supplierName, expectedAt, ingredients).Render(r.Context(), w)
 }

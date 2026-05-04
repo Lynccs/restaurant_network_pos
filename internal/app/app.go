@@ -16,8 +16,8 @@ import (
 	"restaurant_network_pos/internal/service"
 	adminservice "restaurant_network_pos/internal/service/admin"
 	chefservice "restaurant_network_pos/internal/service/chef"
-	"restaurant_network_pos/internal/sse"
 	waiterservice "restaurant_network_pos/internal/service/waiter"
+	"restaurant_network_pos/internal/sse"
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
@@ -61,7 +61,14 @@ func SetupRouter(db *sql.DB, store sessions.Store) (*chi.Mux, func()) {
 
 	purchasesRepo := adminrepo.NewPurchasesRepo(db)
 	purchasesSvc := adminservice.NewPurchasesService(purchasesRepo)
-	adminH := adminhandler.NewHandler(purchasesSvc, store)
+
+	suppliersRepo := adminrepo.NewSuppliersRepo(db)
+	suppliersSvc := adminservice.NewSuppliersService(suppliersRepo, purchasesRepo)
+
+	networkRepo := adminrepo.NewNetworkRepo(db)
+	networkSvc := adminservice.NewNetworkService(networkRepo)
+
+	adminH := adminhandler.NewHandler(purchasesSvc, suppliersSvc, networkSvc, store)
 
 	routes.SetupAuthRoutes(r, authH)
 	routes.SetupAdminRoutes(r, adminH, store)
