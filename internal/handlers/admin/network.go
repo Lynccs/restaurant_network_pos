@@ -309,7 +309,7 @@ func renderAdminModal(w http.ResponseWriter, title, errMsg, body string) {
 	safeErr := template.HTMLEscapeString(errMsg)
 
 	var sb strings.Builder
-	sb.WriteString("<div class=\"bg-white rounded-xl shadow-xl w-full max-w-xl p-6\">")
+	sb.WriteString("<div class=\"bg-white rounded-xl shadow-xl w-full max-w-xl p-6 max-h-[90vh] overflow-y-auto\">")
 	sb.WriteString("<div class=\"flex items-center justify-between mb-4\">")
 	sb.WriteString("<h3 class=\"text-lg font-semibold text-slate-800\">")
 	sb.WriteString(safeTitle)

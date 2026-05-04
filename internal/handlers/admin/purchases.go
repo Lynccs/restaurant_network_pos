@@ -21,11 +21,12 @@ type Handler struct {
 	Svc          adminservice.PurchasesServicer
 	SuppliersSvc adminservice.SuppliersServicer
 	NetworkSvc   adminservice.NetworkServicer
+	MenuSvc      adminservice.MenuServicer
 	Store        sessions.Store
 }
 
-func NewHandler(svc adminservice.PurchasesServicer, suppliersSvc adminservice.SuppliersServicer, networkSvc adminservice.NetworkServicer, store sessions.Store) *Handler {
-	return &Handler{Svc: svc, SuppliersSvc: suppliersSvc, NetworkSvc: networkSvc, Store: store}
+func NewHandler(svc adminservice.PurchasesServicer, suppliersSvc adminservice.SuppliersServicer, networkSvc adminservice.NetworkServicer, menuSvc adminservice.MenuServicer, store sessions.Store) *Handler {
+	return &Handler{Svc: svc, SuppliersSvc: suppliersSvc, NetworkSvc: networkSvc, MenuSvc: menuSvc, Store: store}
 }
 
 func (h *Handler) sessionData(r *http.Request) (restaurantID, adminID int, name string, err error) {

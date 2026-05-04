@@ -68,7 +68,10 @@ func SetupRouter(db *sql.DB, store sessions.Store) (*chi.Mux, func()) {
 	networkRepo := adminrepo.NewNetworkRepo(db)
 	networkSvc := adminservice.NewNetworkService(networkRepo)
 
-	adminH := adminhandler.NewHandler(purchasesSvc, suppliersSvc, networkSvc, store)
+	menuRepoAdmin := adminrepo.NewMenuRepo(db)
+	menuSvc := adminservice.NewMenuService(menuRepoAdmin)
+
+	adminH := adminhandler.NewHandler(purchasesSvc, suppliersSvc, networkSvc, menuSvc, store)
 
 	routes.SetupAuthRoutes(r, authH)
 	routes.SetupAdminRoutes(r, adminH, store)
