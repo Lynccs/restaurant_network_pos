@@ -21,6 +21,8 @@ func SetupAdminRoutes(r chi.Router, h *adminhandler.Handler, store sessions.Stor
 
 		r.Get("/admin/purchases", h.PurchasesPage)
 		r.Get("/admin/warehouse", h.WarehousePage)
+		r.Post("/admin/warehouse/writeoff", h.WarehouseCreateWriteOff)
+		r.Get("/admin/warehouse/stock/{id}/writeoffs", h.WarehouseStockWriteOffs)
 		r.Get("/admin/purchases/list", h.PurchasesList)
 		r.Get("/admin/purchases/new", h.CreateOrderModal)
 		r.Post("/admin/purchases/draft-step2", h.CreateOrderDraftStep2)

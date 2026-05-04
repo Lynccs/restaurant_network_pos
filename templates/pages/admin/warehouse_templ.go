@@ -53,7 +53,8 @@ func warehouseSelectedIngredientsMap(values []string) map[string]bool {
 
 func warehouseHasActiveFilters(f adminservice.WarehouseFilters, defaultRestaurantID int) bool {
 	return len(f.Ingredients) > 0 || f.MinQty != "" || f.MaxQty != "" ||
-		f.ArrivalFrom != "" || f.ArrivalTo != "" || f.ExpFrom != "" || f.ExpTo != "" || f.Status != "" ||
+		f.ArrivalFrom != "" || f.ArrivalTo != "" || f.ExpFrom != "" || f.ExpTo != "" ||
+		(f.Status != "" && f.Status != "not_expired") ||
 		(defaultRestaurantID > 0 && f.RestaurantID != 0 && f.RestaurantID != defaultRestaurantID)
 }
 
@@ -65,7 +66,7 @@ func warehousePageLink(f adminservice.WarehouseFilters, page int) string {
 	for _, ingredient := range f.Ingredients {
 		values.Add("ingredient", ingredient)
 	}
-	if f.Status != "" {
+	if f.Status != "" && f.Status != "not_expired" {
 		values.Set("status", f.Status)
 	}
 	if f.ArrivalFrom != "" {
@@ -131,581 +132,1059 @@ func WarehousePage(view *adminservice.WarehousePageView) templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		selectedIngredients := warehouseSelectedIngredientsMap(view.Filters.Ingredients)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"p-6 max-w-6xl mx-auto fade-in\"><style>\n\t\t\t.input-field { transition: border-color 0.15s; }\n\t\t\t.input-field:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }\n\t\t\t#warehouse-filter-modal { display: none; }\n\t\t\t#warehouse-filter-modal.open { display: flex; }\n\t\t</style><div class=\"mb-6\"><h1 class=\"text-xl font-semibold text-slate-900\">Склад</h1><div class=\"mt-1\"><p class=\"text-slate-700 text-sm font-medium\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"p-6 max-w-6xl mx-auto fade-in\" data-current-restaurant-id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
-		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(view.RestaurantName)
+		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(view.DefaultRestaurantID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 117, Col: 71}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 107, Col: 111}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><style>\n\t\t\t.input-field { transition: border-color 0.15s; }\n\t\t\t.input-field:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }\n\t\t\t#warehouse-filter-modal { display: none; }\n\t\t\t#warehouse-filter-modal.open { display: flex; }\n\t\t</style><div class=\"mb-6\"><h1 class=\"text-xl font-semibold text-slate-900\">Склад</h1><div class=\"mt-1\"><p class=\"text-slate-700 text-sm font-medium\">Ваш ресторан: ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if view.RestaurantAddress != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<p class=\"text-slate-500 text-xs\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var3 string
-			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(view.RestaurantAddress)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 119, Col: 63}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</p>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
+		var templ_7745c5c3_Var3 string
+		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(view.CurrentRestaurantName)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 118, Col: 103}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div></div><div class=\"mb-4 flex items-center justify-between\"><div class=\"flex items-center gap-3\"><button type=\"button\" onclick=\"warehouseOpenFilters()\" class=\"btn-primary bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm text-sm px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors\"><svg class=\"w-4 h-4\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z\"></path></svg> Фільтри</button> ")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if warehouseHasActiveFilters(view.Filters, view.DefaultRestaurantID) {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<a href=\"/admin/warehouse\" class=\"bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 text-sm px-4 py-2 rounded-lg font-medium shadow-sm transition-colors flex items-center gap-1.5\"><svg class=\"w-4 h-4\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M6 18L18 6M6 6l12 12\"></path></svg> Скинути всі фільтри</a>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<button disabled class=\"bg-slate-50 border border-slate-200 text-slate-400 text-sm px-4 py-2 rounded-lg font-medium flex items-center gap-1.5 cursor-not-allowed\"><svg class=\"w-4 h-4\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M6 18L18 6M6 6l12 12\"></path></svg> Скинути всі фільтри</button>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div><button type=\"button\" onclick=\"warehouseWriteOffPlaceholder()\" class=\"px-4 py-2 border border-slate-300 text-slate-700 bg-white hover:bg-slate-100 font-medium rounded-lg text-sm transition-colors shadow-sm flex items-center gap-2\">Списати інгредієнти</button></div><div class=\"bg-white rounded-2xl border border-slate-200 overflow-hidden\"><div class=\"overflow-x-auto md:overflow-x-visible\"><table class=\"w-full table-fixed\"><thead class=\"bg-slate-50 border-b border-slate-200\"><tr><th class=\"w-[16%] text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-3\">Інгредієнт</th><th class=\"w-[12%] text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-3\">Кількість</th><th class=\"w-[15%] text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-3\">Зона зберігання</th><th class=\"w-[17%] text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-3\">Ресторан</th><th class=\"w-[16%] text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-3\">Постачальник</th><th class=\"w-[10%] text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-3\">Дата надходження</th><th class=\"w-[14%] text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-3\">Придатний до</th></tr></thead> <tbody class=\"divide-y divide-slate-100\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		for _, item := range view.Items {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<tr class=\"hover:bg-slate-50\"><td class=\"px-3 py-3 text-sm font-medium text-slate-800 align-top break-words whitespace-normal\">")
+		if view.CurrentRestaurantAddress != "" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<p class=\"text-slate-500 text-xs\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var4 string
-			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(item.Ingredient)
+			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(view.CurrentRestaurantAddress)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 165, Col: 26}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 120, Col: 70}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</td>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			qtyValue, qtyUnit := warehouseQtyDisplay(item.Qty, item.Unit)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<td class=\"px-3 py-3 text-sm mono font-semibold text-slate-700 align-top whitespace-nowrap\">")
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div></div><div class=\"mb-4 flex items-center justify-between\"><div class=\"flex items-center gap-3\"><button type=\"button\" onclick=\"warehouseOpenFilters()\" class=\"btn-primary bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm text-sm px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors\"><svg class=\"w-4 h-4\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z\"></path></svg> Фільтри</button> ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if warehouseHasActiveFilters(view.Filters, view.DefaultRestaurantID) {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<a href=\"/admin/warehouse\" class=\"bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 text-sm px-4 py-2 rounded-lg font-medium shadow-sm transition-colors flex items-center gap-1.5\"><svg class=\"w-4 h-4\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M6 18L18 6M6 6l12 12\"></path></svg> Скинути всі фільтри</a>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<button disabled class=\"bg-slate-50 border border-slate-200 text-slate-400 text-sm px-4 py-2 rounded-lg font-medium flex items-center gap-1.5 cursor-not-allowed\"><svg class=\"w-4 h-4\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M6 18L18 6M6 6l12 12\"></path></svg> Скинути всі фільтри</button>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</div></div><div id=\"warehouse-writeoff\" class=\"hidden bg-white border border-slate-200 rounded-2xl p-5 mb-6 shadow-sm\"><form id=\"warehouse-writeoff-form\" hx-post=\"/admin/warehouse/writeoff\" hx-swap=\"outerHTML\" hx-on--after-request=\"if(event.detail.successful) { warehouseCancelWriteOff(); } else { alert('Помилка при списанні'); }\" onsubmit=\"warehousePrepareWriteOff(event)\" class=\"flex flex-wrap md:flex-nowrap items-end gap-4\"><input type=\"hidden\" name=\"stock_id\" id=\"wo-stock-id\" value=\"\"> <input type=\"hidden\" name=\"quantity\" id=\"wo-final-quantity\" value=\"\"><div class=\"flex-[2] min-w-[200px]\"><label class=\"text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 ml-1\">Інгредієнт</label> <input type=\"text\" id=\"wo-ingredient\" readonly class=\"input-field w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-slate-50 text-slate-700 font-medium\"></div><div class=\"w-28\"><label class=\"text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 ml-1\">Кількість</label> <input type=\"number\" id=\"wo-display-quantity\" step=\"0.001\" min=\"0\" onkeydown=\"if(['-','+','e','E'].includes(event.key))event.preventDefault()\" required class=\"input-field w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono\"></div><div class=\"w-24 relative\"><label class=\"text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 ml-1\">Одиниця</label> <select id=\"wo-unit-select\" class=\"input-field w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white cursor-pointer appearance-none pr-8\"></select><div class=\"absolute right-3 bottom-3 pointer-events-none text-slate-400\"><svg class=\"w-4 h-4\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M19 9l-7 7-7-7\"></path></svg></div></div><div class=\"flex-[2] min-w-[180px] relative\"><label class=\"text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 ml-1\">Причина списання</label> <select name=\"reason_id\" required class=\"input-field w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white cursor-pointer appearance-none pr-8\"><option value=\"\">Оберіть причину</option> ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		for _, reason := range view.WriteOffReasons {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<option value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var5 string
-			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(qtyValue)
+			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(reason.ID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 168, Col: 110}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 181, Col: 46}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, " ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var6 string
-			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(qtyUnit)
+			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(reason.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 168, Col: 122}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 181, Col: 62}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</td><td class=\"px-3 py-3 text-sm align-top break-words\"><span class=\"bg-slate-100 px-2 py-0.5 rounded-full text-xs text-slate-600\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</option>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var7 string
-			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(item.StorageZone)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 169, Col: 153}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</span></td><td class=\"px-3 py-3 text-sm text-slate-600 align-top break-words\"><div class=\"flex flex-col\"><span class=\"font-medium text-slate-700\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var8 string
-			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(item.RestaurantName)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 172, Col: 72}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</span> ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			if item.RestaurantAddress != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<span class=\"text-xs text-slate-500\">")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var9 string
-				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(item.RestaurantAddress)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 174, Col: 72}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</span>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</div></td><td class=\"px-3 py-3 text-sm text-slate-500 align-top break-words\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var10 string
-			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(item.Supplier)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 178, Col: 90}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</td><td class=\"px-3 py-3 text-sm mono text-slate-500 align-top whitespace-nowrap\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var11 string
-			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(warehouseFmtDate(item.ReceivedAt))
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 179, Col: 121}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</td>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var12 = []any{"px-3 py-3 text-sm mono align-top", warehouseExpClass(item.DaysLeft)}
-			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var12...)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<td class=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var13 string
-			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var12).String())
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 1, Col: 0}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "\"><div class=\"flex flex-col items-start\"><span>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var14 string
-			templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(warehouseFmtDate(item.ExpDate))
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 182, Col: 48}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</span> ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			if item.DaysLeft < 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<span class=\"bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wide mt-1\">")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var15 string
-				templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(warehouseExpMeta(item.DaysLeft))
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 184, Col: 155}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</span>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<span class=\"text-xs opacity-70 mt-1 block\">")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var16 string
-				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(warehouseExpMeta(item.DaysLeft))
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 186, Col: 88}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</span>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</div></td></tr>")
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</select><div class=\"absolute right-3 bottom-3 pointer-events-none text-slate-400\"><svg class=\"w-4 h-4\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M19 9l-7 7-7-7\"></path></svg></div></div><div class=\"flex gap-2 min-w-[220px]\"><button type=\"submit\" class=\"flex-1 bg-red-600 hover:bg-red-700 text-white text-sm py-2.5 rounded-xl font-bold shadow-sm transition-all hover:shadow-md active:scale-[0.98]\">Списати</button> <button type=\"button\" onclick=\"warehouseCancelWriteOff()\" class=\"flex-1 border bg-white border-slate-200 text-slate-600 text-sm py-2.5 rounded-xl font-bold hover:bg-slate-50 transition-all active:scale-[0.98]\">Скасувати</button></div></form></div><div class=\"bg-white rounded-2xl border border-slate-200 overflow-hidden\"><div class=\"overflow-x-auto md:overflow-x-visible\"><table class=\"w-full table-fixed\"><thead class=\"bg-slate-50 border-b border-slate-200\"><tr><th class=\"w-[4%] px-3 py-3\"></th><th class=\"w-[16%] text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-3\">Інгредієнт</th><th class=\"w-[12%] text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-3\">Кількість</th><th class=\"w-[15%] text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-3\">Зона зберігання</th><th class=\"w-[17%] text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-3\">Ресторан</th><th class=\"w-[16%] text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-3\">Постачальник</th><th class=\"w-[10%] text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-3\">Дата надходження</th><th class=\"w-[14%] text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-3\">Придатний до</th></tr></thead> <tbody class=\"divide-y divide-slate-100\" id=\"warehouse-table-body\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		for _, item := range view.Items {
+			templ_7745c5c3_Err = WarehouseStockGroup(item, false, nil).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		if len(view.Items) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<tr><td colspan=\"7\" class=\"px-5 py-8 text-center text-sm text-slate-400\">Немає записів за поточними фільтрами</td></tr>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<tr><td colspan=\"8\" class=\"px-5 py-8 text-center text-sm text-slate-400\">Немає записів за поточними фільтрами</td></tr>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "</tbody></table></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</tbody></table></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if view.Pagination.TotalPages > 1 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<div class=\"px-5 py-4 border-t border-slate-100 flex items-center justify-between text-sm text-slate-500\"><span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"px-5 py-4 border-t border-slate-100 flex items-center justify-between text-sm text-slate-500\"><span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var17 string
-			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("Сторінка %d з %d · усього записів: %d", view.Pagination.Page, view.Pagination.TotalPages, view.Pagination.TotalOrders))
+			var templ_7745c5c3_Var7 string
+			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("Сторінка %d з %d · усього записів: %d", view.Pagination.Page, view.Pagination.TotalPages, view.Pagination.TotalOrders))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 202, Col: 167}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 225, Col: 167}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "</span><div class=\"flex items-center gap-1\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</span><div class=\"flex items-center gap-1\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			for _, pn := range purchasePageNums(view.Pagination.Page, view.Pagination.TotalPages) {
 				if pn == 0 {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<span class=\"px-1 text-slate-300\">…</span>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<span class=\"px-1 text-slate-300\">…</span>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				} else if pn == view.Pagination.Page {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "<span class=\"px-3 py-1.5 bg-blue-500 text-white rounded-lg font-medium\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<span class=\"px-3 py-1.5 bg-blue-500 text-white rounded-lg font-medium\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var18 string
-					templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(pn))
+					var templ_7745c5c3_Var8 string
+					templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(pn))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 208, Col: 98}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 231, Col: 98}
 					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "</span>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</span>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				} else {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<a href=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<a href=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var19 templ.SafeURL
-					templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinURLErrs(warehousePageLink(view.Filters, pn))
+					var templ_7745c5c3_Var9 templ.SafeURL
+					templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinURLErrs(warehousePageLink(view.Filters, pn))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 210, Col: 53}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 233, Col: 53}
 					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "\" class=\"px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors\">")
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var20 string
-					templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(pn))
-					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 210, Col: 165}
-					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "\" class=\"px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "</a>")
+					var templ_7745c5c3_Var10 string
+					templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(pn))
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 233, Col: 165}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</a>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "</div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "</div><div id=\"warehouse-filter-modal\" class=\"fixed inset-0 bg-black/40 z-50 items-center justify-center p-4 backdrop-blur-sm\" onclick=\"warehouseFilterOverlayClick(event)\"><form method=\"GET\" action=\"/admin/warehouse\" class=\"bg-white rounded-2xl shadow-2xl w-full max-w-lg slide-up max-h-[90vh] flex flex-col overflow-hidden\"><div class=\"flex items-center justify-between px-6 py-4 border-b border-slate-100\"><h3 class=\"font-bold text-slate-800 text-lg\">Фільтрація запасів</h3><button type=\"button\" onclick=\"warehouseCloseFilters()\" class=\"text-slate-400 hover:text-slate-600\"><svg class=\"w-5 h-5\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M6 18L18 6M6 6l12 12\"></path></svg></button></div><div class=\"px-6 py-5 overflow-y-auto scrollbar-thin flex-1 space-y-5\"><div><label class=\"text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1.5\">Заклад</label> <select name=\"restaurant_id\" class=\"input-field w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</div><div id=\"warehouse-filter-modal\" class=\"fixed inset-0 bg-black/40 z-50 items-center justify-center p-4 backdrop-blur-sm\" onclick=\"warehouseFilterOverlayClick(event)\"><form method=\"GET\" action=\"/admin/warehouse\" class=\"bg-white rounded-2xl shadow-2xl w-full max-w-lg slide-up max-h-[90vh] flex flex-col overflow-hidden\"><div class=\"flex items-center justify-between px-6 py-4 border-b border-slate-100\"><h3 class=\"font-bold text-slate-800 text-lg\">Фільтрація запасів</h3><button type=\"button\" onclick=\"warehouseCloseFilters()\" class=\"text-slate-400 hover:text-slate-600\"><svg class=\"w-5 h-5\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M6 18L18 6M6 6l12 12\"></path></svg></button></div><div class=\"px-6 py-5 overflow-y-auto scrollbar-thin flex-1 space-y-5\"><div><label class=\"text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1.5\">Заклад</label> <select name=\"restaurant_id\" class=\"input-field w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		for _, restaurant := range view.RestaurantOptions {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<option value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<option value=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var11 string
+			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(restaurant.ID))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 252, Col: 51}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if restaurant.ID == view.Filters.RestaurantID {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, " selected")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, ">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var12 string
+			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(restaurant.Name)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 253, Col: 26}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, " ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if restaurant.Address != "" {
+				var templ_7745c5c3_Var13 string
+				templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(" — " + restaurant.Address)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 255, Col: 40}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "</option>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "</select></div><div><label class=\"text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1.5\">Статус</label> <select name=\"status\" class=\"input-field w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none\"><option value=\"all\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if view.Filters.Status == "all" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, " selected")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, ">Усі (включаючи прострочені)</option> <option value=\"not_expired\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if view.Filters.Status == "not_expired" || view.Filters.Status == "" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, " selected")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, ">Свіжі (не прострочені)</option> <option value=\"normal\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if view.Filters.Status == "normal" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, " selected")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, ">Норма (>3 дн.)</option> <option value=\"expiring\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if view.Filters.Status == "expiring" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, " selected")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, ">Скоро спливає (≤3 дн.)</option> <option value=\"expired\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if view.Filters.Status == "expired" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, " selected")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, ">Прострочено</option></select></div><div class=\"grid grid-cols-2 gap-4\"><div><label class=\"text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1.5\">Кількість (від-до)</label><div class=\"flex items-center gap-2\"><input type=\"number\" name=\"min_qty\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var14 string
+		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(view.Filters.MinQty)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 277, Col: 71}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "\" class=\"input-field w-full border border-slate-200 rounded-lg px-2 py-2 text-sm text-center mono outline-none\" min=\"0\"> <span class=\"text-slate-400\">-</span> <input type=\"number\" name=\"max_qty\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var15 string
+		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(view.Filters.MaxQty)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 279, Col: 71}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "\" class=\"input-field w-full border border-slate-200 rounded-lg px-2 py-2 text-sm text-center mono outline-none\" min=\"0\"></div></div></div><div class=\"grid grid-cols-2 gap-4\"><div><label class=\"text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1.5\">Дата надходження</label> <input type=\"date\" name=\"arrival_from\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var16 string
+		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(view.Filters.ArrivalFrom)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 287, Col: 78}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "\" class=\"input-field w-full border border-slate-200 rounded-lg px-2 py-2 text-sm outline-none mb-2\"> <input type=\"date\" name=\"arrival_to\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var17 string
+		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(view.Filters.ArrivalTo)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 288, Col: 74}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "\" class=\"input-field w-full border border-slate-200 rounded-lg px-2 py-2 text-sm outline-none\"></div><div><label class=\"text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1.5\">Термін придатності</label> <input type=\"date\" name=\"exp_from\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var18 string
+		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(view.Filters.ExpFrom)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 292, Col: 70}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "\" class=\"input-field w-full border border-slate-200 rounded-lg px-2 py-2 text-sm outline-none mb-2\"> <input type=\"date\" name=\"exp_to\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var19 string
+		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(view.Filters.ExpTo)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 293, Col: 66}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "\" class=\"input-field w-full border border-slate-200 rounded-lg px-2 py-2 text-sm outline-none\"></div></div><div><label class=\"text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1.5\">Продукти (мультивибір)</label> <input type=\"text\" id=\"warehouse-ing-search\" placeholder=\"Пошук інгредієнта...\" oninput=\"warehouseFilterIngredientList(this.value)\" class=\"w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none mb-2\"><div class=\"mt-2 max-h-48 overflow-y-auto scrollbar-thin pr-1 border border-slate-200 rounded-lg p-2 bg-slate-50\" id=\"warehouse-ingredient-list\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		for _, ingredient := range view.IngredientOptions {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "<label class=\"warehouse-ing-lbl flex items-center justify-between bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium cursor-pointer hover:bg-slate-50 transition-colors mb-1\" data-name=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var20 string
+			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(strings.ToLower(ingredient))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 302, Col: 244}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "\"><span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var21 string
-			templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(restaurant.ID))
+			templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(ingredient)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 229, Col: 51}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 303, Col: 27}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			if restaurant.ID == view.Filters.RestaurantID {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, " selected")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, ">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "</span> <input type=\"checkbox\" name=\"ingredient\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var22 string
-			templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(restaurant.Name)
+			templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(ingredient)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 230, Col: 26}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 304, Col: 68}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, " ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			if restaurant.Address != "" {
-				var templ_7745c5c3_Var23 string
-				templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(" — " + restaurant.Address)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 232, Col: 40}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "</option>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "</select></div><div><label class=\"text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1.5\">Статус</label> <select name=\"status\" class=\"input-field w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none\"><option value=\"\">Усі</option> <option value=\"normal\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		if view.Filters.Status == "normal" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, " selected")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, ">Норма</option> <option value=\"expiring\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		if view.Filters.Status == "expiring" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, " selected")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, ">Скоро спливає</option> <option value=\"expired\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		if view.Filters.Status == "expired" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, " selected")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, ">Прострочено</option></select></div><div class=\"grid grid-cols-2 gap-4\"><div><label class=\"text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1.5\">Кількість (від-до)</label><div class=\"flex items-center gap-2\"><input type=\"number\" name=\"min_qty\" value=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var24 string
-		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(view.Filters.MinQty)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 253, Col: 71}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "\" class=\"input-field w-full border border-slate-200 rounded-lg px-2 py-2 text-sm text-center mono outline-none\" min=\"0\"> <span class=\"text-slate-400\">-</span> <input type=\"number\" name=\"max_qty\" value=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var25 string
-		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(view.Filters.MaxQty)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 255, Col: 71}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "\" class=\"input-field w-full border border-slate-200 rounded-lg px-2 py-2 text-sm text-center mono outline-none\" min=\"0\"></div></div></div><div class=\"grid grid-cols-2 gap-4\"><div><label class=\"text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1.5\">Дата надходження</label> <input type=\"date\" name=\"arrival_from\" value=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var26 string
-		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(view.Filters.ArrivalFrom)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 263, Col: 78}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "\" class=\"input-field w-full border border-slate-200 rounded-lg px-2 py-2 text-sm outline-none mb-2\"> <input type=\"date\" name=\"arrival_to\" value=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var27 string
-		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(view.Filters.ArrivalTo)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 264, Col: 74}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "\" class=\"input-field w-full border border-slate-200 rounded-lg px-2 py-2 text-sm outline-none\"></div><div><label class=\"text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1.5\">Термін придатності</label> <input type=\"date\" name=\"exp_from\" value=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var28 string
-		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(view.Filters.ExpFrom)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 268, Col: 70}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "\" class=\"input-field w-full border border-slate-200 rounded-lg px-2 py-2 text-sm outline-none mb-2\"> <input type=\"date\" name=\"exp_to\" value=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var29 string
-		templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(view.Filters.ExpTo)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 269, Col: 66}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "\" class=\"input-field w-full border border-slate-200 rounded-lg px-2 py-2 text-sm outline-none\"></div></div><div><label class=\"text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1.5\">Продукти (мультивибір)</label> <input type=\"text\" id=\"warehouse-ing-search\" placeholder=\"Пошук інгредієнта...\" oninput=\"warehouseFilterIngredientList(this.value)\" class=\"w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none mb-2\"><div class=\"mt-2 max-h-48 overflow-y-auto scrollbar-thin pr-1 border border-slate-200 rounded-lg p-2 bg-slate-50\" id=\"warehouse-ingredient-list\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		for _, ingredient := range view.IngredientOptions {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "<label class=\"warehouse-ing-lbl flex items-center justify-between bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium cursor-pointer hover:bg-slate-50 transition-colors mb-1\" data-name=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var30 string
-			templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(strings.ToLower(ingredient))
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 278, Col: 244}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "\"><span>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var31 string
-			templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(ingredient)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 279, Col: 27}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "</span> <input type=\"checkbox\" name=\"ingredient\" value=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var32 string
-			templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(ingredient)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 280, Col: 68}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "\" class=\"rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "\" class=\"rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if selectedIngredients[ingredient] {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, " checked")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, " checked")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "></label>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "></label>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "</div></div></div><input type=\"hidden\" name=\"page\" value=\"1\"><div class=\"px-6 py-4 border-t border-slate-100 flex gap-3 bg-slate-50 rounded-b-2xl\"><button type=\"submit\" class=\"btn-primary flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm py-2.5 rounded-lg font-bold shadow-sm transition-colors\">Застосувати</button> <a href=\"/admin/warehouse\" class=\"flex-1 bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 text-sm py-2.5 rounded-lg font-bold shadow-sm transition-colors text-center\">Скинути всі</a> <button type=\"button\" onclick=\"warehouseCloseFilters()\" class=\"flex-1 border bg-white border-slate-200 text-slate-700 text-sm py-2.5 rounded-lg font-bold hover:bg-slate-50 transition-colors\">Скасувати</button></div></form></div><script>\n\t\t\tfunction warehouseOpenFilters() {\n\t\t\t\tvar modal = document.getElementById('warehouse-filter-modal');\n\t\t\t\tif (modal) modal.classList.add('open');\n\t\t\t}\n\t\t\tfunction warehouseCloseFilters() {\n\t\t\t\tvar modal = document.getElementById('warehouse-filter-modal');\n\t\t\t\tif (modal) modal.classList.remove('open');\n\t\t\t}\n\t\t\tfunction warehouseFilterOverlayClick(event) {\n\t\t\t\tvar modal = document.getElementById('warehouse-filter-modal');\n\t\t\t\tif (event.target === modal) warehouseCloseFilters();\n\t\t\t}\n\t\t\tfunction warehouseFilterIngredientList(val) {\n\t\t\t\tvar query = (val || '').toLowerCase();\n\t\t\t\tdocument.querySelectorAll('.warehouse-ing-lbl').forEach(function(el) {\n\t\t\t\t\tel.style.display = el.dataset.name.indexOf(query) >= 0 ? 'flex' : 'none';\n\t\t\t\t});\n\t\t\t}\n\t\t\tfunction warehouseWriteOffPlaceholder() {\n\t\t\t\tif (typeof showAdminToast === 'function') {\n\t\t\t\t\tshowAdminToast('Списання інгредієнтів додамо наступним кроком', 'error');\n\t\t\t\t}\n\t\t\t}\n\t\t</script></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "</div></div></div><input type=\"hidden\" name=\"page\" value=\"1\"><div class=\"px-6 py-4 border-t border-slate-100 flex gap-3 bg-slate-50 rounded-b-2xl\"><button type=\"submit\" class=\"btn-primary flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm py-2.5 rounded-lg font-bold shadow-sm transition-colors\">Застосувати</button> <a href=\"/admin/warehouse\" class=\"flex-1 bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 text-sm py-2.5 rounded-lg font-bold shadow-sm transition-colors text-center\">Скинути всі</a> <button type=\"button\" onclick=\"warehouseCloseFilters()\" class=\"flex-1 border bg-white border-slate-200 text-slate-700 text-sm py-2.5 rounded-lg font-bold hover:bg-slate-50 transition-colors\">Скасувати</button></div></form></div><script>\n\t\t\tfunction warehouseOpenFilters() {\n\t\t\t\tvar modal = document.getElementById('warehouse-filter-modal');\n\t\t\t\tif (modal) modal.classList.add('open');\n\t\t\t}\n\t\t\tfunction warehouseCloseFilters() {\n\t\t\t\tvar modal = document.getElementById('warehouse-filter-modal');\n\t\t\t\tif (modal) modal.classList.remove('open');\n\t\t\t}\n\t\t\tfunction warehouseFilterOverlayClick(event) {\n\t\t\t\tvar modal = document.getElementById('warehouse-filter-modal');\n\t\t\t\tif (event.target === modal) warehouseCloseFilters();\n\t\t\t}\n\t\t\tfunction warehouseFilterIngredientList(val) {\n\t\t\t\tvar query = (val || '').toLowerCase();\n\t\t\t\tdocument.querySelectorAll('.warehouse-ing-lbl').forEach(function(el) {\n\t\t\t\t\tel.style.display = el.dataset.name.indexOf(query) >= 0 ? 'flex' : 'none';\n\t\t\t\t});\n\t\t\t}\n\t\t\tfunction warehouseSelectStock(row, skipExpand) {\n\t\t\t\tvar container = document.querySelector('[data-current-restaurant-id]');\n\t\t\t\tvar currentRestaurantID = container ? container.dataset.currentRestaurantId : '0';\n\t\t\t\tvar rowRestaurantID = row.dataset.restaurantId || '0';\n\t\t\t\t\n\t\t\t\t// Handle highlighting\n\t\t\t\tdocument.querySelectorAll('.warehouse-row').forEach(function(r) {\n\t\t\t\t\tr.classList.remove('bg-blue-50/50', 'border-l-4', 'border-blue-500');\n\t\t\t\t});\n\t\t\t\trow.classList.add('bg-blue-50/50', 'border-l-4', 'border-blue-500');\n\n\t\t\t\t// Show write-off form only if it's the current restaurant\n\t\t\t\tif (rowRestaurantID === currentRestaurantID) {\n\t\t\t\t\tvar block = document.getElementById('warehouse-writeoff');\n\t\t\t\t\tvar stockInput = document.getElementById('wo-stock-id');\n\t\t\t\t\tvar ingInput = document.getElementById('wo-ingredient');\n\t\t\t\t\tvar qtyDisplay = document.getElementById('wo-display-quantity');\n\t\t\t\t\tvar unitSelect = document.getElementById('wo-unit-select');\n\t\t\t\t\t\n\t\t\t\t\tif (block && stockInput && ingInput && qtyDisplay && unitSelect) {\n\t\t\t\t\t\tstockInput.value = row.dataset.stockId || '';\n\t\t\t\t\t\tingInput.value = row.dataset.ingredient || '';\n\t\t\t\t\t\t\n\t\t\t\t\t\t// Update unit select options\n\t\t\t\t\t\tvar baseUnit = row.dataset.unit || '';\n\t\t\t\t\t\tunitSelect.innerHTML = '';\n\t\t\t\t\t\tif (baseUnit === 'г') {\n\t\t\t\t\t\t\tunitSelect.innerHTML = '<option value=\"г\">г</option><option value=\"кг\">кг</option>';\n\t\t\t\t\t\t} else if (baseUnit === 'мл') {\n\t\t\t\t\t\t\tunitSelect.innerHTML = '<option value=\"мл\">мл</option><option value=\"л\">л</option>';\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tunitSelect.innerHTML = '<option value=\"' + baseUnit + '\">' + baseUnit + '</option>';\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\tqtyDisplay.value = '';\n\t\t\t\t\t\tblock.classList.remove('hidden');\n\t\t\t\t\t}\n\t\t\t\t} else {\n\t\t\t\t\tvar block = document.getElementById('warehouse-writeoff');\n\t\t\t\t\tif (block) block.classList.add('hidden');\n\t\t\t\t}\n\n\t\t\t\tif (skipExpand) return;\n\n\t\t\t\t// Toggle expansion for any row\n\t\t\t\tvar stockId = row.dataset.stockId;\n\t\t\t\tvar expandRow = document.getElementById('expand-row-' + stockId);\n\t\t\t\tvar icon = row.querySelector('.expand-icon');\n\t\t\t\t\n\t\t\t\tif (expandRow) {\n\t\t\t\t\tvar isHidden = expandRow.classList.contains('hidden');\n\t\t\t\t\t\n\t\t\t\t\t// Close other expanded rows\n\t\t\t\t\tdocument.querySelectorAll('.expand-row').forEach(function(r) { \n\t\t\t\t\t\tif (r.id !== 'expand-row-' + stockId) r.classList.add('hidden'); \n\t\t\t\t\t});\n\t\t\t\t\tdocument.querySelectorAll('.expand-icon').forEach(function(i) {\n\t\t\t\t\t\tif (i !== icon) i.style.transform = 'rotate(0deg)';\n\t\t\t\t\t});\n\n\t\t\t\t\tif (isHidden) {\n\t\t\t\t\t\texpandRow.classList.remove('hidden');\n\t\t\t\t\t\tif (icon) icon.style.transform = 'rotate(90deg)';\n\t\t\t\t\t\t\n\t\t\t\t\t\t// Trigger HTMX if content has spinner\n\t\t\t\t\t\tvar content = document.getElementById('stock-expand-' + stockId);\n\t\t\t\t\t\tif (content && content.querySelector('.animate-spin')) {\n\t\t\t\t\t\t\thtmx.trigger(content, 'expand-triggered');\n\t\t\t\t\t\t}\n\t\t\t\t\t} else {\n\t\t\t\t\t\texpandRow.classList.add('hidden');\n\t\t\t\t\t\tif (icon) icon.style.transform = 'rotate(0deg)';\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t\tfunction warehousePrepareWriteOff(event) {\n\t\t\t\tvar qtyDisplay = document.getElementById('wo-display-quantity');\n\t\t\t\tvar unitSelect = document.getElementById('wo-unit-select');\n\t\t\t\tvar finalQty = document.getElementById('wo-final-quantity');\n\t\t\t\t\n\t\t\t\tif (qtyDisplay && unitSelect && finalQty) {\n\t\t\t\t\tvar val = parseFloat(qtyDisplay.value.replace(',', '.'));\n\t\t\t\t\tif (isNaN(val)) {\n\t\t\t\t\t\tevent.preventDefault();\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\t\t\t\t\t\n\t\t\t\t\tif (unitSelect.value === 'кг' || unitSelect.value === 'л') {\n\t\t\t\t\t\tval *= 1000;\n\t\t\t\t\t}\n\t\t\t\t\tfinalQty.value = val;\n\t\t\t\t}\n\t\t\t}\n\t\t\tfunction warehouseCancelWriteOff() {\n\t\t\t\tvar block = document.getElementById('warehouse-writeoff');\n\t\t\t\tvar stockInput = document.getElementById('wo-stock-id');\n\t\t\t\tvar ingInput = document.getElementById('wo-ingredient');\n\t\t\t\tvar qtyDisplay = document.getElementById('wo-display-quantity');\n\t\t\t\tif (!block || !stockInput || !ingInput || !qtyDisplay) return;\n\t\t\t\tstockInput.value = '';\n\t\t\t\tingInput.value = '';\n\t\t\t\tqtyDisplay.value = '';\n\t\t\t\tblock.classList.add('hidden');\n\n\t\t\t\t// Remove highlights\n\t\t\t\tdocument.querySelectorAll('.warehouse-row').forEach(function(r) {\n\t\t\t\t\tr.classList.remove('bg-blue-50/50', 'border-l-4', 'border-blue-500');\n\t\t\t\t});\n\t\t\t}\n\t\t</script></div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+func WarehouseWriteOffs(items []adminservice.WarehouseWriteOff, unit string) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var23 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var23 == nil {
+			templ_7745c5c3_Var23 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "<div class=\"bg-slate-50 p-4 rounded-xl border border-slate-200 my-2 ml-10 mr-4 fade-in\"><div class=\"flex items-center gap-2 mb-4\"><svg class=\"w-4 h-4 text-slate-400\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z\"></path></svg><h4 class=\"text-xs font-bold text-slate-500 uppercase tracking-widest\">Історія списань</h4></div><div class=\"bg-white rounded-lg border border-slate-200 overflow-hidden\"><table class=\"w-full text-sm text-left\"><thead class=\"bg-slate-50 border-b border-slate-200\"><tr><th class=\"px-4 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest\">Кількість</th><th class=\"px-4 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest\">Причина</th><th class=\"px-4 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest\">Адміністратор</th><th class=\"px-4 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest\">Точний час</th></tr></thead> <tbody class=\"divide-y divide-slate-100\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		for _, item := range items {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "<tr class=\"hover:bg-slate-50/50 transition-colors\"><td class=\"px-4 py-2.5 font-bold text-red-600\">-")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var24 string
+			templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(fmtQty(item.Qty))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 471, Col: 73}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, " ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var25 string
+			templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(unit)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 471, Col: 82}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "</td><td class=\"px-4 py-2.5 text-slate-600\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var26 string
+			templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(item.Reason)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 472, Col: 59}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "</td><td class=\"px-4 py-2.5 text-slate-600 font-medium\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var27 string
+			templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(item.AdminName)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 473, Col: 74}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "</td><td class=\"px-4 py-2.5 text-slate-400 font-mono text-xs\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var28 string
+			templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(item.WriteOffDate.Format("02.01.2006 15:04:05"))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 474, Col: 113}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "</td></tr>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		if len(items) == 0 {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "<tr><td colspan=\"4\" class=\"px-4 py-6 text-center text-slate-400 italic\">Списань не знайдено</td></tr>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "</tbody></table></div></div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+func WarehouseStockGroup(item adminservice.WarehouseBatch, showHistory bool, history []adminservice.WarehouseWriteOff) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var29 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var29 == nil {
+			templ_7745c5c3_Var29 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "<tbody id=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var30 string
+		templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs("stock-group-" + strconv.Itoa(item.StockID))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 489, Col: 56}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "\" class=\"divide-y divide-slate-100 group/body\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = WarehouseStockRow(item, showHistory).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = WarehouseExpandRow(item, showHistory, history).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "</tbody>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+func WarehouseStockRow(item adminservice.WarehouseBatch, showHistory bool) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var31 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var31 == nil {
+			templ_7745c5c3_Var31 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		var templ_7745c5c3_Var32 = []any{"warehouse-row hover:bg-slate-50 group transition-all duration-150", templ.KV("cursor-pointer", item.WriteOffCount > 0)}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var32...)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "<tr class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var33 string
+		templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var32).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "\" data-stock-id=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var34 string
+		templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(item.StockID))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 497, Col: 44}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "\" data-ingredient=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var35 string
+		templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(item.Ingredient)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 498, Col: 35}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "\" data-unit=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var36 string
+		templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(item.Unit)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 499, Col: 23}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "\" data-qty=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var37 string
+		templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(fmtQty(item.Qty))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 500, Col: 29}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "\" data-restaurant-id=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var38 string
+		templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(item.RestaurantID))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 501, Col: 54}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if item.WriteOffCount > 0 {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, " onclick=\"warehouseSelectStock(this)\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, " onclick=\"warehouseSelectStock(this, true)\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, "><td class=\"px-3 py-3 text-center\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if item.WriteOffCount > 0 {
+			if showHistory {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "<svg class=\"expand-icon w-4 h-4 text-slate-400 group-hover:text-blue-500 transition-all duration-200\" style=\"transform: rotate(90deg);\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 5l7 7-7 7\"></path></svg>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			} else {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, "<svg class=\"expand-icon w-4 h-4 text-slate-400 group-hover:text-blue-500 transition-all duration-200\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 5l7 7-7 7\"></path></svg>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "</td><td class=\"px-3 py-3 text-sm font-medium text-slate-800 align-top break-words whitespace-normal\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var39 string
+		templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(item.Ingredient)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 518, Col: 20}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 81, "</td>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		qtyValue, qtyUnit := warehouseQtyDisplay(item.Qty, item.Unit)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, "<td class=\"px-3 py-3 text-sm mono font-semibold text-slate-700 align-top whitespace-nowrap\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var40 string
+		templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(qtyValue)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 521, Col: 104}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 83, " ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var41 string
+		templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(qtyUnit)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 521, Col: 116}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 84, "</td><td class=\"px-3 py-3 text-sm align-top break-words\"><span class=\"bg-slate-100 px-2 py-0.5 rounded-full text-xs text-slate-600\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var42 string
+		templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(item.StorageZone)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 522, Col: 147}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 85, "</span></td><td class=\"px-3 py-3 text-sm text-slate-600 align-top break-words\"><div class=\"flex flex-col\"><span class=\"font-medium text-slate-700\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var43 string
+		templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(item.RestaurantName)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 525, Col: 66}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "</span> ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if item.RestaurantAddress != "" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "<span class=\"text-xs text-slate-500\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var44 string
+			templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs(item.RestaurantAddress)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 527, Col: 66}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 88, "</span>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, "</div></td><td class=\"px-3 py-3 text-sm text-slate-500 align-top break-words\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var45 string
+		templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(item.Supplier)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 531, Col: 84}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 90, "</td><td class=\"px-3 py-3 text-sm mono text-slate-500 align-top whitespace-nowrap\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var46 string
+		templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(warehouseFmtDate(item.ReceivedAt))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 532, Col: 115}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, "</td>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var47 = []any{"px-3 py-3 text-sm mono align-top", warehouseExpClass(item.DaysLeft)}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var47...)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "<td class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var48 string
+		templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var47).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "\"><div class=\"flex flex-col items-start\"><span>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var49 string
+		templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.JoinStringErrs(warehouseFmtDate(item.ExpDate))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 535, Col: 42}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var49))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "</span> ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if item.DaysLeft < 0 {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 95, "<span class=\"bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wide mt-1\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var50 string
+			templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(warehouseExpMeta(item.DaysLeft))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 537, Col: 149}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 96, "</span>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, "<span class=\"text-xs opacity-70 mt-1 block\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var51 string
+			templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(warehouseExpMeta(item.DaysLeft))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 539, Col: 82}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 98, "</span>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 99, "</div></td></tr>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+func WarehouseExpandRow(item adminservice.WarehouseBatch, showHistory bool, history []adminservice.WarehouseWriteOff) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var52 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var52 == nil {
+			templ_7745c5c3_Var52 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		var templ_7745c5c3_Var53 = []any{"expand-row bg-slate-50/30", templ.KV("hidden", !showHistory)}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var53...)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 100, "<tr id=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var54 string
+		templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinStringErrs("expand-row-" + strconv.Itoa(item.StockID))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 547, Col: 52}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 101, "\" class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var55 string
+		templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var53).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var55))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 102, "\"><td colspan=\"8\" class=\"p-0 border-b border-slate-100\"><div id=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var56 string
+		templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs("stock-expand-" + strconv.Itoa(item.StockID))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 549, Col: 57}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var56))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 103, "\" hx-get=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var57 string
+		templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinStringErrs("/admin/warehouse/stock/" + strconv.Itoa(item.StockID) + "/writeoffs?unit=" + url.QueryEscape(item.Unit))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/warehouse.templ`, Line: 550, Col: 117}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 104, "\" hx-trigger=\"expand-triggered\" hx-swap=\"innerHTML\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if showHistory {
+			templ_7745c5c3_Err = WarehouseWriteOffs(history, item.Unit).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 105, "<div class=\"p-8 flex justify-center\"><div class=\"animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500\"></div></div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 106, "</div></td></tr>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

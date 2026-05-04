@@ -19,12 +19,23 @@ type WarehouseBatch struct {
 	ReceivedAt        time.Time
 	ExpDate           time.Time
 	StorageCondition  string
+	RestaurantID      int
 	RestaurantName    string
 	RestaurantAddress string
 	Supplier          string
 	StatusCode        string
 	StatusLabel       string
 	DaysLeft          int
+	WriteOffCount     int
+}
+
+type WriteOffReason = adminrepo.WriteOffReason
+
+type WarehouseWriteOff struct {
+	WriteOffDate time.Time
+	Qty          float64
+	Reason       string
+	AdminName    string
 }
 
 type WarehouseSummary struct {
@@ -35,14 +46,17 @@ type WarehouseSummary struct {
 }
 
 type WarehousePageView struct {
-	RestaurantName      string
-	RestaurantAddress   string
-	DefaultRestaurantID int
-	Items               []WarehouseBatch
-	Filters             WarehouseFilters
-	IngredientOptions   []string
-	RestaurantOptions   []adminrepo.WarehouseRestaurantOption
-	Pagination          PurchasesPagination
+	RestaurantName           string
+	RestaurantAddress        string
+	CurrentRestaurantName    string
+	CurrentRestaurantAddress string
+	DefaultRestaurantID      int
+	Items                    []WarehouseBatch
+	Filters                  WarehouseFilters
+	IngredientOptions        []string
+	RestaurantOptions        []adminrepo.WarehouseRestaurantOption
+	WriteOffReasons          []WriteOffReason
+	Pagination               PurchasesPagination
 }
 
 func warehouseStatus(expDate time.Time) (code, label string, daysLeft int) {
@@ -59,6 +73,37 @@ func warehouseStatus(expDate time.Time) (code, label string, daysLeft int) {
 	default:
 		return "normal", "Норма", daysLeft
 	}
+}
+
+func (s *PurchasesService) GetWarehouseItem(restaurantID, stockID int) (*WarehouseBatch, error) {
+	row, err := s.repo.GetWarehouseItem(restaurantID, stockID)
+	if err != nil {
+		return nil, err
+	}
+	statusCode, statusLabel, daysLeft := warehouseStatus(row.ExpDate)
+	item := WarehouseBatch{
+		StockID:           row.StockID,
+		Ingredient:        row.IngredientName,
+		Brand:             row.IngredientBrand.String,
+		Qty:               row.Qty,
+		Unit:              row.UnitName,
+		StorageZone:       row.StorageCondition.String,
+		ReceivedAt:        row.ReceivedAt,
+		ExpDate:           row.ExpDate,
+		StorageCondition:  row.StorageCondition.String,
+		RestaurantID:      row.RestaurantID,
+		RestaurantName:    row.RestaurantName,
+		RestaurantAddress: row.RestaurantAddress.String,
+		Supplier:          "—",
+		StatusCode:        statusCode,
+		StatusLabel:       statusLabel,
+		DaysLeft:          daysLeft,
+		WriteOffCount:     row.WriteOffCount,
+	}
+	if row.SupplierName.Valid && row.SupplierName.String != "" {
+		item.Supplier = row.SupplierName.String
+	}
+	return &item, nil
 }
 
 func (s *PurchasesService) GetWarehousePage(restaurantID int, f WarehouseFilters) (*WarehousePageView, error) {
@@ -80,6 +125,10 @@ func (s *PurchasesService) GetWarehousePage(restaurantID int, f WarehouseFilters
 	if err != nil {
 		return nil, fmt.Errorf("GetWarehousePage restaurant options: %w", err)
 	}
+	writeOffReasons, err := s.repo.GetWriteOffReasons()
+	if err != nil {
+		return nil, fmt.Errorf("GetWarehousePage write-off reasons: %w", err)
+	}
 
 	items := make([]WarehouseBatch, 0, len(rows))
 	restaurantName := ""
@@ -97,12 +146,14 @@ func (s *PurchasesService) GetWarehousePage(restaurantID int, f WarehouseFilters
 			ReceivedAt:        row.ReceivedAt,
 			ExpDate:           row.ExpDate,
 			StorageCondition:  row.StorageCondition.String,
+			RestaurantID:      row.RestaurantID,
 			RestaurantName:    row.RestaurantName,
 			RestaurantAddress: row.RestaurantAddress.String,
 			Supplier:          "—",
 			StatusCode:        statusCode,
 			StatusLabel:       statusLabel,
 			DaysLeft:          daysLeft,
+			WriteOffCount:     row.WriteOffCount,
 		}
 		if row.SupplierName.Valid && row.SupplierName.String != "" {
 			item.Supplier = row.SupplierName.String
@@ -126,13 +177,53 @@ func (s *PurchasesService) GetWarehousePage(restaurantID int, f WarehouseFilters
 		}
 	}
 
+	currentRestaurantName := ""
+	currentRestaurantAddress := ""
+	for _, option := range restaurantOptions {
+		if option.ID == restaurantID {
+			currentRestaurantName = option.Name
+			currentRestaurantAddress = option.Address
+			break
+		}
+	}
+
 	return &WarehousePageView{
-		RestaurantName:    restaurantName,
-		RestaurantAddress: restaurantAddress,
-		Items:             items,
-		Filters:           f,
-		IngredientOptions: ingredientOptions,
-		RestaurantOptions: restaurantOptions,
-		Pagination:        buildPagination(total, f.Page),
+		RestaurantName:           restaurantName,
+		RestaurantAddress:        restaurantAddress,
+		CurrentRestaurantName:    currentRestaurantName,
+		CurrentRestaurantAddress: currentRestaurantAddress,
+		Items:                    items,
+		Filters:                  f,
+		IngredientOptions:        ingredientOptions,
+		RestaurantOptions:        restaurantOptions,
+		WriteOffReasons:          writeOffReasons,
+		Pagination:               buildPagination(total, f.Page),
 	}, nil
+}
+
+func (s *PurchasesService) CreateWriteOff(restaurantID, adminID, stockID, reasonID int, qty float64) error {
+	if stockID <= 0 || reasonID <= 0 || qty <= 0 {
+		return fmt.Errorf("invalid write-off data")
+	}
+	return s.repo.CreateWriteOff(restaurantID, adminID, stockID, reasonID, qty)
+}
+
+func (s *PurchasesService) GetStockWriteOffs(restaurantID, stockID int) ([]WarehouseWriteOff, error) {
+	if stockID <= 0 {
+		return nil, fmt.Errorf("invalid stock id")
+	}
+	rows, err := s.repo.GetStockWriteOffs(restaurantID, stockID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]WarehouseWriteOff, 0, len(rows))
+	for _, row := range rows {
+		result = append(result, WarehouseWriteOff{
+			WriteOffDate: row.WriteOffDate,
+			Qty:          row.Qty,
+			Reason:       row.Reason,
+			AdminName:    row.AdminName,
+		})
+	}
+	return result, nil
 }

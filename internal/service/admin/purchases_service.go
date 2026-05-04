@@ -110,6 +110,9 @@ type PurchasesServicer interface {
 	GetPurchasesPage(restaurantID, adminID int, f PurchasesFilters) (*PurchasesPageView, error)
 	GetPurchasesList(restaurantID, adminID int, f PurchasesFilters) (*PurchasesPageView, error)
 	GetWarehousePage(restaurantID int, f WarehouseFilters) (*WarehousePageView, error)
+	GetWarehouseItem(restaurantID, stockID int) (*WarehouseBatch, error)
+	CreateWriteOff(restaurantID, adminID, stockID, reasonID int, qty float64) error
+	GetStockWriteOffs(restaurantID, stockID int) ([]WarehouseWriteOff, error)
 	GetOrderDetails(orderID int) (PurchaseOrder, error)
 	GetIngredients() ([]IngredientOption, error)
 	GetSuppliers() ([]SupplierOption, error)

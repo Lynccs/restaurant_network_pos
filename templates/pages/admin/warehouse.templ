@@ -45,7 +45,8 @@ func warehouseSelectedIngredientsMap(values []string) map[string]bool {
 
 func warehouseHasActiveFilters(f adminservice.WarehouseFilters, defaultRestaurantID int) bool {
 	return len(f.Ingredients) > 0 || f.MinQty != "" || f.MaxQty != "" ||
-		f.ArrivalFrom != "" || f.ArrivalTo != "" || f.ExpFrom != "" || f.ExpTo != "" || f.Status != "" ||
+		f.ArrivalFrom != "" || f.ArrivalTo != "" || f.ExpFrom != "" || f.ExpTo != "" ||
+		(f.Status != "" && f.Status != "not_expired") ||
 		(defaultRestaurantID > 0 && f.RestaurantID != 0 && f.RestaurantID != defaultRestaurantID)
 }
 
@@ -57,7 +58,7 @@ func warehousePageLink(f adminservice.WarehouseFilters, page int) string {
 	for _, ingredient := range f.Ingredients {
 		values.Add("ingredient", ingredient)
 	}
-	if f.Status != "" {
+	if f.Status != "" && f.Status != "not_expired" {
 		values.Set("status", f.Status)
 	}
 	if f.ArrivalFrom != "" {
@@ -103,7 +104,7 @@ func warehouseQtyDisplay(qty float64, unit string) (string, string) {
 
 templ WarehousePage(view *adminservice.WarehousePageView) {
 	{{ selectedIngredients := warehouseSelectedIngredientsMap(view.Filters.Ingredients) }}
-	<div class="p-6 max-w-6xl mx-auto fade-in">
+	<div class="p-6 max-w-6xl mx-auto fade-in" data-current-restaurant-id={ strconv.Itoa(view.DefaultRestaurantID) }>
 		<style>
 			.input-field { transition: border-color 0.15s; }
 			.input-field:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
@@ -114,9 +115,9 @@ templ WarehousePage(view *adminservice.WarehousePageView) {
 		<div class="mb-6">
 			<h1 class="text-xl font-semibold text-slate-900">Склад</h1>
 			<div class="mt-1">
-				<p class="text-slate-700 text-sm font-medium">{ view.RestaurantName }</p>
-				if view.RestaurantAddress != "" {
-					<p class="text-slate-500 text-xs">{ view.RestaurantAddress }</p>
+				<p class="text-slate-700 text-sm font-medium">Ваш ресторан: { view.CurrentRestaurantName }</p>
+				if view.CurrentRestaurantAddress != "" {
+					<p class="text-slate-500 text-xs">{ view.CurrentRestaurantAddress }</p>
 				}
 			</div>
 		</div>
@@ -139,9 +140,57 @@ templ WarehousePage(view *adminservice.WarehousePageView) {
 					</button>
 				}
 			</div>
-			<button type="button" onclick="warehouseWriteOffPlaceholder()" class="px-4 py-2 border border-slate-300 text-slate-700 bg-white hover:bg-slate-100 font-medium rounded-lg text-sm transition-colors shadow-sm flex items-center gap-2">
-				Списати інгредієнти
-			</button>
+		</div>
+
+		<div id="warehouse-writeoff" class="hidden bg-white border border-slate-200 rounded-2xl p-5 mb-6 shadow-sm">
+			<form
+				id="warehouse-writeoff-form"
+				hx-post="/admin/warehouse/writeoff"
+				hx-swap="outerHTML"
+				hx-on--after-request="if(event.detail.successful) { warehouseCancelWriteOff(); } else { alert('Помилка при списанні'); }"
+				onsubmit="warehousePrepareWriteOff(event)"
+				class="flex flex-wrap md:flex-nowrap items-end gap-4"
+			>
+				<input type="hidden" name="stock_id" id="wo-stock-id" value=""/>
+				<input type="hidden" name="quantity" id="wo-final-quantity" value=""/>
+				
+				<div class="flex-[2] min-w-[200px]">
+					<label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">Інгредієнт</label>
+					<input type="text" id="wo-ingredient" readonly class="input-field w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-slate-50 text-slate-700 font-medium"/>
+				</div>
+
+				<div class="w-28">
+					<label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">Кількість</label>
+					<input type="number" id="wo-display-quantity" step="0.001" min="0" onkeydown="if(['-','+','e','E'].includes(event.key))event.preventDefault()" required class="input-field w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono"/>
+				</div>
+
+				<div class="w-24 relative">
+					<label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">Одиниця</label>
+					<select id="wo-unit-select" class="input-field w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white cursor-pointer appearance-none pr-8">
+					</select>
+					<div class="absolute right-3 bottom-3 pointer-events-none text-slate-400">
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+					</div>
+				</div>
+
+				<div class="flex-[2] min-w-[180px] relative">
+					<label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">Причина списання</label>
+					<select name="reason_id" required class="input-field w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white cursor-pointer appearance-none pr-8">
+						<option value="">Оберіть причину</option>
+						for _, reason := range view.WriteOffReasons {
+							<option value={ strconv.Itoa(reason.ID) }>{ reason.Name }</option>
+						}
+					</select>
+					<div class="absolute right-3 bottom-3 pointer-events-none text-slate-400">
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+					</div>
+				</div>
+
+				<div class="flex gap-2 min-w-[220px]">
+					<button type="submit" class="flex-1 bg-red-600 hover:bg-red-700 text-white text-sm py-2.5 rounded-xl font-bold shadow-sm transition-all hover:shadow-md active:scale-[0.98]">Списати</button>
+					<button type="button" onclick="warehouseCancelWriteOff()" class="flex-1 border bg-white border-slate-200 text-slate-600 text-sm py-2.5 rounded-xl font-bold hover:bg-slate-50 transition-all active:scale-[0.98]">Скасувати</button>
+				</div>
+			</form>
 		</div>
 
 		<div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
@@ -149,6 +198,7 @@ templ WarehousePage(view *adminservice.WarehousePageView) {
 				<table class="w-full table-fixed">
 					<thead class="bg-slate-50 border-b border-slate-200">
 						<tr>
+							<th class="w-[4%] px-3 py-3"></th>
 							<th class="w-[16%] text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-3">Інгредієнт</th>
 							<th class="w-[12%] text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-3">Кількість</th>
 							<th class="w-[15%] text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-3">Зона зберігання</th>
@@ -158,40 +208,13 @@ templ WarehousePage(view *adminservice.WarehousePageView) {
 							<th class="w-[14%] text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-3">Придатний до</th>
 						</tr>
 					</thead>
-					<tbody class="divide-y divide-slate-100">
+					<tbody class="divide-y divide-slate-100" id="warehouse-table-body">
 						for _, item := range view.Items {
-							<tr class="hover:bg-slate-50">
-								<td class="px-3 py-3 text-sm font-medium text-slate-800 align-top break-words whitespace-normal">
-									{ item.Ingredient }
-								</td>
-								{{ qtyValue, qtyUnit := warehouseQtyDisplay(item.Qty, item.Unit) }}
-								<td class="px-3 py-3 text-sm mono font-semibold text-slate-700 align-top whitespace-nowrap">{ qtyValue } { qtyUnit }</td>
-								<td class="px-3 py-3 text-sm align-top break-words"><span class="bg-slate-100 px-2 py-0.5 rounded-full text-xs text-slate-600">{ item.StorageZone }</span></td>
-								<td class="px-3 py-3 text-sm text-slate-600 align-top break-words">
-									<div class="flex flex-col">
-										<span class="font-medium text-slate-700">{ item.RestaurantName }</span>
-										if item.RestaurantAddress != "" {
-											<span class="text-xs text-slate-500">{ item.RestaurantAddress }</span>
-										}
-									</div>
-								</td>
-								<td class="px-3 py-3 text-sm text-slate-500 align-top break-words">{ item.Supplier }</td>
-								<td class="px-3 py-3 text-sm mono text-slate-500 align-top whitespace-nowrap">{ warehouseFmtDate(item.ReceivedAt) }</td>
-								<td class={ "px-3 py-3 text-sm mono align-top", warehouseExpClass(item.DaysLeft) }>
-									<div class="flex flex-col items-start">
-										<span>{ warehouseFmtDate(item.ExpDate) }</span>
-										if item.DaysLeft < 0 {
-											<span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wide mt-1">{ warehouseExpMeta(item.DaysLeft) }</span>
-										} else {
-											<span class="text-xs opacity-70 mt-1 block">{ warehouseExpMeta(item.DaysLeft) }</span>
-										}
-									</div>
-								</td>
-							</tr>
+							@WarehouseStockGroup(item, false, nil)
 						}
 						if len(view.Items) == 0 {
 							<tr>
-								<td colspan="7" class="px-5 py-8 text-center text-sm text-slate-400">Немає записів за поточними фільтрами</td>
+								<td colspan="8" class="px-5 py-8 text-center text-sm text-slate-400">Немає записів за поточними фільтрами</td>
 							</tr>
 						}
 					</tbody>
@@ -239,9 +262,10 @@ templ WarehousePage(view *adminservice.WarehousePageView) {
 					<div>
 						<label class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Статус</label>
 						<select name="status" class="input-field w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none">
-							<option value="">Усі</option>
-							<option value="normal" selected?={ view.Filters.Status == "normal" }>Норма</option>
-							<option value="expiring" selected?={ view.Filters.Status == "expiring" }>Скоро спливає</option>
+							<option value="all" selected?={ view.Filters.Status == "all" }>Усі (включаючи прострочені)</option>
+							<option value="not_expired" selected?={ view.Filters.Status == "not_expired" || view.Filters.Status == "" }>Свіжі (не прострочені)</option>
+							<option value="normal" selected?={ view.Filters.Status == "normal" }>Норма (>3 дн.)</option>
+							<option value="expiring" selected?={ view.Filters.Status == "expiring" }>Скоро спливає (≤3 дн.)</option>
 							<option value="expired" selected?={ view.Filters.Status == "expired" }>Прострочено</option>
 						</select>
 					</div>
@@ -311,11 +335,229 @@ templ WarehousePage(view *adminservice.WarehousePageView) {
 					el.style.display = el.dataset.name.indexOf(query) >= 0 ? 'flex' : 'none';
 				});
 			}
-			function warehouseWriteOffPlaceholder() {
-				if (typeof showAdminToast === 'function') {
-					showAdminToast('Списання інгредієнтів додамо наступним кроком', 'error');
+			function warehouseSelectStock(row, skipExpand) {
+				var container = document.querySelector('[data-current-restaurant-id]');
+				var currentRestaurantID = container ? container.dataset.currentRestaurantId : '0';
+				var rowRestaurantID = row.dataset.restaurantId || '0';
+				
+				// Handle highlighting
+				document.querySelectorAll('.warehouse-row').forEach(function(r) {
+					r.classList.remove('bg-blue-50/50', 'border-l-4', 'border-blue-500');
+				});
+				row.classList.add('bg-blue-50/50', 'border-l-4', 'border-blue-500');
+
+				// Show write-off form only if it's the current restaurant
+				if (rowRestaurantID === currentRestaurantID) {
+					var block = document.getElementById('warehouse-writeoff');
+					var stockInput = document.getElementById('wo-stock-id');
+					var ingInput = document.getElementById('wo-ingredient');
+					var qtyDisplay = document.getElementById('wo-display-quantity');
+					var unitSelect = document.getElementById('wo-unit-select');
+					
+					if (block && stockInput && ingInput && qtyDisplay && unitSelect) {
+						stockInput.value = row.dataset.stockId || '';
+						ingInput.value = row.dataset.ingredient || '';
+						
+						// Update unit select options
+						var baseUnit = row.dataset.unit || '';
+						unitSelect.innerHTML = '';
+						if (baseUnit === 'г') {
+							unitSelect.innerHTML = '<option value="г">г</option><option value="кг">кг</option>';
+						} else if (baseUnit === 'мл') {
+							unitSelect.innerHTML = '<option value="мл">мл</option><option value="л">л</option>';
+						} else {
+							unitSelect.innerHTML = '<option value="' + baseUnit + '">' + baseUnit + '</option>';
+						}
+
+						qtyDisplay.value = '';
+						block.classList.remove('hidden');
+					}
+				} else {
+					var block = document.getElementById('warehouse-writeoff');
+					if (block) block.classList.add('hidden');
 				}
+
+				if (skipExpand) return;
+
+				// Toggle expansion for any row
+				var stockId = row.dataset.stockId;
+				var expandRow = document.getElementById('expand-row-' + stockId);
+				var icon = row.querySelector('.expand-icon');
+				
+				if (expandRow) {
+					var isHidden = expandRow.classList.contains('hidden');
+					
+					// Close other expanded rows
+					document.querySelectorAll('.expand-row').forEach(function(r) { 
+						if (r.id !== 'expand-row-' + stockId) r.classList.add('hidden'); 
+					});
+					document.querySelectorAll('.expand-icon').forEach(function(i) {
+						if (i !== icon) i.style.transform = 'rotate(0deg)';
+					});
+
+					if (isHidden) {
+						expandRow.classList.remove('hidden');
+						if (icon) icon.style.transform = 'rotate(90deg)';
+						
+						// Trigger HTMX if content has spinner
+						var content = document.getElementById('stock-expand-' + stockId);
+						if (content && content.querySelector('.animate-spin')) {
+							htmx.trigger(content, 'expand-triggered');
+						}
+					} else {
+						expandRow.classList.add('hidden');
+						if (icon) icon.style.transform = 'rotate(0deg)';
+					}
+				}
+			}
+			function warehousePrepareWriteOff(event) {
+				var qtyDisplay = document.getElementById('wo-display-quantity');
+				var unitSelect = document.getElementById('wo-unit-select');
+				var finalQty = document.getElementById('wo-final-quantity');
+				
+				if (qtyDisplay && unitSelect && finalQty) {
+					var val = parseFloat(qtyDisplay.value.replace(',', '.'));
+					if (isNaN(val)) {
+						event.preventDefault();
+						return;
+					}
+					
+					if (unitSelect.value === 'кг' || unitSelect.value === 'л') {
+						val *= 1000;
+					}
+					finalQty.value = val;
+				}
+			}
+			function warehouseCancelWriteOff() {
+				var block = document.getElementById('warehouse-writeoff');
+				var stockInput = document.getElementById('wo-stock-id');
+				var ingInput = document.getElementById('wo-ingredient');
+				var qtyDisplay = document.getElementById('wo-display-quantity');
+				if (!block || !stockInput || !ingInput || !qtyDisplay) return;
+				stockInput.value = '';
+				ingInput.value = '';
+				qtyDisplay.value = '';
+				block.classList.add('hidden');
+
+				// Remove highlights
+				document.querySelectorAll('.warehouse-row').forEach(function(r) {
+					r.classList.remove('bg-blue-50/50', 'border-l-4', 'border-blue-500');
+				});
 			}
 		</script>
 	</div>
+}
+
+templ WarehouseWriteOffs(items []adminservice.WarehouseWriteOff, unit string) {
+	<div class="bg-slate-50 p-4 rounded-xl border border-slate-200 my-2 ml-10 mr-4 fade-in">
+		<div class="flex items-center gap-2 mb-4">
+			<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+			<h4 class="text-xs font-bold text-slate-500 uppercase tracking-widest">Історія списань</h4>
+		</div>
+		
+		<div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+			<table class="w-full text-sm text-left">
+				<thead class="bg-slate-50 border-b border-slate-200">
+					<tr>
+						<th class="px-4 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Кількість</th>
+						<th class="px-4 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Причина</th>
+						<th class="px-4 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Адміністратор</th>
+						<th class="px-4 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Точний час</th>
+					</tr>
+				</thead>
+				<tbody class="divide-y divide-slate-100">
+					for _, item := range items {
+						<tr class="hover:bg-slate-50/50 transition-colors">
+							<td class="px-4 py-2.5 font-bold text-red-600">-{ fmtQty(item.Qty) } { unit }</td>
+							<td class="px-4 py-2.5 text-slate-600">{ item.Reason }</td>
+							<td class="px-4 py-2.5 text-slate-600 font-medium">{ item.AdminName }</td>
+							<td class="px-4 py-2.5 text-slate-400 font-mono text-xs">{ item.WriteOffDate.Format("02.01.2006 15:04:05") }</td>
+						</tr>
+					}
+					if len(items) == 0 {
+						<tr>
+							<td colspan="4" class="px-4 py-6 text-center text-slate-400 italic">Списань не знайдено</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	</div>
+}
+
+templ WarehouseStockGroup(item adminservice.WarehouseBatch, showHistory bool, history []adminservice.WarehouseWriteOff) {
+	<tbody id={ "stock-group-" + strconv.Itoa(item.StockID) } class="divide-y divide-slate-100 group/body">
+		@WarehouseStockRow(item, showHistory)
+		@WarehouseExpandRow(item, showHistory, history)
+	</tbody>
+}
+
+templ WarehouseStockRow(item adminservice.WarehouseBatch, showHistory bool) {
+	<tr class={ "warehouse-row hover:bg-slate-50 group transition-all duration-150", templ.KV("cursor-pointer", item.WriteOffCount > 0) }
+		data-stock-id={ strconv.Itoa(item.StockID) }
+		data-ingredient={ item.Ingredient }
+		data-unit={ item.Unit }
+		data-qty={ fmtQty(item.Qty) }
+		data-restaurant-id={ strconv.Itoa(item.RestaurantID) }
+		if item.WriteOffCount > 0 {
+			onclick="warehouseSelectStock(this)"
+		} else {
+			onclick="warehouseSelectStock(this, true)"
+		}
+	>
+		<td class="px-3 py-3 text-center">
+			if item.WriteOffCount > 0 {
+				if showHistory {
+					<svg class="expand-icon w-4 h-4 text-slate-400 group-hover:text-blue-500 transition-all duration-200" style="transform: rotate(90deg);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+				} else {
+					<svg class="expand-icon w-4 h-4 text-slate-400 group-hover:text-blue-500 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+				}
+			}
+		</td>
+		<td class="px-3 py-3 text-sm font-medium text-slate-800 align-top break-words whitespace-normal">
+			{ item.Ingredient }
+		</td>
+		{{ qtyValue, qtyUnit := warehouseQtyDisplay(item.Qty, item.Unit) }}
+		<td class="px-3 py-3 text-sm mono font-semibold text-slate-700 align-top whitespace-nowrap">{ qtyValue } { qtyUnit }</td>
+		<td class="px-3 py-3 text-sm align-top break-words"><span class="bg-slate-100 px-2 py-0.5 rounded-full text-xs text-slate-600">{ item.StorageZone }</span></td>
+		<td class="px-3 py-3 text-sm text-slate-600 align-top break-words">
+			<div class="flex flex-col">
+				<span class="font-medium text-slate-700">{ item.RestaurantName }</span>
+				if item.RestaurantAddress != "" {
+					<span class="text-xs text-slate-500">{ item.RestaurantAddress }</span>
+				}
+			</div>
+		</td>
+		<td class="px-3 py-3 text-sm text-slate-500 align-top break-words">{ item.Supplier }</td>
+		<td class="px-3 py-3 text-sm mono text-slate-500 align-top whitespace-nowrap">{ warehouseFmtDate(item.ReceivedAt) }</td>
+		<td class={ "px-3 py-3 text-sm mono align-top", warehouseExpClass(item.DaysLeft) }>
+			<div class="flex flex-col items-start">
+				<span>{ warehouseFmtDate(item.ExpDate) }</span>
+				if item.DaysLeft < 0 {
+					<span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wide mt-1">{ warehouseExpMeta(item.DaysLeft) }</span>
+				} else {
+					<span class="text-xs opacity-70 mt-1 block">{ warehouseExpMeta(item.DaysLeft) }</span>
+				}
+			</div>
+		</td>
+	</tr>
+}
+
+templ WarehouseExpandRow(item adminservice.WarehouseBatch, showHistory bool, history []adminservice.WarehouseWriteOff) {
+	<tr id={ "expand-row-" + strconv.Itoa(item.StockID) } class={ "expand-row bg-slate-50/30", templ.KV("hidden", !showHistory) }>
+		<td colspan="8" class="p-0 border-b border-slate-100">
+			<div id={ "stock-expand-" + strconv.Itoa(item.StockID) }
+				hx-get={ "/admin/warehouse/stock/" + strconv.Itoa(item.StockID) + "/writeoffs?unit=" + url.QueryEscape(item.Unit) }
+				hx-trigger="expand-triggered"
+				hx-swap="innerHTML">
+				if showHistory {
+					@WarehouseWriteOffs(history, item.Unit)
+				} else {
+					<div class="p-8 flex justify-center">
+						<div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+					</div>
+				}
+			</div>
+		</td>
+	</tr>
 }
