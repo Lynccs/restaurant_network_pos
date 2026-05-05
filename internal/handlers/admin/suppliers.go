@@ -131,6 +131,24 @@ func (h *Handler) SupplierIngredientsModal(w http.ResponseWriter, r *http.Reques
 	adminpages.SupplierIngredientsModal(view).Render(r.Context(), w)
 }
 
+// DeleteSupplierHandler — DELETE /admin/suppliers/{id}
+func (h *Handler) DeleteSupplierHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil || id <= 0 {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.SuppliersSvc.DeleteSupplier(id); err != nil {
+		handlerLog.Printf("DeleteSupplier: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("HX-Trigger", `{"closeModal":null,"refreshSuppliers":null}`)
+	w.WriteHeader(http.StatusOK)
+}
+
 // UpdateSupplierIngredients — POST /admin/suppliers/{id}/ingredients
 func (h *Handler) UpdateSupplierIngredients(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(chi.URLParam(r, "id"))

@@ -34,8 +34,9 @@ func (h *Handler) MenuPage(w http.ResponseWriter, r *http.Request) {
 
 	targetMargin := parseTargetMargin(r)
 	category := strings.TrimSpace(r.URL.Query().Get("category"))
+	showArchived := r.URL.Query().Get("status") == "archive"
 
-	view, err := h.MenuSvc.GetMenuPage(restaurantID, targetMargin, category)
+	view, err := h.MenuSvc.GetMenuPage(restaurantID, targetMargin, category, showArchived)
 	if err != nil {
 		handlerLog.Printf("MenuPage: %v", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -102,6 +103,24 @@ func (h *Handler) MenuSaveDish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	triggerAdminRefresh(w)
+}
+
+func (h *Handler) MenuArchiveDish(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
+	if err := h.MenuSvc.ArchiveDish(id); err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	triggerAdminRefresh(w)
+}
+
+func (h *Handler) MenuUnarchiveDish(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
+	if err := h.MenuSvc.UnarchiveDish(id); err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 	triggerAdminRefresh(w)
 }
 
@@ -186,12 +205,21 @@ func menuModalBody(view *adminservice.MenuFormView, dish *adminservice.MenuDish,
         <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Технологічна картка (Рецепт)</label>
 		<button type="button" onclick="menuAddRecipeRow()" class="text-blue-600 bg-blue-50 hover:bg-blue-100 text-[11px] px-3 py-1.5 rounded-lg font-bold border border-blue-200">Додати інгредієнт</button>
       </div>
-      <div id="recipe-container" class="space-y-2">
-        %s
-        <div id="recipe-empty" class="text-slate-400 text-[11px] font-bold uppercase tracking-wider bg-white text-center p-4 border-2 border-dashed border-slate-200 rounded-xl">Інгредієнти не додано</div>
+      <div class="max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+        <div id="recipe-container" class="space-y-2">
+          %s
+          <div id="recipe-empty" class="text-slate-400 text-[11px] font-bold uppercase tracking-wider bg-white text-center p-4 border-2 border-dashed border-slate-200 rounded-xl">Інгредієнти не додано</div>
+        </div>
       </div>
     </div>
   </div>
+
+  <style>
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+  </style>
 
   <div class="mt-6 flex gap-3">
     <button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm py-2.5 rounded-lg font-bold">%s</button>

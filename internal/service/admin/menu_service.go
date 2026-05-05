@@ -49,6 +49,7 @@ type MenuPageView struct {
 	SelectedCategory string
 	TargetMargin     float64
 	Dishes           []MenuDish
+	ShowArchived     bool
 }
 
 type MenuFormView struct {
@@ -67,11 +68,13 @@ type MenuDishInput struct {
 }
 
 type MenuServicer interface {
-	GetMenuPage(restaurantID int, targetMargin float64, category string) (*MenuPageView, error)
+	GetMenuPage(restaurantID int, targetMargin float64, category string, showArchived bool) (*MenuPageView, error)
 	GetMenuForm(dishID int) (*MenuFormView, error)
 	CreateDish(input MenuDishInput) (int, error)
 	UpdateDish(dishID int, input MenuDishInput) error
 	UpdateDishPrice(dishID int, price float64) error
+	ArchiveDish(dishID int) error
+	UnarchiveDish(dishID int) error
 }
 
 type MenuService struct {
@@ -82,8 +85,8 @@ func NewMenuService(repo *adminrepo.MenuRepo) *MenuService {
 	return &MenuService{repo: repo}
 }
 
-func (s *MenuService) GetMenuPage(restaurantID int, targetMargin float64, category string) (*MenuPageView, error) {
-	dishes, err := s.repo.ListMenuDishes()
+func (s *MenuService) GetMenuPage(restaurantID int, targetMargin float64, category string, showArchived bool) (*MenuPageView, error) {
+	dishes, err := s.repo.ListMenuDishes(showArchived)
 	if err != nil {
 		return nil, fmt.Errorf("GetMenuPage dishes: %w", err)
 	}
@@ -173,6 +176,7 @@ func (s *MenuService) GetMenuPage(restaurantID int, targetMargin float64, catego
 		SelectedCategory: selected,
 		TargetMargin:     targetMargin,
 		Dishes:           filtered,
+		ShowArchived:     showArchived,
 	}, nil
 }
 
@@ -247,6 +251,20 @@ func (s *MenuService) UpdateDish(dishID int, input MenuDishInput) error {
 		return err
 	}
 	return s.repo.UpdateMenuDish(row, recipe)
+}
+
+func (s *MenuService) ArchiveDish(dishID int) error {
+	if dishID <= 0 {
+		return errors.New("invalid dish id")
+	}
+	return s.repo.ArchiveDish(dishID)
+}
+
+func (s *MenuService) UnarchiveDish(dishID int) error {
+	if dishID <= 0 {
+		return errors.New("invalid dish id")
+	}
+	return s.repo.UnarchiveDish(dishID)
 }
 
 func (s *MenuService) UpdateDishPrice(dishID int, price float64) error {

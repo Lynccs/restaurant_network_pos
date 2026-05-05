@@ -48,7 +48,29 @@ func NewMenuRepo(db *sql.DB) *MenuRepo {
 	return &MenuRepo{db: db}
 }
 
-func (r *MenuRepo) ListMenuDishes() ([]MenuDishRow, error) {
+func (r *MenuRepo) ArchiveDish(id int) error {
+	const query = `UPDATE dishes SET is_deleted = 1 WHERE dish_id = @id`
+	_, err := r.db.Exec(query, sql.Named("id", id))
+	if err != nil {
+		return fmt.Errorf("ArchiveDish: %w", err)
+	}
+	return nil
+}
+
+func (r *MenuRepo) UnarchiveDish(id int) error {
+	const query = `UPDATE dishes SET is_deleted = 0 WHERE dish_id = @id`
+	_, err := r.db.Exec(query, sql.Named("id", id))
+	if err != nil {
+		return fmt.Errorf("UnarchiveDish: %w", err)
+	}
+	return nil
+}
+
+func (r *MenuRepo) ListMenuDishes(archived bool) ([]MenuDishRow, error) {
+	isDeletedVal := 0
+	if archived {
+		isDeletedVal = 1
+	}
 	const query = `
 SELECT
 	d.dish_id,
@@ -60,9 +82,10 @@ SELECT
 	dc.dish_category_name
 FROM dishes d
 JOIN dish_categories dc ON dc.dish_category_id = d.dish_category_id
+WHERE d.is_deleted = @isDeleted
 ORDER BY dc.dish_category_name, d.dish_name`
 
-	rows, err := r.db.Query(query)
+	rows, err := r.db.Query(query, sql.Named("isDeleted", isDeletedVal))
 	if err != nil {
 		return nil, fmt.Errorf("ListMenuDishes: %w", err)
 	}

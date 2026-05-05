@@ -36,6 +36,58 @@ func (h *Handler) NetworkRestaurantModal(w http.ResponseWriter, r *http.Request)
 	renderAdminModal(w, "Створення закладу", "", restaurantModalBody("", "", ""))
 }
 
+func (h *Handler) NetworkRestaurantEditModal(w http.ResponseWriter, r *http.Request) {
+	currentRestaurantID, _, _, err := h.sessionData(r)
+	if err != nil {
+		http.Error(w, "session error", http.StatusInternalServerError)
+		return
+	}
+
+	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
+	if id != currentRestaurantID {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
+	restaurant, err := h.NetworkSvc.GetRestaurant(id)
+	if err != nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+
+	renderAdminModal(w, "Редагувати заклад", "", restaurantModalBody(restaurant.Name, restaurant.Address, restaurant.Phone))
+}
+
+func (h *Handler) NetworkUpdateRestaurant(w http.ResponseWriter, r *http.Request) {
+	currentRestaurantID, _, _, err := h.sessionData(r)
+	if err != nil {
+		http.Error(w, "session error", http.StatusInternalServerError)
+		return
+	}
+
+	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
+	if id != currentRestaurantID {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
+	name := r.FormValue("name")
+	address := r.FormValue("address")
+	phone := r.FormValue("phone")
+
+	if name == "" || address == "" || phone == "" {
+		renderAdminModal(w, "Редагувати заклад", "Всі поля обов'язкові", restaurantModalBody(name, address, phone))
+		return
+	}
+
+	if err := h.NetworkSvc.UpdateRestaurant(id, name, address, phone); err != nil {
+		renderAdminModal(w, "Редагувати заклад", err.Error(), restaurantModalBody(name, address, phone))
+		return
+	}
+
+	triggerAdminRefresh(w)
+}
+
 func (h *Handler) NetworkCreateRestaurant(w http.ResponseWriter, r *http.Request) {
 	name := r.FormValue("name")
 	address := r.FormValue("address")
@@ -71,7 +123,7 @@ func (h *Handler) NetworkCreateRestaurantFinal(w http.ResponseWriter, r *http.Re
 	}
 
 	// 2. Створюємо адміна для цього закладу
-	if err := h.NetworkSvc.CreateStaff("admin", adminName, adminPhone, adminPin, resID); err != nil {
+	if err := h.NetworkSvc.CreateStaff("admin", adminName, adminPhone, adminPin, resID, 0); err != nil {
 		// Якщо адмін не створився, ми вже маємо ресторан (тут краще була б транзакція, але для простоти поки так)
 		body := restaurantAdminStepModalBody(resName, resAddress, resPhone, adminName, adminPhone, adminPin)
 		renderAdminModal(w, "Крок 2: Адміністратор закладу", "Заклад створено, але помилка адміна: "+err.Error(), body)
@@ -133,7 +185,13 @@ func (h *Handler) NetworkStaffModal(w http.ResponseWriter, r *http.Request) {
 	}
 	restaurantName := findRestaurantName(restaurants, currentRestaurantID)
 
-	body := staffCreateModalBody(restaurantName, currentRestaurantID, "waiter", "", "", "")
+	specs, err := h.NetworkSvc.ListChefSpecializations()
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	body := staffCreateModalBody(restaurantName, currentRestaurantID, "waiter", "", "", "", specs, 0)
 	renderAdminModal(w, "Додати працівника", "", body)
 }
 
@@ -154,9 +212,16 @@ func (h *Handler) NetworkCreateStaff(w http.ResponseWriter, r *http.Request) {
 	name := r.FormValue("name")
 	phone := r.FormValue("phone")
 	pin := r.FormValue("pin")
+	specID, _ := strconv.Atoi(r.FormValue("chef_specialization_id"))
 
-	if err := h.NetworkSvc.CreateStaff(role, name, phone, pin, currentRestaurantID); err != nil {
-		body := staffCreateModalBody(restaurantName, currentRestaurantID, role, name, phone, pin)
+	specs, err := h.NetworkSvc.ListChefSpecializations()
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	if err := h.NetworkSvc.CreateStaff(role, name, phone, pin, currentRestaurantID, specID); err != nil {
+		body := staffCreateModalBody(restaurantName, currentRestaurantID, role, name, phone, pin, specs, specID)
 		renderAdminModal(w, "Додати працівника", err.Error(), body)
 		return
 	}
@@ -298,6 +363,41 @@ func (h *Handler) NetworkUpdateTable(w http.ResponseWriter, r *http.Request) {
 	triggerAdminRefresh(w)
 }
 
+func (h *Handler) NetworkDeleteStaff(w http.ResponseWriter, r *http.Request) {
+	currentRestaurantID, _, _, err := h.sessionData(r)
+	if err != nil {
+		http.Error(w, "session error", http.StatusInternalServerError)
+		return
+	}
+
+	role := chi.URLParam(r, "role")
+	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
+
+	if err := h.NetworkSvc.DeleteStaff(role, id, currentRestaurantID); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	triggerAdminRefresh(w)
+}
+
+func (h *Handler) NetworkDeleteTable(w http.ResponseWriter, r *http.Request) {
+	currentRestaurantID, _, _, err := h.sessionData(r)
+	if err != nil {
+		http.Error(w, "session error", http.StatusInternalServerError)
+		return
+	}
+
+	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
+
+	if err := h.NetworkSvc.DeleteTable(id, currentRestaurantID); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	triggerAdminRefresh(w)
+}
+
 func triggerAdminRefresh(w http.ResponseWriter) {
 	w.Header().Set("HX-Trigger", `{"closeModal":true}`)
 	w.Header().Set("HX-Refresh", "true")
@@ -309,19 +409,22 @@ func renderAdminModal(w http.ResponseWriter, title, errMsg, body string) {
 	safeErr := template.HTMLEscapeString(errMsg)
 
 	var sb strings.Builder
-	sb.WriteString("<div class=\"bg-white rounded-xl shadow-xl w-full max-w-xl p-6 max-h-[90vh] overflow-y-auto\">")
-	sb.WriteString("<div class=\"flex items-center justify-between mb-4\">")
+	sb.WriteString("<div class=\"bg-white rounded-xl shadow-xl w-full max-w-xl p-6 max-h-[95vh] overflow-hidden flex flex-col\">")
+	sb.WriteString("<div class=\"flex items-center justify-between mb-4 flex-shrink-0\">")
 	sb.WriteString("<h3 class=\"text-lg font-semibold text-slate-800\">")
 	sb.WriteString(safeTitle)
 	sb.WriteString("</h3>")
 	sb.WriteString("<button type=\"button\" onclick=\"adminCloseModal()\" class=\"text-slate-400 hover:text-slate-600 text-xl\">×</button>")
 	sb.WriteString("</div>")
 	if errMsg != "" {
-		sb.WriteString("<div class=\"mb-3 text-sm text-red-600\">")
+		sb.WriteString("<div class=\"mb-3 text-sm text-red-600 flex-shrink-0\">")
 		sb.WriteString(safeErr)
 		sb.WriteString("</div>")
 	}
+	// Body container - NOT scrollable by default here, but can be in the body itself
+	sb.WriteString("<div class=\"flex-1 min-h-0\">")
 	sb.WriteString(body)
+	sb.WriteString("</div>")
 	sb.WriteString("</div>")
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -350,11 +453,14 @@ func restaurantModalBody(name, address, phone string) string {
 	)
 }
 
-func staffCreateModalBody(restaurantName string, restaurantID int, role, name, phone, pin string) string {
+func staffCreateModalBody(restaurantName string, restaurantID int, role, name, phone, pin string, specs []adminservice.ChefSpecialization, specID int) string {
 	role = strings.ToLower(role)
 	if role == "" {
 		role = "waiter"
 	}
+
+	specOptions := buildChefSpecOptions(specs, specID)
+	specVisible := map[bool]string{true: "", false: " hidden"}[role == "chef"]
 
 	return fmt.Sprintf(`
 <form hx-post="/admin/network/staff" hx-target="#admin-modal-content" hx-swap="innerHTML">
@@ -368,6 +474,13 @@ func staffCreateModalBody(restaurantName string, restaurantID int, role, name, p
     </select>
 		<label class="block text-xs font-semibold text-slate-600">Заклад</label>
 		<div class="w-full px-3 py-2 border rounded-lg text-sm bg-slate-50 text-slate-600">%s</div>
+		<div id="chef-spec-row" class="space-y-1%s">
+			<label class="block text-xs font-semibold text-slate-600">Цех / спеціалізація</label>
+			<select name="chef_specialization_id" id="chef-specialization" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+				<option value="">Оберіть цех...</option>
+				%s
+			</select>
+		</div>
     <label class="block text-xs font-semibold text-slate-600">ПІБ</label>
     <input name="name" value="%s" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Ім'я Прізвище" required />
     <label class="block text-xs font-semibold text-slate-600">Телефон</label>
@@ -379,16 +492,44 @@ func staffCreateModalBody(restaurantName string, restaurantID int, role, name, p
     <button type="button" onclick="adminCloseModal()" class="px-4 py-2 rounded-lg text-sm border">Скасувати</button>
     <button type="submit" class="px-4 py-2 rounded-lg text-sm bg-blue-600 text-white">Зберегти</button>
   </div>
+  <script>
+    (function() {
+      var roleEl = document.getElementById('network-staff-role');
+      var row = document.getElementById('chef-spec-row');
+      var sel = document.getElementById('chef-specialization');
+      function sync() {
+        var isChef = roleEl && roleEl.value === 'chef';
+        if (row) row.classList.toggle('hidden', !isChef);
+        if (sel) sel.required = isChef;
+      }
+      if (roleEl) roleEl.addEventListener('change', sync);
+      sync();
+    })();
+  </script>
 </form>`,
 		restaurantID,
 		selectedAttr(role == "waiter"),
 		selectedAttr(role == "chef"),
 		selectedAttr(role == "admin"),
 		template.HTMLEscapeString(restaurantName),
+		specVisible,
+		specOptions,
 		template.HTMLEscapeString(name),
 		template.HTMLEscapeString(phone),
 		template.HTMLEscapeString(pin),
 	)
+}
+
+func buildChefSpecOptions(specs []adminservice.ChefSpecialization, selectedID int) string {
+	var b strings.Builder
+	for _, s := range specs {
+		selected := ""
+		if s.ID == selectedID {
+			selected = " selected"
+		}
+		b.WriteString(fmt.Sprintf("<option value=\"%d\"%s>%s</option>", s.ID, selected, template.HTMLEscapeString(s.Name)))
+	}
+	return b.String()
 }
 
 func staffEditModalBody(id int, role, name, phone, pin string) string {

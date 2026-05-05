@@ -127,6 +127,39 @@ templ AdminLayout(name string, activePage string, content templ.Component) {
 			⚠ Забагато запитів — спробуйте пізніше
 		</div>
 		<script>
+			function adminConfirmArchive(url, label) {
+				var mc = document.getElementById('admin-modal-content');
+				if (!mc) return;
+				mc.innerHTML = '<div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">' +
+					'<h3 class="text-base font-semibold text-slate-800 mb-2">Перенести в архів?</h3>' +
+					'<p class="text-sm text-slate-600 mb-5">Страва <b>' + label.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</b> буде переміщена до архіву. Ви зможете розархівувати її в будь-який момент.</p>' +
+					'<div class="flex gap-3">' +
+					'<button onclick="adminConfirmDeleteExec(\'' + url.replace(/'/g,"\\'") + '\')" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold py-2 rounded-lg">В архів</button>' +
+					'<button onclick="adminCloseModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold py-2 rounded-lg">Скасувати</button>' +
+					'</div></div>';
+				adminOpenModal();
+			}
+			function adminConfirmDelete(url, label) {
+				var mc = document.getElementById('admin-modal-content');
+				if (!mc) return;
+				mc.innerHTML = '<div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">' +
+					'<h3 class="text-base font-semibold text-slate-800 mb-2">Підтвердження видалення</h3>' +
+					'<p class="text-sm text-slate-600 mb-5">Ви впевнені, що хочете видалити <b>' + label.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</b>? Цю дію не можна скасувати.</p>' +
+					'<div class="flex gap-3">' +
+					'<button onclick="adminConfirmDeleteExec(\'' + url.replace(/'/g,"\\'") + '\')" class="flex-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold py-2 rounded-lg">Видалити</button>' +
+					'<button onclick="adminCloseModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold py-2 rounded-lg">Скасувати</button>' +
+					'</div></div>';
+				adminOpenModal();
+			}
+			function adminConfirmDeleteExec(url) {
+				fetch(url, { method: 'DELETE', headers: { 'HX-Request': 'true' } })
+					.then(function(res) {
+						adminCloseModal();
+						if (res.ok) { location.reload(); }
+						else { showAdminToast('Помилка видалення', 'error'); }
+					})
+					.catch(function() { showAdminToast('Помилка мережі', 'error'); });
+			}
 			function adminOpenModal() {
 				var ov = document.getElementById('admin-modal-overlay');
 				if (!ov) return;

@@ -26,6 +26,11 @@ type NetworkStaffRow struct {
 	RestaurantID int
 }
 
+type ChefSpecializationRow struct {
+	ID   int
+	Name string
+}
+
 type NetworkRepo struct {
 	db *sql.DB
 }
@@ -50,6 +55,42 @@ SELECT SCOPE_IDENTITY();`
 		return 0, fmt.Errorf("CreateRestaurant: %w", err)
 	}
 	return id, nil
+}
+
+func (r *NetworkRepo) GetRestaurantByID(id int) (*NetworkRestaurantRow, error) {
+	const query = `
+SELECT restaurant_id, restaurant_name, restaurant_address, restaurant_phone
+FROM restaurants
+WHERE restaurant_id = @id`
+
+	var row NetworkRestaurantRow
+	err := r.db.QueryRow(query, sql.Named("id", id)).Scan(&row.ID, &row.Name, &row.Address, &row.Phone)
+	if err != nil {
+		return nil, fmt.Errorf("GetRestaurantByID: %w", err)
+	}
+	return &row, nil
+}
+
+func (r *NetworkRepo) UpdateRestaurant(id int, name, address, phone string) (bool, error) {
+	const query = `
+UPDATE restaurants
+SET restaurant_name = @name, restaurant_address = @address, restaurant_phone = @phone
+WHERE restaurant_id = @id`
+
+	res, err := r.db.Exec(query,
+		sql.Named("name", name),
+		sql.Named("address", address),
+		sql.Named("phone", phone),
+		sql.Named("id", id),
+	)
+	if err != nil {
+		return false, fmt.Errorf("UpdateRestaurant: %w", err)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("UpdateRestaurant rows: %w", err)
+	}
+	return rows > 0, nil
 }
 
 func (r *NetworkRepo) CreateTable(restaurantID, number, capacity int) error {
@@ -153,6 +194,29 @@ ORDER BY chef_specialization_id`
 	return id, nil
 }
 
+func (r *NetworkRepo) ListChefSpecializations() ([]ChefSpecializationRow, error) {
+	const query = `
+SELECT chef_specialization_id, chef_specialization_name
+FROM chef_specializations
+ORDER BY chef_specialization_name`
+
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("ListChefSpecializations query: %w", err)
+	}
+	defer rows.Close()
+
+	var result []ChefSpecializationRow
+	for rows.Next() {
+		var row ChefSpecializationRow
+		if err := rows.Scan(&row.ID, &row.Name); err != nil {
+			return nil, fmt.Errorf("ListChefSpecializations scan: %w", err)
+		}
+		result = append(result, row)
+	}
+	return result, rows.Err()
+}
+
 func (r *NetworkRepo) ListRestaurants() ([]NetworkRestaurantRow, error) {
 	const query = `
 SELECT restaurant_id, restaurant_name, restaurant_address, restaurant_phone
@@ -176,10 +240,47 @@ ORDER BY restaurant_name`
 	return result, rows.Err()
 }
 
+func (r *NetworkRepo) SoftDeleteWaiter(id int) error {
+	const query = `UPDATE waiters SET is_deleted = 1 WHERE waiter_id = @id`
+	_, err := r.db.Exec(query, sql.Named("id", id))
+	if err != nil {
+		return fmt.Errorf("SoftDeleteWaiter: %w", err)
+	}
+	return nil
+}
+
+func (r *NetworkRepo) SoftDeleteChef(id int) error {
+	const query = `UPDATE chefs SET is_deleted = 1 WHERE chef_id = @id`
+	_, err := r.db.Exec(query, sql.Named("id", id))
+	if err != nil {
+		return fmt.Errorf("SoftDeleteChef: %w", err)
+	}
+	return nil
+}
+
+func (r *NetworkRepo) SoftDeleteAdministrator(id int) error {
+	const query = `UPDATE administrators SET is_deleted = 1 WHERE administrator_id = @id`
+	_, err := r.db.Exec(query, sql.Named("id", id))
+	if err != nil {
+		return fmt.Errorf("SoftDeleteAdministrator: %w", err)
+	}
+	return nil
+}
+
+func (r *NetworkRepo) SoftDeleteTable(id int) error {
+	const query = `UPDATE tables SET is_deleted = 1 WHERE table_id = @id`
+	_, err := r.db.Exec(query, sql.Named("id", id))
+	if err != nil {
+		return fmt.Errorf("SoftDeleteTable: %w", err)
+	}
+	return nil
+}
+
 func (r *NetworkRepo) ListTables() ([]NetworkTableRow, error) {
 	const query = `
 SELECT table_id, table_number, table_capacity, restaurant_id
 FROM tables
+WHERE is_deleted = 0
 ORDER BY table_number`
 
 	rows, err := r.db.Query(query)
@@ -203,6 +304,7 @@ func (r *NetworkRepo) ListWaiters() ([]NetworkStaffRow, error) {
 	const query = `
 SELECT waiter_id, waiter_full_name, waiter_phone, restaurant_id
 FROM waiters
+WHERE is_deleted = 0
 ORDER BY waiter_full_name`
 
 	rows, err := r.db.Query(query)
@@ -226,6 +328,7 @@ func (r *NetworkRepo) ListChefs() ([]NetworkStaffRow, error) {
 	const query = `
 SELECT chef_id, chef_full_name, chef_phone, restaurant_id
 FROM chefs
+WHERE is_deleted = 0
 ORDER BY chef_full_name`
 
 	rows, err := r.db.Query(query)
@@ -249,6 +352,7 @@ func (r *NetworkRepo) ListAdministrators() ([]NetworkStaffRow, error) {
 	const query = `
 SELECT administrator_id, administrator_full_name, administrator_phone, restaurant_id
 FROM administrators
+WHERE is_deleted = 0
 ORDER BY administrator_full_name`
 
 	rows, err := r.db.Query(query)

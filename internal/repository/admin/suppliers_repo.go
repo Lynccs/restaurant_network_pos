@@ -32,14 +32,15 @@ func NewSuppliersRepo(db *sql.DB) *SuppliersRepo {
 
 func (r *SuppliersRepo) ListSuppliers() ([]Supplier, error) {
 	const query = `
-SELECT 
-	supplier_id, 
-	supplier_company_name, 
-	supplier_contact_person, 
-	supplier_phone, 
-	supplier_address, 
+SELECT
+	supplier_id,
+	supplier_company_name,
+	supplier_contact_person,
+	supplier_phone,
+	supplier_address,
 	supplier_payment_details
 FROM suppliers
+WHERE is_deleted = 0
 ORDER BY supplier_company_name`
 
 	rows, err := r.db.Query(query)
@@ -145,7 +146,7 @@ WHERE supplier_id = @id`
 }
 
 func (r *SuppliersRepo) DeleteSupplier(id int) error {
-	const query = `DELETE FROM suppliers WHERE supplier_id = @id`
+	const query = `UPDATE suppliers SET is_deleted = 1 WHERE supplier_id = @id`
 	_, err := r.db.Exec(query, sql.Named("id", id))
 	if err != nil {
 		return fmt.Errorf("DeleteSupplier: %w", err)
