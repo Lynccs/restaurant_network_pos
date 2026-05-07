@@ -25,11 +25,12 @@ type NetworkTable struct {
 }
 
 type NetworkStaff struct {
-	ID           int
-	Name         string
-	Phone        string
-	Role         string
-	RestaurantID int
+	ID               int
+	Name             string
+	Phone            string
+	Role             string
+	RestaurantID     int
+	SpecializationID int
 }
 
 type ChefSpecialization struct {
@@ -54,7 +55,7 @@ type NetworkServicer interface {
 	ListRestaurants() ([]NetworkRestaurant, error)
 	ListChefSpecializations() ([]ChefSpecialization, error)
 	GetStaff(role string, id int) (*NetworkStaff, error)
-	UpdateStaff(role, name, phone, pin string, restaurantID, id int) error
+	UpdateStaff(role, name, phone, pin string, restaurantID, id, specializationID int) error
 	GetTable(id int) (*NetworkTable, error)
 	UpdateTable(id, restaurantID, number, capacity int) error
 	DeleteStaff(role string, id, restaurantID int) error
@@ -278,7 +279,7 @@ func (s *NetworkService) GetStaff(role string, id int) (*NetworkStaff, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &NetworkStaff{ID: row.ID, Name: row.Name, Phone: row.Phone, Role: role, RestaurantID: row.RestaurantID}, nil
+		return &NetworkStaff{ID: row.ID, Name: row.Name, Phone: row.Phone, Role: role, RestaurantID: row.RestaurantID, SpecializationID: row.SpecializationID}, nil
 	case "admin":
 		row, err := s.repo.GetAdministratorByID(id)
 		if err != nil {
@@ -290,7 +291,7 @@ func (s *NetworkService) GetStaff(role string, id int) (*NetworkStaff, error) {
 	}
 }
 
-func (s *NetworkService) UpdateStaff(role, name, phone, pin string, restaurantID, id int) error {
+func (s *NetworkService) UpdateStaff(role, name, phone, pin string, restaurantID, id, specializationID int) error {
 	role = strings.TrimSpace(strings.ToLower(role))
 	name = strings.TrimSpace(name)
 	phone = strings.TrimSpace(phone)
@@ -314,7 +315,11 @@ func (s *NetworkService) UpdateStaff(role, name, phone, pin string, restaurantID
 	case "waiter":
 		updated, err = s.repo.UpdateWaiter(id, restaurantID, name, phone, pinHash)
 	case "chef":
-		updated, err = s.repo.UpdateChef(id, restaurantID, name, phone, pinHash)
+		var specPtr *int
+		if specializationID > 0 {
+			specPtr = &specializationID
+		}
+		updated, err = s.repo.UpdateChef(id, restaurantID, name, phone, pinHash, specPtr)
 	case "admin":
 		updated, err = s.repo.UpdateAdministrator(id, restaurantID, name, phone, pinHash)
 	default:

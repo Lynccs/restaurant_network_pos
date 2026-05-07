@@ -122,6 +122,8 @@ func statusBadgeClass(status string) string {
 		return "bg-amber-100 text-amber-700"
 	case "Отримано":
 		return "bg-green-100 text-green-700"
+	case "Скасовано":
+		return "bg-red-100 text-red-600"
 	}
 	return "bg-gray-100 text-gray-600"
 }
@@ -375,6 +377,44 @@ templ PurchasesPage(view *adminservice.PurchasesPageView) {
 		</div>
 	</div>
 
+	<!-- Cancel order confirm modal -->
+	<div id="cancel-confirm-modal" class="fixed inset-0 bg-black/40 z-50 hidden items-center justify-center p-4 backdrop-blur-sm" onclick="cancelConfirmOverlayClick(event)">
+		<div class="bg-white rounded-2xl shadow-2xl w-full max-w-md slide-up overflow-hidden">
+			<div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+				<h3 class="font-semibold text-slate-800">Скасування замовлення</h3>
+				<button type="button" onclick="closeCancelConfirm()" class="text-slate-400 hover:text-slate-600">
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+				</button>
+			</div>
+			<div class="px-6 py-5">
+				<p class="text-sm text-slate-600">Ви впевнені, що хочете скасувати це замовлення? Дію неможливо відмінити.</p>
+			</div>
+			<div class="px-6 py-4 border-t border-slate-100 flex gap-3 bg-white">
+				<button type="button" onclick="confirmCancelOrder()" class="btn-primary flex-1 bg-red-600 hover:bg-red-700 text-white text-sm py-2.5 rounded-lg font-bold shadow-sm">Скасувати замовлення</button>
+				<button type="button" onclick="closeCancelConfirm()" class="flex-1 border bg-white border-slate-200 text-slate-700 text-sm py-2.5 rounded-lg font-bold hover:bg-slate-50">Назад</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- Delete batch confirm modal -->
+	<div id="delete-batch-modal" class="fixed inset-0 bg-black/40 z-50 hidden items-center justify-center p-4 backdrop-blur-sm" onclick="deleteBatchOverlayClick(event)">
+		<div class="bg-white rounded-2xl shadow-2xl w-full max-w-md slide-up overflow-hidden">
+			<div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+				<h3 class="font-semibold text-slate-800">Видалення партії</h3>
+				<button type="button" onclick="closeDeleteBatchConfirm()" class="text-slate-400 hover:text-slate-600">
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+				</button>
+			</div>
+			<div class="px-6 py-5">
+				<p class="text-sm text-slate-600">Видалити цю партію та відповідний запас зі складу? Дію неможливо відмінити.</p>
+			</div>
+			<div class="px-6 py-4 border-t border-slate-100 flex gap-3 bg-white">
+				<button type="button" onclick="confirmDeleteBatch()" class="btn-primary flex-1 bg-red-600 hover:bg-red-700 text-white text-sm py-2.5 rounded-lg font-bold shadow-sm">Видалити</button>
+				<button type="button" onclick="closeDeleteBatchConfirm()" class="flex-1 border bg-white border-slate-200 text-slate-700 text-sm py-2.5 rounded-lg font-bold hover:bg-slate-50">Скасувати</button>
+			</div>
+		</div>
+	</div>
+
 	<script>
 		// ── Tab switching ─────────────────────────────────────────────────────────
 		function purchasesSetTab(archive) {
@@ -550,6 +590,55 @@ templ PurchasesPage(view *adminservice.PurchasesPageView) {
 			closeSendConfirm();
 		}
 
+		var _cancelOrderId = null;
+		function openCancelConfirm(orderId) {
+			_cancelOrderId = orderId;
+			var modal = document.getElementById('cancel-confirm-modal');
+			modal.classList.remove('hidden');
+			modal.classList.add('flex');
+		}
+		function closeCancelConfirm() {
+			_cancelOrderId = null;
+			var modal = document.getElementById('cancel-confirm-modal');
+			modal.classList.add('hidden');
+			modal.classList.remove('flex');
+		}
+		function cancelConfirmOverlayClick(e) {
+			if (e.target === document.getElementById('cancel-confirm-modal')) closeCancelConfirm();
+		}
+		function confirmCancelOrder() {
+			if (!_cancelOrderId || !window.htmx) return;
+			var url = '/admin/purchases/' + _cancelOrderId + '/cancel';
+			htmx.ajax('POST', url, { target: '#purchases-list', swap: 'none' });
+			closeCancelConfirm();
+		}
+
+		var _deleteBatchId = null;
+		var _deleteBatchOrderId = null;
+		function openDeleteBatchConfirm(batchId, orderId) {
+			_deleteBatchId = batchId;
+			_deleteBatchOrderId = orderId;
+			var modal = document.getElementById('delete-batch-modal');
+			modal.classList.remove('hidden'); modal.classList.add('flex');
+		}
+		function closeDeleteBatchConfirm() {
+			_deleteBatchId = null;
+			_deleteBatchOrderId = null;
+			var modal = document.getElementById('delete-batch-modal');
+			modal.classList.add('hidden'); modal.classList.remove('flex');
+		}
+		function deleteBatchOverlayClick(e) {
+			if (e.target === document.getElementById('delete-batch-modal')) closeDeleteBatchConfirm();
+		}
+		function confirmDeleteBatch() {
+			if (!_deleteBatchId || !window.htmx) return;
+			htmx.ajax('DELETE', '/admin/purchases/batches/' + _deleteBatchId, {
+				target: '#order-content-' + _deleteBatchOrderId,
+				swap: 'innerHTML'
+			});
+			closeDeleteBatchConfirm();
+		}
+
 		document.addEventListener('DOMContentLoaded', function() {
 			document.getElementById('purchases-filter-btn').addEventListener('click', openFilterModal);
 		});
@@ -627,126 +716,138 @@ templ purchaseOrderRow(o adminservice.PurchaseOrder, adminID int) {
 	<!-- Expandable row (hidden by default) -->
 	<tr id={ "expand-" + strconv.Itoa(o.ID) } class={ "supply-expand-row", rowBgClass(o.Status), orderBorderClass(o.Status) }>
 		<td colspan="7" class="px-5 pb-4 pt-0">
-			<div class="mt-1 bg-white rounded-xl p-3 shadow-sm">
-				<!-- Ingredient header -->
-				<div class="grid gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-500 uppercase tracking-wide"
-					style="grid-template-columns: 2fr 1.4fr 1fr 1.2fr 1fr">
-					<span>Інгредієнт</span>
-					<span class="text-center">Замовлено</span>
-					<span class="text-right">Ціна за од.</span>
-					<span class="text-center">Прийнято</span>
-					<span></span>
-				</div>
-				<!-- Ingredient rows -->
-				<div class="mt-2 space-y-1.5">
-					if len(o.Items) == 0 {
-						<div class="px-3 py-4 text-center text-sm text-slate-400">Позицій немає</div>
-					} else {
-						for _, item := range o.Items {
-							{{ display := displayQtyPrice(item.Qty, item.Price, item.Unit) }}
-							{{ received := displayQtyUnit(item.ReceivedQty, item.Unit) }}
-							{{ hasBatches := item.BatchCount > 0 }}
-							{{ remaining := item.Qty - item.ReceivedQty }}
-							<div class="space-y-1">
-								<div id={ "ing-row-" + strconv.Itoa(item.DetailID) } class={ "grid gap-2 items-center px-3 py-2 bg-white border border-slate-200 rounded-lg", templ.KV("cursor-pointer", hasBatches) }
-									style="grid-template-columns: 2fr 1.4fr 1fr 1.2fr 1fr"
-									if hasBatches {
-										onclick={ templ.ComponentScript{Call: "toggleIngredient(" + strconv.Itoa(item.DetailID) + ")"} }
-									}
-								>
-									<span class="text-sm text-slate-800 font-medium">
-										if hasBatches {
-											<span class="inline-flex items-center text-slate-400 mr-2">
-												<svg id={ "ing-chev-" + strconv.Itoa(item.DetailID) } class="w-3.5 h-3.5 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-												</svg>
-											</span>
-										}
-										{ item.Name }
-									</span>
-									<span class="text-sm mono text-center text-slate-600">{ fmtQty(display.Qty) } { display.Unit }</span>
-									<span class="text-sm mono text-right text-slate-700">{ fmtMoney(display.Price) } ₴</span>
-									if item.ReceivedQty > 0 {
-										<span class="text-sm mono text-center text-green-700 font-semibold">{ fmtQty(received.Qty) } { received.Unit }</span>
-									} else {
-										<span class="text-sm mono text-center text-slate-400">—</span>
-									}
-									if o.Status == "Відправлено" && remaining > 0 {
-										<button
-											onclick="event.stopPropagation()"
-											class="inline-flex items-center justify-center bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors btn-primary whitespace-nowrap"
-											hx-get={ "/admin/purchases/" + strconv.Itoa(o.ID) + "/items/" + strconv.Itoa(item.DetailID) + "/receive-modal" }
-											hx-target="#admin-modal-content"
-											hx-swap="innerHTML"
-										>Прийняти</button>
-									} else {
-										<span class="inline-flex items-center justify-center bg-slate-100 text-slate-400 text-xs font-semibold px-2.5 py-1.5 rounded-lg cursor-not-allowed whitespace-nowrap">Прийняти</span>
-									}
-								</div>
-								if hasBatches {
-									<div id={ "ing-batches-" + strconv.Itoa(item.DetailID) }
-										data-url={ "/admin/purchases/items/" + strconv.Itoa(item.DetailID) + "/batches" }
-										data-loaded="0"
-										class="hidden ml-6 mt-2 space-y-2 ing-batches-card ing-batches-accent border rounded-lg p-2">
-										<div class="px-3 py-2 text-xs text-slate-500">Завантаження партій...</div>
-									</div>
-								}
-							</div>
-						}
-					}
-				</div>
-				<!-- Order actions -->
-				if o.Status == "Створено" && o.AdminID == adminID {
-					<div class="mt-3 pt-3 border-t border-slate-100 flex gap-3 justify-end">
-						<button
-							onclick="event.stopPropagation()"
-							class="btn-primary bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5"
-							hx-get={ "/admin/purchases/" + strconv.Itoa(o.ID) + "/details" }
-							hx-target="#admin-modal-content"
-							hx-swap="innerHTML"
-						>
-							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-							Редагувати замовлення
-						</button>
-						if len(o.Items) > 0 {
-							<button
-								class="btn-primary bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
-								onclick={ templ.ComponentScript{Call: "event.stopPropagation(); openSendConfirm(" + strconv.Itoa(o.ID) + ")"} }
-							>
-								🚚 Позначити як відправлене
-							</button>
-						}
-					</div>
-				} else if o.Status == "Відправлено" && o.AdminID == adminID {
-					<div class="mt-3 pt-3 border-t border-slate-100 flex justify-end">
-						<button
-							class="btn-primary bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors shadow-sm"
-							onclick={ templ.ComponentScript{Call: "event.stopPropagation(); openCompleteConfirm(" + strconv.Itoa(o.ID) + ")"} }
-						>
-							Закрити замовлення
-						</button>
-					</div>
-				} else if o.Status == "Відправлено" && o.AdminID != adminID {
-					<div class="mt-3 pt-3 border-t border-slate-100">
-						<p class="text-xs text-center text-slate-500 bg-slate-50 border border-slate-100 rounded-lg py-2">
-							Очікує фінального підтвердження від ініціатора: <span class="font-semibold text-slate-700">{ o.Initiator }</span>
-						</p>
-					</div>
-				}
+			<div id={ "order-content-" + strconv.Itoa(o.ID) } class="mt-1 bg-white rounded-xl p-3 shadow-sm">
+				@PurchaseOrderContent(o, adminID)
 			</div>
 		</td>
 	</tr>
 }
 
+templ PurchaseOrderContent(o adminservice.PurchaseOrder, adminID int) {
+	<!-- Ingredient header -->
+	<div class="grid gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-500 uppercase tracking-wide"
+		style="grid-template-columns: 2fr 1.4fr 1fr 1.2fr 1fr">
+		<span>Інгредієнт</span>
+		<span class="text-center">Замовлено</span>
+		<span class="text-right">Ціна за од.</span>
+		<span class="text-center">Прийнято</span>
+		<span></span>
+	</div>
+	<!-- Ingredient rows -->
+	<div class="mt-2 space-y-1.5">
+		if len(o.Items) == 0 {
+			<div class="px-3 py-4 text-center text-sm text-slate-400">Позицій немає</div>
+		} else {
+			for _, item := range o.Items {
+				{{ display := displayQtyPrice(item.Qty, item.Price, item.Unit) }}
+				{{ received := displayQtyUnit(item.ReceivedQty, item.Unit) }}
+				{{ hasBatches := item.BatchCount > 0 }}
+				{{ remaining := item.Qty - item.ReceivedQty }}
+				<div class="space-y-1">
+					<div id={ "ing-row-" + strconv.Itoa(item.DetailID) } class={ "grid gap-2 items-center px-3 py-2 bg-white border border-slate-200 rounded-lg", templ.KV("cursor-pointer", hasBatches) }
+						style="grid-template-columns: 2fr 1.4fr 1fr 1.2fr 1fr"
+						if hasBatches {
+							onclick={ templ.ComponentScript{Call: "toggleIngredient(" + strconv.Itoa(item.DetailID) + ")"} }
+						}
+					>
+						<span class="text-sm text-slate-800 font-medium">
+							if hasBatches {
+								<span class="inline-flex items-center text-slate-400 mr-2">
+									<svg id={ "ing-chev-" + strconv.Itoa(item.DetailID) } class="w-3.5 h-3.5 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+									</svg>
+								</span>
+							}
+							{ item.Name }
+						</span>
+						<span class="text-sm mono text-center text-slate-600">{ fmtQty(display.Qty) } { display.Unit }</span>
+						<span class="text-sm mono text-right text-slate-700">{ fmtMoney(display.Price) } ₴</span>
+						if item.ReceivedQty > 0 {
+							<span class="text-sm mono text-center text-green-700 font-semibold">{ fmtQty(received.Qty) } { received.Unit }</span>
+						} else {
+							<span class="text-sm mono text-center text-slate-400">—</span>
+						}
+						if o.Status == "Відправлено" && remaining > 0 {
+							<button
+								onclick="event.stopPropagation()"
+								class="inline-flex items-center justify-center bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors btn-primary whitespace-nowrap"
+								hx-get={ "/admin/purchases/" + strconv.Itoa(o.ID) + "/items/" + strconv.Itoa(item.DetailID) + "/receive-modal" }
+								hx-target="#admin-modal-content"
+								hx-swap="innerHTML"
+							>Прийняти</button>
+						} else {
+							<span class="inline-flex items-center justify-center bg-slate-100 text-slate-400 text-xs font-semibold px-2.5 py-1.5 rounded-lg cursor-not-allowed whitespace-nowrap">Прийняти</span>
+						}
+					</div>
+					if hasBatches {
+						<div id={ "ing-batches-" + strconv.Itoa(item.DetailID) }
+							data-url={ "/admin/purchases/items/" + strconv.Itoa(item.DetailID) + "/batches" }
+							data-loaded="0"
+							class="hidden ml-6 mt-2 space-y-2 ing-batches-card ing-batches-accent border rounded-lg p-2">
+							<div class="px-3 py-2 text-xs text-slate-500">Завантаження партій...</div>
+						</div>
+					}
+				</div>
+			}
+		}
+	</div>
+	<!-- Order actions -->
+	if o.Status == "Створено" && o.AdminID == adminID {
+		<div class="mt-3 pt-3 border-t border-slate-100 flex gap-3 justify-end">
+			<button
+				onclick="event.stopPropagation()"
+				class="btn-primary bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5"
+				hx-get={ "/admin/purchases/" + strconv.Itoa(o.ID) + "/details" }
+				hx-target="#admin-modal-content"
+				hx-swap="innerHTML"
+			>
+				<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+				Редагувати замовлення
+			</button>
+			<button
+				class="btn-primary bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5"
+				onclick={ templ.ComponentScript{Call: "event.stopPropagation(); openCancelConfirm(" + strconv.Itoa(o.ID) + ")"} }
+			>
+				<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+				Скасувати
+			</button>
+			if len(o.Items) > 0 {
+				<button
+					class="btn-primary bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+					onclick={ templ.ComponentScript{Call: "event.stopPropagation(); openSendConfirm(" + strconv.Itoa(o.ID) + ")"} }
+				>
+					🚚 Позначити як відправлене
+				</button>
+			}
+		</div>
+	} else if o.Status == "Відправлено" && o.AdminID == adminID {
+		<div class="mt-3 pt-3 border-t border-slate-100 flex justify-end">
+			<button
+				class="btn-primary bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors shadow-sm"
+				onclick={ templ.ComponentScript{Call: "event.stopPropagation(); openCompleteConfirm(" + strconv.Itoa(o.ID) + ")"} }
+			>
+				Закрити замовлення
+			</button>
+		</div>
+	} else if o.Status == "Відправлено" && o.AdminID != adminID {
+		<div class="mt-3 pt-3 border-t border-slate-100">
+			<p class="text-xs text-center text-slate-500 bg-slate-50 border border-slate-100 rounded-lg py-2">
+				Очікує фінального підтвердження від ініціатора: <span class="font-semibold text-slate-700">{ o.Initiator }</span>
+			</p>
+		</div>
+	}
+}
+
 // PurchaseItemBatches — HTMX fragment for batches.
 templ PurchaseItemBatches(view adminservice.BatchesView, adminID int) {
 	{{ showBatchEdit := view.OrderStatus != "Отримано" }}
+	{{ showBatchDelete := view.OrderStatus == "Відправлено" }}
 	if len(view.Batches) == 0 {
 		<div class="px-3 py-2 text-xs text-slate-500">Партій немає</div>
 	} else {
 		if showBatchEdit {
 			<div class="grid gap-5 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-500 uppercase tracking-wide"
-				style="grid-template-columns: 1fr 1fr 1fr 1.1fr 1.1fr 1.1fr 0.4fr">
+				style="grid-template-columns: 1fr 1fr 1fr 1.1fr 1.1fr 1.1fr 0.7fr">
 				<span class="text-center">Прийнято</span>
 				<span class="text-center">Прибуття</span>
 				<span class="text-center">Термін</span>
@@ -770,7 +871,7 @@ templ PurchaseItemBatches(view adminservice.BatchesView, adminID int) {
 			for _, b := range view.Batches {
 				{{ batchDisplay := displayQtyUnit(b.Qty, view.Unit) }}
 				<div class="grid gap-5 items-center px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-600"
-					style={ boolVal(showBatchEdit, "grid-template-columns: 1fr 1fr 1fr 1.1fr 1.1fr 1.1fr 0.4fr", "grid-template-columns: 1fr 1fr 1fr 1.1fr 1.1fr 1.1fr") }>
+					style={ boolVal(showBatchEdit, "grid-template-columns: 1fr 1fr 1fr 1.1fr 1.1fr 1.1fr 0.7fr", "grid-template-columns: 1fr 1fr 1fr 1.1fr 1.1fr 1.1fr") }>
 					<span class="mono font-semibold text-green-700 text-center">{ fmtQty(batchDisplay.Qty) } { batchDisplay.Unit }</span>
 					<span class="text-center">{ fmtShortDate(b.ReceivedAt) }</span>
 					<span class="text-center">{ fmtShortDate(b.ExpDate) }</span>
@@ -790,15 +891,38 @@ templ PurchaseItemBatches(view adminservice.BatchesView, adminID int) {
 						<span class="text-slate-400">—</span>
 					}
 					if showBatchEdit && b.AdminID == adminID {
-						<button
-							onclick="event.stopPropagation()"
-							class="text-slate-500 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition-colors"
-							hx-get={ "/admin/purchases/batches/" + strconv.Itoa(b.BatchID) + "/edit-modal" }
-							hx-target="#admin-modal-content"
-							hx-swap="innerHTML"
-						>
-							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-						</button>
+						<div class="flex items-center gap-1">
+							<button
+								onclick="event.stopPropagation()"
+								class="text-slate-500 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition-colors"
+								title="Редагувати"
+								hx-get={ "/admin/purchases/batches/" + strconv.Itoa(b.BatchID) + "/edit-modal" }
+								hx-target="#admin-modal-content"
+								hx-swap="innerHTML"
+							>
+								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+							</button>
+							if showBatchDelete {
+								if b.CanDelete {
+									<button
+										onclick={ templ.ComponentScript{Call: "event.stopPropagation(); openDeleteBatchConfirm(" + strconv.Itoa(b.BatchID) + ", " + strconv.Itoa(view.OrderID) + ")"} }
+										class="text-red-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors"
+										title="Видалити партію"
+									>
+										<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+									</button>
+								} else {
+									<button
+										onclick="event.stopPropagation()"
+										disabled
+										class="text-slate-300 p-1 rounded cursor-not-allowed"
+										title="Неможливо видалити: частину вже використано зі складу"
+									>
+										<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+									</button>
+								}
+							}
+						</div>
 					} else if showBatchEdit {
 						<span></span>
 					}
@@ -844,6 +968,7 @@ templ CreateOrderModal(suppliers []adminservice.SupplierOption) {
 			hx-post="/admin/purchases/draft-step2"
 			hx-target="#admin-modal-content"
 			hx-swap="innerHTML"
+			onsubmit="(function(f){var s=f.querySelector('[name=supplier_id]').value;var d=f.querySelector('[name=expected_at]').value;if(s&&d){window._recPromise=fetch('/admin/purchases/recommendations?supplier_id='+s+'&expected_at='+d).then(function(r){return r.json();});}})(this)"
 		>
 			<div class="px-6 py-5 space-y-4">
 				<div>
@@ -886,6 +1011,9 @@ templ OrderDraftItemsModal(supplierID int, supplierName string, expectedAt time.
 		</div>
 
 		<div class="flex-1 overflow-y-auto scrollbar-thin px-6 py-5 space-y-5">
+			<div class="flex justify-end">
+				<button type="button" id="draft-rec-btn" onclick="draftLoadRecommendations()" class="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-xs font-bold px-4 py-2 rounded-lg">✨ Заповнити рекомендаціями</button>
+			</div>
 			<!-- Форма додавання інгредієнта -->
 			<div class="bg-slate-50 rounded-xl p-4 border border-slate-200 shadow-sm">
 				<p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Додати інгредієнт</p>
@@ -1178,6 +1306,53 @@ templ OrderDraftItemsModal(supplierID int, supplierName string, expectedAt time.
 				btn.classList.remove('bg-slate-300', 'cursor-not-allowed', 'opacity-70');
 				btn.classList.add('bg-blue-600');
 			});
+		}
+
+		function draftLoadRecommendations() {
+			var meta = document.getElementById('draft-order-data');
+			if (!meta) return;
+			var suppID = meta.dataset.supplierId;
+			var expAt = meta.dataset.expectedAt;
+			var btn = document.getElementById('draft-rec-btn');
+			btn.disabled = true;
+			btn.textContent = 'Розрахунок...';
+			var promise = window._recPromise || fetch(
+				'/admin/purchases/recommendations?supplier_id=' + suppID + '&expected_at=' + expAt
+			).then(function(r) { return r.json(); });
+			window._recPromise = null;
+			promise
+				.then(function(data) {
+					if (!data || data.length === 0) {
+						alert('Немає даних для розрахунку рекомендацій.');
+						return;
+					}
+					_draftItems = data.map(function(rec) {
+						var qty = rec.RecommendedQty;
+						var unit = rec.UnitName;
+						var multiplier = 1;
+						if ((unit === 'г' || unit === 'мл') && qty >= 1000) {
+							multiplier = 1000;
+							qty = qty / 1000;
+							unit = unit === 'г' ? 'кг' : 'л';
+						}
+						return {
+							ingredient_id: rec.IngredientID,
+							name:          rec.IngredientName,
+							qty_display:   qty,
+							unit_display:  unit,
+							qty_actual:    rec.RecommendedQty,
+							price_display: rec.LastPrice * multiplier,
+							price_actual:  rec.LastPrice
+						};
+					});
+					draftRenderItems();
+					draftUpdateBtn();
+				})
+				.catch(function() { alert('Помилка при завантаженні рекомендацій.'); })
+				.finally(function() {
+					btn.disabled = false;
+					btn.textContent = '✨ Заповнити рекомендаціями';
+				});
 		}
 	</script>
 }

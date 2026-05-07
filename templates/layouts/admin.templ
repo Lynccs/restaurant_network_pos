@@ -191,6 +191,10 @@ templ AdminLayout(name string, activePage string, content templ.Component) {
 				if (ov) ov.style.display = 'none';
 				var mc = document.getElementById('admin-modal-content');
 				if (mc) mc.innerHTML = '';
+				if (window._adminMenuNeedsRefresh) {
+					window._adminMenuNeedsRefresh = false;
+					location.reload();
+				}
 			}
 			function adminModalOverlayClick(e) {
 				if (e.target === document.getElementById('admin-modal-overlay')) adminCloseModal();
@@ -204,6 +208,7 @@ templ AdminLayout(name string, activePage string, content templ.Component) {
 				var hdr = e.detail.xhr && e.detail.xhr.getResponseHeader('HX-Trigger');
 				if (!hdr) return;
 				if (hdr.indexOf('closeModal') !== -1) adminCloseModal();
+				if (hdr.indexOf('adminMenuNeedsRefresh') !== -1) window._adminMenuNeedsRefresh = true;
 				if (hdr.indexOf('refreshList') !== -1) {
 					var form = document.getElementById('purchases-filter-form');
 					if (form) htmx.trigger(form, 'submit');
@@ -214,6 +219,10 @@ templ AdminLayout(name string, activePage string, content templ.Component) {
 						var _toastMap = {
 							'orderCreated': 'Замовлення успішно створено',
 							'batchReceived': 'Товар успішно прийнято на склад',
+							'batchDeleted': 'Партію та відповідний запас успішно видалено',
+							'batchUpdated': 'Партію успішно оновлено',
+							'orderAutoCompleted': 'Усі партії прийнято — замовлення автоматично закрито',
+							'yieldApplied': 'Знижку успішно застосовано',
 						};
 						showAdminToast(_toastMap[t.showToast] || t.showToast, 'success');
 					}
@@ -251,6 +260,10 @@ templ AdminLayout(name string, activePage string, content templ.Component) {
 				document.body.addEventListener('htmx:responseError', function(e) {
 					var status = e.detail.xhr.status;
 					if (status === 429) { e.preventDefault(); showToast429(); return; }
+					if (status === 409 && e.detail.xhr.responseText.trim() === 'STOCK_CONSUMED') {
+						showAdminToast('Неможливо видалити: частину партії вже використано зі складу', 'error');
+						return;
+					}
 					showAdminToast('Помилка сервера (' + status + '). Спробуйте ще раз.', 'error');
 				});
 			})();

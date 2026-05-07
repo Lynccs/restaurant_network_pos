@@ -40,6 +40,16 @@ type MenuIngredientCostRow struct {
 	Price        float64
 }
 
+type YieldAlertRow struct {
+	DishID         int
+	DishName       string
+	DishPrice      float64
+	IngredientName string
+	Qty            float64
+	UnitName       string
+	DaysLeft       int
+}
+
 type MenuRepo struct {
 	db *sql.DB
 }
@@ -377,6 +387,56 @@ func (r *MenuRepo) UpdateMenuDishPrice(dishID int, price float64) error {
 		return fmt.Errorf("UpdateMenuDishPrice: %w", err)
 	}
 	return nil
+}
+
+func (r *MenuRepo) GetYieldAlerts(restaurantID, daysThreshold int) ([]YieldAlertRow, error) {
+	const query = `
+SELECT
+	d.dish_id,
+	d.dish_name,
+	d.dish_price,
+	i.ingredient_name,
+	di.dish_ingredient_quantity,
+	iu.ingredient_unit_name,
+	DATEDIFF(day, GETDATE(), si.stock_ingredient_expiration_date) AS days_left
+FROM dish_ingredients di
+JOIN dishes d             ON d.dish_id        = di.dish_id
+JOIN ingredients i        ON i.ingredient_id  = di.ingredient_id
+JOIN stock_ingredients si ON si.ingredient_id = i.ingredient_id
+JOIN ingredient_units iu  ON iu.ingredient_unit_id = i.ingredient_unit_id
+WHERE d.is_deleted = 0
+  AND si.restaurant_id = @restaurantID
+  AND si.stock_ingredient_quantity > 0
+  AND si.stock_ingredient_expiration_date >= GETDATE()
+  AND si.stock_ingredient_expiration_date < DATEADD(day, @days, GETDATE())
+ORDER BY days_left ASC, d.dish_name ASC`
+
+	rows, err := r.db.Query(query,
+		sql.Named("restaurantID", restaurantID),
+		sql.Named("days", daysThreshold),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("GetYieldAlerts: %w", err)
+	}
+	defer rows.Close()
+
+	var result []YieldAlertRow
+	for rows.Next() {
+		var row YieldAlertRow
+		if err := rows.Scan(
+			&row.DishID,
+			&row.DishName,
+			&row.DishPrice,
+			&row.IngredientName,
+			&row.Qty,
+			&row.UnitName,
+			&row.DaysLeft,
+		); err != nil {
+			return nil, fmt.Errorf("GetYieldAlerts scan: %w", err)
+		}
+		result = append(result, row)
+	}
+	return result, rows.Err()
 }
 
 func (r *MenuRepo) GetLatestIngredientPrices(restaurantID int) ([]MenuIngredientCostRow, error) {

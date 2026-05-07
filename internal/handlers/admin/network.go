@@ -293,7 +293,8 @@ func (h *Handler) NetworkStaffEditModal(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	body := staffEditModalBody(id, role, staff.Name, staff.Phone, "")
+	specs, _ := h.NetworkSvc.ListChefSpecializations()
+	body := staffEditModalBody(id, role, staff.Name, staff.Phone, "", specs, staff.SpecializationID)
 	renderAdminModal(w, "Редагувати працівника", "", body)
 }
 
@@ -309,9 +310,11 @@ func (h *Handler) NetworkUpdateStaff(w http.ResponseWriter, r *http.Request) {
 	name := r.FormValue("name")
 	phone := r.FormValue("phone")
 	pin := r.FormValue("pin")
+	specID, _ := strconv.Atoi(r.FormValue("chef_specialization_id"))
 
-	if err := h.NetworkSvc.UpdateStaff(role, name, phone, pin, currentRestaurantID, id); err != nil {
-		body := staffEditModalBody(id, role, name, phone, pin)
+	if err := h.NetworkSvc.UpdateStaff(role, name, phone, pin, currentRestaurantID, id, specID); err != nil {
+		specs, _ := h.NetworkSvc.ListChefSpecializations()
+		body := staffEditModalBody(id, role, name, phone, pin, specs, specID)
 		renderAdminModal(w, "Редагувати працівника", err.Error(), body)
 		return
 	}
@@ -436,7 +439,7 @@ func restaurantModalBody(name, address, phone string) string {
 <form hx-post="/admin/network/restaurants" hx-target="#admin-modal-content" hx-swap="innerHTML">
   <div class="space-y-3">
     <label class="block text-xs font-semibold text-slate-600">Назва</label>
-    <input name="name" value="%s" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="RestaurantOS Черкаси" required />
+    <input name="name" value="%s" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Ресторан №1" required />
     <label class="block text-xs font-semibold text-slate-600">Адреса</label>
     <input name="address" value="%s" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="вул. Хрещатик, 12" required />
     <label class="block text-xs font-semibold text-slate-600">Телефон</label>
@@ -532,14 +535,23 @@ func buildChefSpecOptions(specs []adminservice.ChefSpecialization, selectedID in
 	return b.String()
 }
 
-func staffEditModalBody(id int, role, name, phone, pin string) string {
+func staffEditModalBody(id int, role, name, phone, pin string, specs []adminservice.ChefSpecialization, specID int) string {
 	role = strings.ToLower(role)
 	label := roleLabel(role)
+	specOptions := buildChefSpecOptions(specs, specID)
+	specVisible := map[bool]string{true: "", false: " hidden"}[role == "chef"]
 	return fmt.Sprintf(`
 <form hx-post="/admin/network/staff/%s/%d" hx-target="#admin-modal-content" hx-swap="innerHTML">
 	<div class="space-y-3">
 		<label class="block text-xs font-semibold text-slate-600">Роль</label>
 		<div class="w-full px-3 py-2 border rounded-lg text-sm bg-slate-50 text-slate-600">%s</div>
+		<div id="chef-spec-row-edit" class="space-y-1%s">
+			<label class="block text-xs font-semibold text-slate-600">Цех / спеціалізація</label>
+			<select name="chef_specialization_id" id="chef-specialization-edit" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+				<option value="">Оберіть цех...</option>
+				%s
+			</select>
+		</div>
 		<label class="block text-xs font-semibold text-slate-600">ПІБ</label>
 		<input name="name" value="%s" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Ім'я Прізвище" required />
 		<label class="block text-xs font-semibold text-slate-600">Телефон</label>
@@ -555,6 +567,8 @@ func staffEditModalBody(id int, role, name, phone, pin string) string {
 		role,
 		id,
 		template.HTMLEscapeString(label),
+		specVisible,
+		specOptions,
 		template.HTMLEscapeString(name),
 		template.HTMLEscapeString(phone),
 		template.HTMLEscapeString(pin),

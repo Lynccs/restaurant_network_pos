@@ -2,10 +2,13 @@ package adminrepo
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 )
+
+var ErrBatchStockConsumed = errors.New("batch stock partially or fully consumed")
 
 const PurchasesPageSize = 10
 
@@ -69,6 +72,7 @@ type DetailBatchRow struct {
 	DetailID               int
 	UnitName               string
 	OrderStatus            string
+	OrderID                int
 	BatchID                sql.NullInt64
 	BatchQty               sql.NullFloat64
 	BatchExpDate           sql.NullTime
@@ -77,6 +81,7 @@ type DetailBatchRow struct {
 	BatchRestaurantAddress sql.NullString
 	BatchAdminName         sql.NullString
 	BatchAdminID           sql.NullInt64
+	StockQty               sql.NullFloat64
 }
 
 type SupplierRow struct {
@@ -117,7 +122,7 @@ func (r *PurchasesRepo) GetPurchasesData(restaurantID, adminID int, f PurchasesF
 
 	var where strings.Builder
 	if f.Archive {
-		where.WriteString("AND ios.ingredient_order_status_name = 'Отримано'\n")
+		where.WriteString("AND ios.ingredient_order_status_name IN ('Отримано', 'Скасовано')\n")
 	} else {
 		where.WriteString("AND ios.ingredient_order_status_name IN ('Створено', 'Відправлено')\n")
 	}
@@ -331,6 +336,7 @@ SELECT
     iod.ingredient_order_detail_id,
     iu.ingredient_unit_name,
     ios.ingredient_order_status_name,
+    io.ingredient_order_id,
     pb.product_batch_id,
     pb.product_batch_accepted_quantity,
     pb.product_batch_expiration_date,
@@ -338,7 +344,8 @@ SELECT
     r.restaurant_name,
     r.restaurant_address,
     a2.administrator_full_name,
-    a2.administrator_id
+    a2.administrator_id,
+    si.stock_ingredient_quantity
 FROM ingredient_order_details iod
 JOIN ingredient_orders io ON io.ingredient_order_id = iod.ingredient_order_id
 JOIN ingredient_order_statuses ios ON ios.ingredient_order_status_id = io.ingredient_order_status_id
@@ -364,6 +371,7 @@ ORDER BY pb.product_batch_arrival_date DESC, pb.product_batch_id DESC`
 			&row.DetailID,
 			&row.UnitName,
 			&row.OrderStatus,
+			&row.OrderID,
 			&row.BatchID,
 			&row.BatchQty,
 			&row.BatchExpDate,
@@ -372,6 +380,7 @@ ORDER BY pb.product_batch_arrival_date DESC, pb.product_batch_id DESC`
 			&row.BatchRestaurantAddress,
 			&row.BatchAdminName,
 			&row.BatchAdminID,
+			&row.StockQty,
 		); err != nil {
 			return nil, fmt.Errorf("GetDetailBatches scan: %w", err)
 		}
@@ -406,7 +415,7 @@ ORDER BY supplier_company_name`
 func (r *PurchasesRepo) GetStatuses(archive bool) ([]StatusRow, error) {
 	var query string
 	if archive {
-		query = `SELECT ingredient_order_status_id, ingredient_order_status_name FROM ingredient_order_statuses WHERE ingredient_order_status_name = 'Отримано'`
+		query = `SELECT ingredient_order_status_id, ingredient_order_status_name FROM ingredient_order_statuses WHERE ingredient_order_status_name IN ('Отримано', 'Скасовано')`
 	} else {
 		query = `SELECT ingredient_order_status_id, ingredient_order_status_name FROM ingredient_order_statuses WHERE ingredient_order_status_name IN ('Створено', 'Відправлено')`
 	}
@@ -634,17 +643,20 @@ WHERE ingredient_order_id = @orderID;`,
 }
 
 func (r *PurchasesRepo) UpdateOrderStatus(orderID int, statusName string) error {
-	_, err := r.db.Exec(`
-UPDATE ingredient_orders
-SET ingredient_order_status_id = (
-    SELECT ingredient_order_status_id FROM ingredient_order_statuses WHERE ingredient_order_status_name = @statusName
-)
-WHERE ingredient_order_id = @orderID`,
+	res, err := r.db.Exec(`
+UPDATE io
+SET io.ingredient_order_status_id = ios.ingredient_order_status_id
+FROM ingredient_orders io
+JOIN ingredient_order_statuses ios ON ios.ingredient_order_status_name = @statusName
+WHERE io.ingredient_order_id = @orderID`,
 		sql.Named("statusName", statusName),
 		sql.Named("orderID", orderID),
 	)
 	if err != nil {
 		return fmt.Errorf("UpdateOrderStatus: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return fmt.Errorf("UpdateOrderStatus: no rows updated (status %q not found or order %d not found)", statusName, orderID)
 	}
 	return nil
 }
@@ -788,4 +800,265 @@ WHERE product_batch_id = @batchID AND administrator_id = @adminID`,
 	}
 
 	return tx.Commit()
+}
+
+func (r *PurchasesRepo) DeleteBatch(batchID, adminID int) (orderID int, err error) {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return 0, fmt.Errorf("DeleteBatch begin: %w", err)
+	}
+	defer tx.Rollback()
+
+	var stockID int
+	var stockQty, batchQty float64
+	err = tx.QueryRow(`
+SELECT pb.stock_ingredient_id,
+       si.stock_ingredient_quantity,
+       pb.product_batch_accepted_quantity,
+       io.ingredient_order_id
+FROM product_batches pb
+JOIN stock_ingredients si ON si.stock_ingredient_id = pb.stock_ingredient_id
+JOIN ingredient_order_details iod ON iod.ingredient_order_detail_id = pb.ingredient_order_detail_id
+JOIN ingredient_orders io ON io.ingredient_order_id = iod.ingredient_order_id
+WHERE pb.product_batch_id = @batchID AND pb.administrator_id = @adminID`,
+		sql.Named("batchID", batchID),
+		sql.Named("adminID", adminID),
+	).Scan(&stockID, &stockQty, &batchQty, &orderID)
+	if err == sql.ErrNoRows {
+		return 0, fmt.Errorf("batch not found or not owned")
+	}
+	if err != nil {
+		return 0, fmt.Errorf("DeleteBatch fetch: %w", err)
+	}
+
+	if stockQty < batchQty-1e-9 {
+		return 0, ErrBatchStockConsumed
+	}
+
+	if _, err = tx.Exec(`DELETE FROM product_batches WHERE product_batch_id = @batchID AND administrator_id = @adminID`,
+		sql.Named("batchID", batchID), sql.Named("adminID", adminID)); err != nil {
+		return 0, fmt.Errorf("DeleteBatch batch: %w", err)
+	}
+	if _, err = tx.Exec(`DELETE FROM stock_ingredients WHERE stock_ingredient_id = @stockID`,
+		sql.Named("stockID", stockID)); err != nil {
+		return 0, fmt.Errorf("DeleteBatch stock: %w", err)
+	}
+
+	return orderID, tx.Commit()
+}
+
+// --- Purchase Recommendations ---
+
+type PurchaseRecommendationRow struct {
+	IngredientID   int
+	IngredientName string
+	UnitName       string
+	DemandQty      float64
+	LastPrice      float64
+}
+
+type IngredientStockRow struct {
+	IngredientID int
+	Qty          float64
+	ExpiresAt    time.Time
+}
+
+// GetSupplierOrderDates returns the created_at timestamps of the last 4 non-cancelled, non-draft orders for a supplier.
+func (r *PurchasesRepo) GetSupplierOrderDates(supplierID int) ([]time.Time, error) {
+	const query = `
+SELECT TOP 4 io.ingredient_order_created_at
+FROM ingredient_orders io
+JOIN ingredient_order_statuses ios
+    ON ios.ingredient_order_status_id = io.ingredient_order_status_id
+WHERE io.supplier_id = @supplierID
+  AND ios.ingredient_order_status_name NOT IN ('Скасовано', 'Створено')
+ORDER BY io.ingredient_order_created_at DESC`
+
+	rows, err := r.db.Query(query, sql.Named("supplierID", supplierID))
+	if err != nil {
+		return nil, fmt.Errorf("GetSupplierOrderDates: %w", err)
+	}
+	defer rows.Close()
+
+	var dates []time.Time
+	for rows.Next() {
+		var t time.Time
+		if err := rows.Scan(&t); err != nil {
+			return nil, fmt.Errorf("GetSupplierOrderDates scan: %w", err)
+		}
+		dates = append(dates, t)
+	}
+	return dates, rows.Err()
+}
+
+// GetIngredientDemand returns per-ingredient consumption summed over the last `days` days based on closed orders.
+func (r *PurchasesRepo) GetIngredientDemand(days int) ([]PurchaseRecommendationRow, error) {
+	const query = `
+WITH sales AS (
+    SELECT
+        di.ingredient_id,
+        SUM(
+            CAST((oi.order_item_quantity - oi.cancelled_quantity) AS FLOAT)
+            * di.dish_ingredient_quantity
+        ) AS total_qty
+    FROM order_items oi
+    JOIN orders o            ON o.order_id         = oi.order_id
+    JOIN order_statuses os   ON os.order_status_id  = o.order_status_id
+    JOIN dish_ingredients di ON di.dish_id          = oi.dish_id
+    WHERE os.order_status_name = 'Закрито'
+      AND o.order_created_at >= DATEADD(day, -@days, GETDATE())
+      AND (oi.order_item_quantity - oi.cancelled_quantity) > 0
+    GROUP BY di.ingredient_id
+),
+last_price AS (
+    SELECT
+        iod.ingredient_id,
+        iod.detail_purchase_price,
+        ROW_NUMBER() OVER (
+            PARTITION BY iod.ingredient_id
+            ORDER BY pb.product_batch_arrival_date DESC, pb.product_batch_id DESC
+        ) AS rn
+    FROM ingredient_order_details iod
+    JOIN product_batches pb
+        ON pb.ingredient_order_detail_id = iod.ingredient_order_detail_id
+)
+SELECT
+    i.ingredient_id,
+    i.ingredient_name,
+    iu.ingredient_unit_name,
+    s.total_qty                         AS demand_qty,
+    ISNULL(lp.detail_purchase_price, 0) AS last_price
+FROM ingredients i
+JOIN ingredient_units iu ON iu.ingredient_unit_id = i.ingredient_unit_id
+JOIN sales s             ON s.ingredient_id = i.ingredient_id
+LEFT JOIN last_price lp  ON lp.ingredient_id = i.ingredient_id AND lp.rn = 1
+ORDER BY s.total_qty DESC`
+
+	rows, err := r.db.Query(query, sql.Named("days", days))
+	if err != nil {
+		return nil, fmt.Errorf("GetIngredientDemand: %w", err)
+	}
+	defer rows.Close()
+
+	var result []PurchaseRecommendationRow
+	for rows.Next() {
+		var row PurchaseRecommendationRow
+		if err := rows.Scan(&row.IngredientID, &row.IngredientName, &row.UnitName, &row.DemandQty, &row.LastPrice); err != nil {
+			return nil, fmt.Errorf("GetIngredientDemand scan: %w", err)
+		}
+		result = append(result, row)
+	}
+	return result, rows.Err()
+}
+
+// DemandLookbackDays is the fixed window for estimating daily consumption.
+// Kept separate from the supply cycle so short or irregular cycles don't zero out demand.
+const DemandLookbackDays = 30
+
+// GetDemandForIngredients returns total sales over the last demandLookbackDays days and
+// last purchase price for exactly the given ingredient IDs. Both the sales and last_price CTEs
+// are scoped to the target IDs from the start — avoiding full-table scans.
+// Ingredients with no demand history are included with demand_qty = 0.
+func (r *PurchasesRepo) GetDemandForIngredients(ids []int) ([]PurchaseRecommendationRow, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	// Build VALUES rows and named args for the target CTE.
+	valueRows := make([]string, len(ids))
+	args := make([]interface{}, len(ids)+1)
+	args[0] = sql.Named("days", DemandLookbackDays)
+	for i, id := range ids {
+		name := fmt.Sprintf("id%d", i)
+		valueRows[i] = fmt.Sprintf("(@%s)", name)
+		args[i+1] = sql.Named(name, id)
+	}
+	query := fmt.Sprintf(`
+WITH target AS (
+    SELECT ingredient_id FROM (VALUES %s) AS v(ingredient_id)
+),
+sales AS (
+    SELECT
+        di.ingredient_id,
+        SUM(
+            CAST((oi.order_item_quantity - oi.cancelled_quantity) AS FLOAT)
+            * di.dish_ingredient_quantity
+        ) AS total_qty
+    FROM order_items oi
+    JOIN orders o            ON o.order_id        = oi.order_id
+    JOIN order_statuses os   ON os.order_status_id = o.order_status_id
+    JOIN dish_ingredients di ON di.dish_id         = oi.dish_id
+    JOIN target t            ON t.ingredient_id    = di.ingredient_id
+    WHERE os.order_status_name = 'Закрито'
+      AND o.order_created_at >= DATEADD(day, -@days, GETDATE())
+      AND (oi.order_item_quantity - oi.cancelled_quantity) > 0
+    GROUP BY di.ingredient_id
+),
+last_price AS (
+    SELECT
+        iod.ingredient_id,
+        iod.detail_purchase_price,
+        ROW_NUMBER() OVER (
+            PARTITION BY iod.ingredient_id
+            ORDER BY pb.product_batch_arrival_date DESC, pb.product_batch_id DESC
+        ) AS rn
+    FROM ingredient_order_details iod
+    JOIN product_batches pb ON pb.ingredient_order_detail_id = iod.ingredient_order_detail_id
+    JOIN target t           ON t.ingredient_id               = iod.ingredient_id
+)
+SELECT
+    i.ingredient_id,
+    i.ingredient_name,
+    iu.ingredient_unit_name,
+    ISNULL(s.total_qty, 0)                  AS demand_qty,
+    ISNULL(lp.detail_purchase_price, 0)     AS last_price
+FROM target t
+JOIN ingredients i        ON i.ingredient_id      = t.ingredient_id
+JOIN ingredient_units iu  ON iu.ingredient_unit_id = i.ingredient_unit_id
+LEFT JOIN sales s         ON s.ingredient_id       = t.ingredient_id
+LEFT JOIN last_price lp   ON lp.ingredient_id      = t.ingredient_id AND lp.rn = 1`,
+		strings.Join(valueRows, ", "))
+
+	rows, err := r.db.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("GetDemandForIngredients: %w", err)
+	}
+	defer rows.Close()
+
+	var result []PurchaseRecommendationRow
+	for rows.Next() {
+		var row PurchaseRecommendationRow
+		if err := rows.Scan(&row.IngredientID, &row.IngredientName, &row.UnitName, &row.DemandQty, &row.LastPrice); err != nil {
+			return nil, fmt.Errorf("GetDemandForIngredients scan: %w", err)
+		}
+		result = append(result, row)
+	}
+	return result, rows.Err()
+}
+
+// GetNetworkStock returns all non-expired stock batches across the entire network.
+func (r *PurchasesRepo) GetNetworkStock() ([]IngredientStockRow, error) {
+	const query = `
+SELECT
+    ingredient_id,
+    stock_ingredient_quantity,
+    stock_ingredient_expiration_date
+FROM stock_ingredients
+WHERE stock_ingredient_quantity > 0
+  AND stock_ingredient_expiration_date > GETDATE()`
+
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("GetNetworkStock: %w", err)
+	}
+	defer rows.Close()
+
+	var result []IngredientStockRow
+	for rows.Next() {
+		var row IngredientStockRow
+		if err := rows.Scan(&row.IngredientID, &row.Qty, &row.ExpiresAt); err != nil {
+			return nil, fmt.Errorf("GetNetworkStock scan: %w", err)
+		}
+		result = append(result, row)
+	}
+	return result, rows.Err()
 }

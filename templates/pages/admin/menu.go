@@ -32,6 +32,25 @@ func (c menuPageComponent) Render(_ context.Context, w io.Writer) error {
 	}
 	marginValue := fmt.Sprintf("%.1f", c.view.TargetMargin)
 
+	if c.view.YieldCount > 0 && !c.view.ShowArchived {
+		count := c.view.YieldCount
+		noun := "страв"
+		if count == 1 {
+			noun = "страва"
+		} else if count < 5 {
+			noun = "страви"
+		}
+		b.WriteString("<div class=\"bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 flex items-center justify-between gap-4\">")
+		b.WriteString("<div class=\"flex items-start gap-2\">")
+		b.WriteString("<span class=\"text-amber-600 text-base leading-none mt-0.5\">⚠</span>")
+		b.WriteString("<div>")
+		b.WriteString(fmt.Sprintf("<p class=\"text-sm font-bold text-amber-800\">%d %s мають інгредієнти, термін яких спливає протягом 2 днів.</p>", count, noun))
+		b.WriteString("<p class=\"text-xs text-amber-700 mt-0.5\">Розгляньте тимчасове зниження цін для збільшення попиту.</p>")
+		b.WriteString("</div></div>")
+		b.WriteString("<button type=\"button\" hx-get=\"/admin/menu/yield-alerts\" hx-target=\"#admin-modal-content\" hx-swap=\"innerHTML\" onclick=\"adminOpenModal()\" class=\"bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-4 py-2 rounded-lg whitespace-nowrap\">Переглянути →</button>")
+		b.WriteString("</div>")
+	}
+
 	b.WriteString("<div class=\"bg-white p-4 rounded-2xl border border-slate-200 mb-6 flex flex-wrap items-center justify-between gap-4 shadow-sm\">")
 	b.WriteString("<form method=\"GET\" action=\"/admin/menu\" class=\"flex items-center gap-3\">")
 	b.WriteString("<label class=\"text-sm font-semibold text-slate-700\">Мін. рентабельність страв (%):</label>")
@@ -47,11 +66,12 @@ func (c menuPageComponent) Render(_ context.Context, w io.Writer) error {
 	b.WriteString("</div>")
 
 	b.WriteString("<div class=\"flex flex-wrap gap-2 mb-4\">")
-	b.WriteString(statusPill("active", c.view.ShowArchived, c.view.TargetMargin, categoryParam))
-	b.WriteString(statusPill("archive", c.view.ShowArchived, c.view.TargetMargin, categoryParam))
+	b.WriteString(statusPill("active", c.view.ShowArchived, c.view.ShowDiscounted, c.view.TargetMargin, categoryParam))
+	b.WriteString(statusPill("discounted", c.view.ShowArchived, c.view.ShowDiscounted, c.view.TargetMargin, categoryParam))
+	b.WriteString(statusPill("archive", c.view.ShowArchived, c.view.ShowDiscounted, c.view.TargetMargin, categoryParam))
 	b.WriteString("</div>")
 
-	if !c.view.ShowArchived {
+	if !c.view.ShowArchived && !c.view.ShowDiscounted {
 		b.WriteString("<div class=\"flex flex-wrap gap-2 mb-6\">")
 		b.WriteString(categoryPill("Усі", categoryParam, c.view.TargetMargin))
 		cats := append([]adminservice.MenuCategory{}, c.view.Categories...)
@@ -79,26 +99,43 @@ func (c menuPageComponent) Render(_ context.Context, w io.Writer) error {
 	return err
 }
 
-func statusPill(status string, showArchived bool, targetMargin float64, category string) string {
+func statusPill(status string, showArchived bool, showDiscounted bool, targetMargin float64, category string) string {
 	label := "Активні"
-	if status == "archive" {
+	switch status {
+	case "archive":
 		label = "Архів"
+	case "discounted":
+		label = "Акційні"
 	}
-	active := (status == "archive") == showArchived
+
+	active := false
+	switch status {
+	case "active":
+		active = !showArchived && !showDiscounted
+	case "archive":
+		active = showArchived
+	case "discounted":
+		active = showDiscounted
+	}
+
 	cls := "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 shadow-sm"
 	if active {
-		if status == "archive" {
+		switch status {
+		case "archive":
 			cls = "bg-amber-600 text-white border-amber-700"
-		} else {
+		case "discounted":
+			cls = "bg-red-600 text-white border-red-700"
+		default:
 			cls = "bg-slate-800 text-white border-slate-900"
 		}
 	}
+
 	params := url.Values{}
-	if status == "archive" {
-		params.Set("status", "archive")
+	if status != "active" {
+		params.Set("status", status)
 	}
 	params.Set("target_margin", fmt.Sprintf("%.1f", targetMargin))
-	if status != "archive" && category != "" && category != "Усі" {
+	if status == "active" && category != "" && category != "Усі" {
 		params.Set("category", category)
 	}
 	return fmt.Sprintf("<a href=\"/admin/menu?%s\" class=\"px-4 py-2 rounded-full text-sm font-medium border %s\">%s</a>", params.Encode(), cls, label)
@@ -129,9 +166,25 @@ func renderDishCard(dish adminservice.MenuDish, targetMargin float64, showArchiv
 	b.WriteString("<div class=\"text-xs text-slate-500 font-medium bg-slate-50 inline-block px-1.5 py-0.5 rounded border border-slate-100\">")
 	b.WriteString(fmt.Sprintf("%d г · %d хв", dish.PortionSize, dish.CookingTime))
 	b.WriteString("</div></div>")
-	b.WriteString("<div class=\"text-lg font-bold text-slate-900 mono bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-100 shadow-inner\">")
-	b.WriteString(fmt.Sprintf("%.2f ₴", dish.Price))
-	b.WriteString("</div></div>")
+	if dish.HasYieldDiscount && !showArchived {
+		b.WriteString("<div class=\"flex flex-col items-end gap-0.5\">")
+		b.WriteString(fmt.Sprintf("<span class=\"text-xs text-slate-400 mono line-through\">%.2f ₴</span>", dish.OriginalPrice))
+		b.WriteString(fmt.Sprintf("<span class=\"text-lg font-bold text-red-600 mono bg-red-50 px-2.5 py-1 rounded-lg border border-red-200 shadow-inner\">%.2f ₴</span>", dish.Price))
+		b.WriteString("</div>")
+	} else {
+		b.WriteString("<div class=\"text-lg font-bold text-slate-900 mono bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-100 shadow-inner\">")
+		b.WriteString(fmt.Sprintf("%.2f ₴", dish.Price))
+		b.WriteString("</div>")
+	}
+	b.WriteString("</div>")
+
+	if dish.HasYieldDiscount && !showArchived {
+		discount := (1 - dish.Price/dish.OriginalPrice) * 100
+		b.WriteString("<div class=\"flex items-center justify-between mt-1.5 mb-1\">")
+		b.WriteString(fmt.Sprintf("<span class=\"text-[11px] text-red-600 font-bold\">Знижка: %.0f%% · діє до: %s</span>", discount, dish.YieldExpiresAt.Format("02.01 15:04")))
+		b.WriteString(fmt.Sprintf("<button type=\"button\" hx-post=\"/admin/menu/%d/restore-price\" hx-swap=\"none\" hx-on::after-request=\"location.reload()\" class=\"text-[10px] bg-white hover:bg-red-50 text-red-600 border border-red-200 font-bold px-2 py-1 rounded-md whitespace-nowrap\">Відновити ціну</button>", dish.ID))
+		b.WriteString("</div>")
+	}
 
 	if len(dish.Recipe) > 0 {
 		b.WriteString("<div class=\"flex flex-wrap gap-1.5 mt-3\">")

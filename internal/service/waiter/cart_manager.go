@@ -63,6 +63,11 @@ type MenuRepo interface {
 	SyncOrderDraft(params waiterrepo.SyncDraftParams) error
 }
 
+// YieldPricer provides currently active yield-discounted prices keyed by dish ID.
+type YieldPricer interface {
+	GetEffectivePrices() map[int]float64
+}
+
 // CartManager is a thread-safe in-memory store for per-table carts, per-restaurant
 // soft-reservation cache, and Full-Draft tracking of changes to existing DB orders.
 type CartManager struct {
@@ -71,6 +76,7 @@ type CartManager struct {
 	inventoryCache map[int]map[int]int // restID → dishID → available portions
 	isWarmedUp     map[int]bool        // restID → cache ready?
 	menuRepo       MenuRepo
+	yieldPricer    YieldPricer // optional; nil = no active discounts
 
 	// loadMu + loadInflight implement a per-table singleflight for LoadActiveOrder:
 	// only one goroutine runs the DB query; concurrent callers wait on the channel.
@@ -78,12 +84,13 @@ type CartManager struct {
 	loadInflight map[int]chan struct{} // tableID → channel closed when load completes
 }
 
-func NewCartManager(repo MenuRepo) *CartManager {
+func NewCartManager(repo MenuRepo, yieldPricer YieldPricer) *CartManager {
 	return &CartManager{
 		carts:          make(map[int]*cart),
 		inventoryCache: make(map[int]map[int]int),
 		isWarmedUp:     make(map[int]bool),
 		menuRepo:       repo,
+		yieldPricer:    yieldPricer,
 		loadInflight:   make(map[int]chan struct{}),
 	}
 }
@@ -133,6 +140,11 @@ func (m *CartManager) GetMenuForPage(restaurantID, tableID int) ([]DishView, err
 		return nil, err
 	}
 
+	var effectivePrices map[int]float64
+	if m.yieldPricer != nil {
+		effectivePrices = m.yieldPricer.GetEffectivePrices()
+	}
+
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -157,16 +169,26 @@ func (m *CartManager) GetMenuForPage(restaurantID, tableID int) ([]DishView, err
 				cartQty += e.Qty
 			}
 		}
+		price := d.Price
+		originalPrice := 0.0
+		hasDiscount := false
+		if p, ok := effectivePrices[d.ID]; ok {
+			originalPrice = d.Price
+			price = p
+			hasDiscount = true
+		}
 		views = append(views, DishView{
-			ID:          d.ID,
-			Name:        d.Name,
-			Price:       d.Price,
-			PortionSize: d.PortionSize,
-			CookingTime: d.CookingTime,
-			Category:    d.CategoryName,
-			Portions:    portions,
-			Stopped:     portions == 0,
-			CartQty:     cartQty,
+			ID:               d.ID,
+			Name:             d.Name,
+			Price:            price,
+			OriginalPrice:    originalPrice,
+			HasYieldDiscount: hasDiscount,
+			PortionSize:      d.PortionSize,
+			CookingTime:      d.CookingTime,
+			Category:         d.CategoryName,
+			Portions:         portions,
+			Stopped:          portions == 0,
+			CartQty:          cartQty,
 		})
 	}
 	return views, nil

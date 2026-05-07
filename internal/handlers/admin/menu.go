@@ -35,13 +35,17 @@ func (h *Handler) MenuPage(w http.ResponseWriter, r *http.Request) {
 	targetMargin := parseTargetMargin(r)
 	category := strings.TrimSpace(r.URL.Query().Get("category"))
 	showArchived := r.URL.Query().Get("status") == "archive"
+	showDiscounted := r.URL.Query().Get("status") == "discounted"
 
-	view, err := h.MenuSvc.GetMenuPage(restaurantID, targetMargin, category, showArchived)
+	view, err := h.MenuSvc.GetMenuPage(restaurantID, targetMargin, category, showArchived, showDiscounted)
 	if err != nil {
 		handlerLog.Printf("MenuPage: %v", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+
+	_, yieldCount, _ := h.MenuSvc.GetYieldAlerts(restaurantID)
+	view.YieldCount = yieldCount
 
 	layouts.AdminLayout(name, "menu", adminpages.MenuPage(view)).Render(r.Context(), w)
 }
@@ -142,6 +146,118 @@ func (h *Handler) MenuUpdatePrice(w http.ResponseWriter, r *http.Request) {
 		redirectURL = "/admin/menu"
 	}
 	http.Redirect(w, r, redirectURL, http.StatusSeeOther)
+}
+
+func (h *Handler) MenuYieldAlertsModal(w http.ResponseWriter, r *http.Request) {
+	restaurantID, _, _, err := h.sessionData(r)
+	if err != nil {
+		http.Error(w, "session error", http.StatusInternalServerError)
+		return
+	}
+
+	alerts, _, err := h.MenuSvc.GetYieldAlerts(restaurantID)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	body := renderYieldAlertsBody(alerts)
+	renderAdminModal(w, "Yield Management — пропозиції знижок", "", body)
+}
+
+func (h *Handler) MenuApplyYieldDiscount(w http.ResponseWriter, r *http.Request) {
+	restaurantID, _, _, err := h.sessionData(r)
+	if err != nil {
+		http.Error(w, "session error", http.StatusInternalServerError)
+		return
+	}
+	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	price, _ := strconv.ParseFloat(strings.ReplaceAll(r.FormValue("price"), ",", "."), 64)
+	if err := h.MenuSvc.ApplyYieldDiscount(id, price); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+
+	alerts, _, err := h.MenuSvc.GetYieldAlerts(restaurantID)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	body := renderYieldAlertsBody(alerts)
+	w.Header().Set("HX-Trigger", `{"adminMenuNeedsRefresh":true,"showToast":"yieldApplied"}`)
+	renderAdminModal(w, "Yield Management — пропозиції знижок", "", body)
+}
+
+func (h *Handler) MenuRestorePrice(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
+	if err := h.MenuSvc.RestoreYieldPrice(id); err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	triggerAdminRefresh(w)
+}
+
+func renderYieldAlertsBody(alerts []adminservice.YieldAlert) string {
+	if len(alerts) == 0 {
+		return `<div class="text-center py-8 text-slate-400 text-sm">Немає страв з інгредієнтами, термін яких спливає найближчим часом.</div>
+<div class="mt-4 flex justify-end"><button type="button" onclick="adminCloseModal()" class="border border-slate-200 text-slate-700 text-sm px-4 py-2 rounded-lg font-medium">Закрити</button></div>`
+	}
+
+	var b strings.Builder
+	b.WriteString(`<div class="space-y-3 max-h-[60vh] overflow-y-auto pr-1">`)
+
+	seen := make(map[int]bool)
+	for _, a := range alerts {
+		if seen[a.DishID] {
+			continue
+		}
+		seen[a.DishID] = true
+
+		daysLabel := fmt.Sprintf("%d дн.", a.DaysLeft)
+		if a.DaysLeft == 0 {
+			daysLabel = "сьогодні"
+		} else if a.DaysLeft == 1 {
+			daysLabel = "1 день"
+		}
+
+		b.WriteString(`<div class="bg-slate-50 border border-slate-200 rounded-xl p-4">`)
+		b.WriteString(`<div class="flex justify-between items-start mb-2">`)
+		b.WriteString(`<div>`)
+		b.WriteString(`<p class="font-bold text-slate-800 text-sm">`)
+		b.WriteString(templateEscape(a.DishName))
+		b.WriteString(`</p>`)
+		b.WriteString(`<p class="text-xs text-amber-700 mt-0.5">`)
+		b.WriteString(fmt.Sprintf("⚠ %s — %s (%g %s)",
+			templateEscape(a.IngredientName), daysLabel,
+			a.Qty, templateEscape(a.UnitName)))
+		b.WriteString(`</p>`)
+		b.WriteString(`</div>`)
+		b.WriteString(`<span class="text-sm font-bold text-slate-700 mono">`)
+		b.WriteString(fmt.Sprintf("%.2f ₴", a.CurrentPrice))
+		b.WriteString(`</span>`)
+		b.WriteString(`</div>`)
+
+		formID := fmt.Sprintf("yield-form-%d", a.DishID)
+		inputID := fmt.Sprintf("yield-price-%d", a.DishID)
+		pctID := fmt.Sprintf("yield-pct-%d", a.DishID)
+		b.WriteString(fmt.Sprintf(`<form id="%s" hx-post="/admin/menu/%d/yield-price" hx-target="#admin-modal-content" hx-swap="innerHTML" class="flex items-center gap-2 mt-2">`, formID, a.DishID))
+		b.WriteString(`<label class="text-xs text-slate-500 font-medium whitespace-nowrap">Нова ціна:</label>`)
+		b.WriteString(fmt.Sprintf(`<input id="%s" type="number" name="price" value="%.2f" step="0.01" min="0.01" data-original="%.2f" oninput="(function(el){var pct=document.getElementById('%s');var orig=parseFloat(el.dataset.original)||0;var val=parseFloat(el.value)||0;pct.textContent=orig>0&&val>0?'-'+Math.round((1-val/orig)*100)+'%%':'';})(this)" class="w-28 border border-slate-300 rounded-lg px-2 py-1.5 text-sm mono text-center" />`,
+			inputID, a.SuggestedPrice, a.CurrentPrice, pctID))
+		b.WriteString(`<span class="text-xs text-slate-400 font-medium">₴</span>`)
+		b.WriteString(fmt.Sprintf(`<span id="%s" class="text-[10px] text-amber-600 font-bold w-8">-%.0f%%</span>`, pctID, (1-a.SuggestedPrice/a.CurrentPrice)*100))
+		b.WriteString(`<button type="submit" class="ml-auto bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap">Застосувати</button>`)
+		b.WriteString(`</form>`)
+		b.WriteString(`</div>`)
+	}
+
+	b.WriteString(`</div>`)
+	b.WriteString(`<div class="mt-4 flex justify-end"><button type="button" onclick="adminCloseModal()" class="border border-slate-200 text-slate-700 text-sm px-4 py-2 rounded-lg font-medium">Закрити</button></div>`)
+	return b.String()
 }
 
 func menuModalBody(view *adminservice.MenuFormView, dish *adminservice.MenuDish, isEdit bool) string {

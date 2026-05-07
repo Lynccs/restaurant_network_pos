@@ -34,6 +34,8 @@ func SetupRouter(db *sql.DB, store sessions.Store) (*chi.Mux, func()) {
 	r.Use(chimw.Logger)
 	r.Use(chimw.Recoverer)
 	r.Use(middleware.NewInflightGuard(store).Middleware)
+	r.NotFound(handlers.NotFound)
+	r.MethodNotAllowed(handlers.MethodNotAllowed)
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
@@ -45,8 +47,11 @@ func SetupRouter(db *sql.DB, store sessions.Store) (*chi.Mux, func()) {
 	waiterRepo := waiterrepo.NewWaiterRepo(db)
 	waiterSvc := waiterservice.NewWaiterService(waiterRepo)
 
+	menuRepoAdmin := adminrepo.NewMenuRepo(db)
+	menuSvc := adminservice.NewMenuService(menuRepoAdmin)
+
 	menuRepo := waiterrepo.NewMenuRepo(db)
-	cartMgr := waiterservice.NewCartManager(menuRepo)
+	cartMgr := waiterservice.NewCartManager(menuRepo, menuSvc)
 
 	waiterH := waiterhandler.NewWaiterHandler(waiterSvc, store, cartMgr, broadcaster)
 	menuH := waiterhandler.NewMenuHandler(cartMgr, menuRepo, store, broadcaster)
@@ -67,9 +72,6 @@ func SetupRouter(db *sql.DB, store sessions.Store) (*chi.Mux, func()) {
 
 	networkRepo := adminrepo.NewNetworkRepo(db)
 	networkSvc := adminservice.NewNetworkService(networkRepo)
-
-	menuRepoAdmin := adminrepo.NewMenuRepo(db)
-	menuSvc := adminservice.NewMenuService(menuRepoAdmin)
 
 	adminH := adminhandler.NewHandler(purchasesSvc, suppliersSvc, networkSvc, menuSvc, store)
 

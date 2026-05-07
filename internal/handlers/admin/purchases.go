@@ -2,6 +2,7 @@ package adminhandler
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -27,6 +28,20 @@ type Handler struct {
 
 func NewHandler(svc adminservice.PurchasesServicer, suppliersSvc adminservice.SuppliersServicer, networkSvc adminservice.NetworkServicer, menuSvc adminservice.MenuServicer, store sessions.Store) *Handler {
 	return &Handler{Svc: svc, SuppliersSvc: suppliersSvc, NetworkSvc: networkSvc, MenuSvc: menuSvc, Store: store}
+}
+
+func (h *Handler) supplierIngredients(supplierID int) ([]adminservice.IngredientOption, error) {
+	view, err := h.SuppliersSvc.GetSupplierIngredientsView(supplierID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]adminservice.IngredientOption, 0, len(view.Ingredients))
+	for _, ing := range view.Ingredients {
+		if view.SelectedIDs[ing.ID] {
+			result = append(result, ing)
+		}
+	}
+	return result, nil
 }
 
 func (h *Handler) sessionData(r *http.Request) (restaurantID, adminID int, name string, err error) {
@@ -252,7 +267,7 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ingredients, err := h.Svc.GetIngredients()
+	ingredients, err := h.supplierIngredients(order.SupplierID)
 	if err != nil {
 		handlerLog.Printf("CreateOrder ingredients: %v", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -287,7 +302,7 @@ func (h *Handler) OrderDetails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ingredients, err := h.Svc.GetIngredients()
+	ingredients, err := h.supplierIngredients(order.SupplierID)
 	if err != nil {
 		handlerLog.Printf("OrderDetails ingredients: %v", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -359,7 +374,7 @@ func (h *Handler) AddItem(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	ingredients, err := h.Svc.GetIngredients()
+	ingredients, err := h.supplierIngredients(order.SupplierID)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
@@ -408,7 +423,7 @@ func (h *Handler) RemoveItem(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	ingredients, err := h.Svc.GetIngredients()
+	ingredients, err := h.supplierIngredients(order.SupplierID)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
@@ -541,6 +556,7 @@ func (h *Handler) ReceiveBatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	refreshed, err := h.Svc.GetOrderDetails(orderID)
+	autoCompleted := false
 	if err == nil && refreshed.Status != "Отримано" {
 		allReceived := len(refreshed.Items) > 0
 		for _, item := range refreshed.Items {
@@ -550,14 +566,30 @@ func (h *Handler) ReceiveBatch(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if allReceived {
-			if err := h.Svc.CompleteOrder(orderID); err != nil {
-				handlerLog.Printf("AutoComplete orderID=%d: %v", orderID, err)
+			if cerr := h.Svc.CompleteOrder(orderID); cerr != nil {
+				handlerLog.Printf("AutoComplete orderID=%d: %v", orderID, cerr)
+			} else {
+				autoCompleted = true
 			}
 		}
 	}
 
-	w.Header().Set("HX-Trigger", `{"closeModal":null,"refreshList":null,"showToast":"batchReceived"}`)
-	w.WriteHeader(http.StatusOK)
+	if autoCompleted {
+		w.Header().Set("HX-Trigger", `{"closeModal":null,"refreshList":null,"showToast":"orderAutoCompleted"}`)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if err != nil {
+		w.Header().Set("HX-Trigger", `{"closeModal":null,"refreshList":null,"showToast":"batchReceived"}`)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	w.Header().Set("HX-Retarget", "#order-content-"+strconv.Itoa(orderID))
+	w.Header().Set("HX-Reswap", "innerHTML")
+	w.Header().Set("HX-Trigger", `{"closeModal":null,"showToast":"batchReceived"}`)
+	adminpages.PurchaseOrderContent(refreshed, adminID).Render(r.Context(), w)
 }
 
 // CompleteOrder — POST /admin/purchases/{id}/complete
@@ -584,6 +616,41 @@ func (h *Handler) CompleteOrder(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.Svc.CompleteOrder(orderID); err != nil {
 		handlerLog.Printf("CompleteOrder: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("HX-Trigger", `{"closeModal":null,"refreshList":null}`)
+	w.WriteHeader(http.StatusOK)
+}
+
+// CancelOrder — POST /admin/purchases/{id}/cancel
+func (h *Handler) CancelOrder(w http.ResponseWriter, r *http.Request) {
+	_, adminID, _, err := h.sessionData(r)
+	if err != nil {
+		http.Error(w, "session error", http.StatusInternalServerError)
+		return
+	}
+	orderID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	order, err := h.Svc.GetOrderDetails(orderID)
+	if err != nil {
+		handlerLog.Printf("CancelOrder details: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if order.AdminID != adminID {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if order.Status != "Створено" {
+		http.Error(w, "order cannot be cancelled in current status", http.StatusBadRequest)
+		return
+	}
+	if err := h.Svc.CancelOrder(orderID); err != nil {
+		handlerLog.Printf("CancelOrder: %v", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -717,6 +784,43 @@ func (h *Handler) UpdateBatch(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// DeleteBatch — DELETE /admin/purchases/batches/{batchID}
+func (h *Handler) DeleteBatch(w http.ResponseWriter, r *http.Request) {
+	_, adminID, _, err := h.sessionData(r)
+	if err != nil {
+		http.Error(w, "session error", http.StatusInternalServerError)
+		return
+	}
+	batchID, err := strconv.Atoi(chi.URLParam(r, "batchID"))
+	if err != nil {
+		http.Error(w, "invalid batchID", http.StatusBadRequest)
+		return
+	}
+
+	orderID, err := h.Svc.DeleteBatch(adminID, batchID)
+	if err != nil {
+		if errors.Is(err, adminservice.ErrBatchStockConsumed) {
+			http.Error(w, "STOCK_CONSUMED", http.StatusConflict)
+			return
+		}
+		handlerLog.Printf("DeleteBatch batchID=%d: %v", batchID, err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	order, err := h.Svc.GetOrderDetails(orderID)
+	if err != nil {
+		w.Header().Set("HX-Trigger", `{"refreshList":null,"showToast":"batchDeleted"}`)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	w.Header().Set("HX-Retarget", "#order-content-"+strconv.Itoa(orderID))
+	w.Header().Set("HX-Reswap", "innerHTML")
+	w.Header().Set("HX-Trigger", `{"showToast":"batchDeleted"}`)
+	adminpages.PurchaseOrderContent(order, adminID).Render(r.Context(), w)
+}
+
 // GetIngredientsJSON — GET /admin/purchases/ingredients (JSON)
 func (h *Handler) GetIngredientsJSON(w http.ResponseWriter, r *http.Request) {
 	ingredients, err := h.Svc.GetIngredients()
@@ -733,4 +837,46 @@ func safeGet(slice []string, i int) string {
 		return slice[i]
 	}
 	return ""
+}
+
+// GetPurchaseRecommendations — GET /admin/purchases/recommendations (JSON)
+func (h *Handler) GetPurchaseRecommendations(w http.ResponseWriter, r *http.Request) {
+	supplierID, err := strconv.Atoi(r.URL.Query().Get("supplier_id"))
+	if err != nil || supplierID <= 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte("[]"))
+		return
+	}
+	expectedAt, err := time.Parse("2006-01-02", r.URL.Query().Get("expected_at"))
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte("[]"))
+		return
+	}
+
+	ingredientsView, err := h.SuppliersSvc.GetSupplierIngredientsView(supplierID)
+	if err != nil {
+		handlerLog.Printf("GetPurchaseRecommendations supplier ingredients: %v", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte("[]"))
+		return
+	}
+	ids := make([]int, 0, len(ingredientsView.SelectedIDs))
+	for id := range ingredientsView.SelectedIDs {
+		ids = append(ids, id)
+	}
+
+	recs, _, err := h.Svc.GetPurchaseRecommendations(supplierID, ids, expectedAt)
+	if err != nil {
+		handlerLog.Printf("GetPurchaseRecommendations: %v", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte("[]"))
+		return
+	}
+	if recs == nil {
+		recs = []adminservice.PurchaseRecommendation{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(recs)
 }

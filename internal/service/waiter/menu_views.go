@@ -1,15 +1,17 @@
 package waiterservice
 
 type DishView struct {
-	ID          int
-	Name        string
-	Price       float64
-	PortionSize int
-	CookingTime int
-	Category    string
-	Portions    int
-	Stopped     bool
-	CartQty     int
+	ID               int
+	Name             string
+	Price            float64
+	OriginalPrice    float64
+	HasYieldDiscount bool
+	PortionSize      int
+	CookingTime      int
+	Category         string
+	Portions         int
+	Stopped          bool
+	CartQty          int
 }
 
 type CartItemView struct {

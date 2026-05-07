@@ -6,9 +6,32 @@ import (
 	"math"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	adminrepo "restaurant_network_pos/internal/repository/admin"
 )
+
+const yieldDiscountRate = 0.15
+const yieldMinIngredientShare = 0.15
+const yieldTTL = 24 * time.Hour
+
+type yieldEntry struct {
+	OriginalPrice   float64
+	DiscountedPrice float64
+	ExpiresAt       time.Time
+}
+
+type YieldAlert struct {
+	DishID         int
+	DishName       string
+	CurrentPrice   float64
+	SuggestedPrice float64
+	IngredientName string
+	Qty            float64
+	UnitName       string
+	DaysLeft       int
+}
 
 type MenuRecipeItem struct {
 	IngredientID   int
@@ -31,6 +54,9 @@ type MenuDish struct {
 	MarginPercent    float64
 	Profitable       bool
 	RecommendedPrice float64
+	OriginalPrice    float64
+	HasYieldDiscount bool
+	YieldExpiresAt   time.Time
 }
 
 type MenuCategory struct {
@@ -50,6 +76,8 @@ type MenuPageView struct {
 	TargetMargin     float64
 	Dishes           []MenuDish
 	ShowArchived     bool
+	ShowDiscounted   bool
+	YieldCount       int
 }
 
 type MenuFormView struct {
@@ -68,24 +96,30 @@ type MenuDishInput struct {
 }
 
 type MenuServicer interface {
-	GetMenuPage(restaurantID int, targetMargin float64, category string, showArchived bool) (*MenuPageView, error)
+	GetMenuPage(restaurantID int, targetMargin float64, category string, showArchived bool, showDiscounted bool) (*MenuPageView, error)
 	GetMenuForm(dishID int) (*MenuFormView, error)
 	CreateDish(input MenuDishInput) (int, error)
 	UpdateDish(dishID int, input MenuDishInput) error
 	UpdateDishPrice(dishID int, price float64) error
 	ArchiveDish(dishID int) error
 	UnarchiveDish(dishID int) error
+	GetYieldAlerts(restaurantID int) ([]YieldAlert, int, error)
+	ApplyYieldDiscount(dishID int, newPrice float64) error
+	RestoreYieldPrice(dishID int) error
+	GetEffectivePrices() map[int]float64
 }
 
 type MenuService struct {
-	repo *adminrepo.MenuRepo
+	repo           *adminrepo.MenuRepo
+	yieldMu        sync.RWMutex
+	yieldDiscounts map[int]yieldEntry
 }
 
 func NewMenuService(repo *adminrepo.MenuRepo) *MenuService {
-	return &MenuService{repo: repo}
+	return &MenuService{repo: repo, yieldDiscounts: make(map[int]yieldEntry)}
 }
 
-func (s *MenuService) GetMenuPage(restaurantID int, targetMargin float64, category string, showArchived bool) (*MenuPageView, error) {
+func (s *MenuService) GetMenuPage(restaurantID int, targetMargin float64, category string, showArchived bool, showDiscounted bool) (*MenuPageView, error) {
 	dishes, err := s.repo.ListMenuDishes(showArchived)
 	if err != nil {
 		return nil, fmt.Errorf("GetMenuPage dishes: %w", err)
@@ -125,7 +159,7 @@ func (s *MenuService) GetMenuPage(restaurantID int, targetMargin float64, catego
 		cost, costKnown := calcRecipeCost(recipe, prices)
 		margin, profitable, recommended := calcMargin(d.Price, cost, costKnown, targetMargin)
 
-		allDishes = append(allDishes, MenuDish{
+		dish := MenuDish{
 			ID:               d.ID,
 			Name:             d.Name,
 			Price:            d.Price,
@@ -139,7 +173,27 @@ func (s *MenuService) GetMenuPage(restaurantID int, targetMargin float64, catego
 			MarginPercent:    margin,
 			Profitable:       profitable,
 			RecommendedPrice: recommended,
-		})
+		}
+
+		s.yieldMu.RLock()
+		entry, hasDiscount := s.yieldDiscounts[d.ID]
+		s.yieldMu.RUnlock()
+		if hasDiscount {
+			if time.Now().Before(entry.ExpiresAt) {
+				dish.Price = entry.DiscountedPrice
+				dish.HasYieldDiscount = true
+				dish.OriginalPrice = entry.OriginalPrice
+				dish.YieldExpiresAt = entry.ExpiresAt
+				// Recalculate margin for the discounted price.
+				dish.MarginPercent, dish.Profitable, dish.RecommendedPrice = calcMargin(dish.Price, cost, costKnown, targetMargin)
+			} else {
+				s.yieldMu.Lock()
+				delete(s.yieldDiscounts, d.ID)
+				s.yieldMu.Unlock()
+			}
+		}
+
+		allDishes = append(allDishes, dish)
 
 		if _, ok := categoriesMap[d.CategoryName]; !ok {
 			categoriesMap[d.CategoryName] = MenuCategory{ID: d.CategoryID, Name: d.CategoryName}
@@ -157,6 +211,9 @@ func (s *MenuService) GetMenuPage(restaurantID int, targetMargin float64, catego
 	selected := strings.TrimSpace(category)
 	filtered := make([]MenuDish, 0, len(allDishes))
 	for _, dish := range allDishes {
+		if showDiscounted && !dish.HasYieldDiscount {
+			continue
+		}
 		if selected == "" || selected == "Усі" || dish.CategoryName == selected {
 			filtered = append(filtered, dish)
 		}
@@ -177,6 +234,7 @@ func (s *MenuService) GetMenuPage(restaurantID int, targetMargin float64, catego
 		TargetMargin:     targetMargin,
 		Dishes:           filtered,
 		ShowArchived:     showArchived,
+		ShowDiscounted:   showDiscounted,
 	}, nil
 }
 
@@ -348,4 +406,112 @@ func profitabilityRank(d MenuDish) int {
 		return 0
 	}
 	return 1
+}
+
+func (s *MenuService) GetYieldAlerts(restaurantID int) ([]YieldAlert, int, error) {
+	rows, err := s.repo.GetYieldAlerts(restaurantID, 2)
+	if err != nil {
+		return nil, 0, fmt.Errorf("GetYieldAlerts: %w", err)
+	}
+
+	recipes, err := s.repo.ListMenuRecipes()
+	if err != nil {
+		return nil, 0, fmt.Errorf("GetYieldAlerts recipes: %w", err)
+	}
+
+	totalQtyByDish := make(map[int]float64)
+	recipeQty := make(map[[2]int]float64) // [dishID, ingredientID] → qty
+	for _, r := range recipes {
+		totalQtyByDish[r.DishID] += r.Qty
+		recipeQty[[2]int{r.DishID, r.IngredientID}] += r.Qty
+	}
+
+	seen := make(map[int]bool)
+	var alerts []YieldAlert
+	for _, row := range rows {
+		total := totalQtyByDish[row.DishID]
+		if total > 0 {
+			share := row.Qty / total
+			if share < yieldMinIngredientShare {
+				continue
+			}
+		}
+
+		s.yieldMu.RLock()
+		entry, hasDiscount := s.yieldDiscounts[row.DishID]
+		s.yieldMu.RUnlock()
+
+		// Skip dishes that already have an active yield discount.
+		if hasDiscount && time.Now().Before(entry.ExpiresAt) {
+			continue
+		}
+
+		alerts = append(alerts, YieldAlert{
+			DishID:         row.DishID,
+			DishName:       row.DishName,
+			CurrentPrice:   row.DishPrice,
+			SuggestedPrice: math.Ceil(row.DishPrice*(1-yieldDiscountRate)*100) / 100,
+			IngredientName: row.IngredientName,
+			Qty:            row.Qty,
+			UnitName:       row.UnitName,
+			DaysLeft:       row.DaysLeft,
+		})
+		seen[row.DishID] = true
+	}
+
+	return alerts, len(seen), nil
+}
+
+func (s *MenuService) ApplyYieldDiscount(dishID int, newPrice float64) error {
+	if dishID <= 0 || newPrice <= 0 {
+		return errors.New("invalid params")
+	}
+
+	dish, err := s.repo.GetMenuDish(dishID)
+	if err != nil {
+		return fmt.Errorf("ApplyYieldDiscount get dish: %w", err)
+	}
+
+	originalPrice := dish.Price
+	s.yieldMu.Lock()
+	if existing, exists := s.yieldDiscounts[dishID]; exists {
+		originalPrice = existing.OriginalPrice
+	}
+	s.yieldDiscounts[dishID] = yieldEntry{
+		OriginalPrice:   originalPrice,
+		DiscountedPrice: newPrice,
+		ExpiresAt:       time.Now().Add(yieldTTL),
+	}
+	s.yieldMu.Unlock()
+
+	return nil
+}
+
+func (s *MenuService) RestoreYieldPrice(dishID int) error {
+	if dishID <= 0 {
+		return errors.New("invalid dish id")
+	}
+
+	s.yieldMu.Lock()
+	delete(s.yieldDiscounts, dishID)
+	s.yieldMu.Unlock()
+	return nil
+}
+
+// GetEffectivePrices returns a map of dishID → discounted price for all currently active yield discounts.
+// Expired entries are cleaned up on the fly. Non-discounted dishes are not included.
+func (s *MenuService) GetEffectivePrices() map[int]float64 {
+	now := time.Now()
+	s.yieldMu.Lock()
+	defer s.yieldMu.Unlock()
+
+	result := make(map[int]float64, len(s.yieldDiscounts))
+	for id, entry := range s.yieldDiscounts {
+		if now.Before(entry.ExpiresAt) {
+			result[id] = entry.DiscountedPrice
+		} else {
+			delete(s.yieldDiscounts, id)
+		}
+	}
+	return result
 }

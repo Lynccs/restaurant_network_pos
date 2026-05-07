@@ -149,7 +149,17 @@ templ DishCard(tableNumber int, d waiterservice.DishView) {
 		<div class="text-sm font-semibold text-slate-800 leading-snug mb-1 min-h-[2.5rem]">{ d.Name }</div>
 		<div class="text-xs text-slate-400 mb-2">{ strconv.Itoa(d.PortionSize) } г · { strconv.Itoa(d.CookingTime) } хв</div>
 		<div class="flex items-center justify-between mt-auto pt-1">
-			<span class="text-base font-bold mono text-blue-600">{ fmt.Sprintf("%.0f ₴", d.Price) }</span>
+			if d.HasYieldDiscount {
+				<div class="flex flex-col">
+					<span class="text-[10px] text-slate-400 mono line-through leading-none">{ fmt.Sprintf("%.0f ₴", d.OriginalPrice) }</span>
+					<span class="text-base font-bold mono text-red-500">{ fmt.Sprintf("%.0f ₴", d.Price) }</span>
+					<span class="text-[9px] font-bold text-red-400 uppercase tracking-wide leading-none mt-0.5">
+						Знижка { fmt.Sprintf("%.0f%%", (1-d.Price/d.OriginalPrice)*100) }
+					</span>
+				</div>
+			} else {
+				<span class="text-base font-bold mono text-blue-600">{ fmt.Sprintf("%.0f ₴", d.Price) }</span>
+			}
 			<span
 				id={ fmt.Sprintf("dish-badge-%d", d.ID) }
 				class={ "w-6 h-6 bg-blue-600 text-white text-xs font-bold rounded-full flex items-center justify-center", templ.KV("hidden", d.Stopped || d.CartQty == 0) }

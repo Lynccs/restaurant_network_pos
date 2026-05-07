@@ -20,10 +20,11 @@ type NetworkTableRow struct {
 }
 
 type NetworkStaffRow struct {
-	ID           int
-	Name         string
-	Phone        string
-	RestaurantID int
+	ID               int
+	Name             string
+	Phone            string
+	RestaurantID     int
+	SpecializationID int
 }
 
 type ChefSpecializationRow struct {
@@ -388,12 +389,12 @@ WHERE waiter_id = @id`
 
 func (r *NetworkRepo) GetChefByID(id int) (*NetworkStaffRow, error) {
 	const query = `
-SELECT chef_id, chef_full_name, chef_phone, restaurant_id
+SELECT chef_id, chef_full_name, chef_phone, restaurant_id, chef_specialization_id
 FROM chefs
 WHERE chef_id = @id`
 
 	var row NetworkStaffRow
-	err := r.db.QueryRow(query, sql.Named("id", id)).Scan(&row.ID, &row.Name, &row.Phone, &row.RestaurantID)
+	err := r.db.QueryRow(query, sql.Named("id", id)).Scan(&row.ID, &row.Name, &row.Phone, &row.RestaurantID, &row.SpecializationID)
 	if err != nil {
 		return nil, fmt.Errorf("GetChefByID: %w", err)
 	}
@@ -444,12 +445,15 @@ SET waiter_full_name = @name, waiter_phone = @phone`
 	return rows > 0, nil
 }
 
-func (r *NetworkRepo) UpdateChef(id, restaurantID int, name, phone string, pinHash *string) (bool, error) {
+func (r *NetworkRepo) UpdateChef(id, restaurantID int, name, phone string, pinHash *string, specializationID *int) (bool, error) {
 	query := `
 UPDATE chefs
 SET chef_full_name = @name, chef_phone = @phone`
 	if pinHash != nil {
 		query += ", pin_hash = @pinHash"
+	}
+	if specializationID != nil {
+		query += ", chef_specialization_id = @specID"
 	}
 	query += " WHERE chef_id = @id AND restaurant_id = @restaurantID"
 
@@ -461,6 +465,9 @@ SET chef_full_name = @name, chef_phone = @phone`
 	}
 	if pinHash != nil {
 		args = append(args, sql.Named("pinHash", *pinHash))
+	}
+	if specializationID != nil {
+		args = append(args, sql.Named("specID", *specializationID))
 	}
 
 	res, err := r.db.Exec(query, args...)

@@ -2,6 +2,8 @@ package adminservice
 
 import (
 	"fmt"
+	"math"
+	"sync"
 	"time"
 
 	adminrepo "restaurant_network_pos/internal/repository/admin"
@@ -9,6 +11,8 @@ import (
 
 type PurchasesFilters = adminrepo.PurchasesFilters
 type BatchInput = adminrepo.BatchInput
+
+var ErrBatchStockConsumed = adminrepo.ErrBatchStockConsumed
 
 type PurchaseBatch struct {
 	BatchID           int
@@ -19,6 +23,7 @@ type PurchaseBatch struct {
 	RestaurantAddress string
 	AdminName         string
 	AdminID           int
+	CanDelete         bool
 }
 
 type BatchEditData struct {
@@ -49,6 +54,7 @@ type PurchaseItem struct {
 
 type BatchesView struct {
 	DetailID    int
+	OrderID     int
 	Unit        string
 	OrderStatus string
 	Batches     []PurchaseBatch
@@ -126,7 +132,10 @@ type PurchasesServicer interface {
 	GetDetailBatches(detailID int) (BatchesView, error)
 	GetBatchEditData(batchID int) (BatchEditData, error)
 	UpdateBatch(adminID, batchID int, qty float64, expDate time.Time) error
+	DeleteBatch(adminID, batchID int) (orderID int, err error)
 	CompleteOrder(orderID int) error
+	CancelOrder(orderID int) error
+	GetPurchaseRecommendations(supplierID int, supplierIngredientIDs []int, expectedDelivery time.Time) ([]PurchaseRecommendation, int, error)
 }
 
 type PurchasesService struct {
@@ -351,7 +360,7 @@ func (s *PurchasesService) RemoveItem(orderID, itemID int) error {
 }
 
 func (s *PurchasesService) MarkAsSent(orderID int) error {
-	return s.repo.UpdateOrderStatus(orderID, "Р’С–РґРїСЂР°РІР»РµРЅРѕ")
+	return s.repo.UpdateOrderStatus(orderID, "Відправлено")
 }
 
 func (s *PurchasesService) ReceiveBatches(restaurantID, adminID int, batches []BatchInput) error {
@@ -368,6 +377,7 @@ func (s *PurchasesService) GetDetailBatches(detailID int) (BatchesView, error) {
 	}
 	view := BatchesView{
 		DetailID:    rows[0].DetailID,
+		OrderID:     rows[0].OrderID,
 		Unit:        rows[0].UnitName,
 		OrderStatus: rows[0].OrderStatus,
 	}
@@ -375,6 +385,7 @@ func (s *PurchasesService) GetDetailBatches(detailID int) (BatchesView, error) {
 		if !row.BatchID.Valid {
 			continue
 		}
+		canDelete := !row.StockQty.Valid || row.StockQty.Float64 >= row.BatchQty.Float64-1e-9
 		view.Batches = append(view.Batches, PurchaseBatch{
 			BatchID:           int(row.BatchID.Int64),
 			Qty:               row.BatchQty.Float64,
@@ -384,9 +395,14 @@ func (s *PurchasesService) GetDetailBatches(detailID int) (BatchesView, error) {
 			RestaurantAddress: row.BatchRestaurantAddress.String,
 			AdminName:         row.BatchAdminName.String,
 			AdminID:           int(row.BatchAdminID.Int64),
+			CanDelete:         canDelete,
 		})
 	}
 	return view, nil
+}
+
+func (s *PurchasesService) DeleteBatch(adminID, batchID int) (int, error) {
+	return s.repo.DeleteBatch(batchID, adminID)
 }
 
 func (s *PurchasesService) GetBatchEditData(batchID int) (BatchEditData, error) {
@@ -413,5 +429,111 @@ func (s *PurchasesService) UpdateBatch(adminID, batchID int, qty float64, expDat
 }
 
 func (s *PurchasesService) CompleteOrder(orderID int) error {
-	return s.repo.UpdateOrderStatus(orderID, "РћС‚СЂРёРјР°РЅРѕ")
+	return s.repo.UpdateOrderStatus(orderID, "Отримано")
+}
+
+func (s *PurchasesService) CancelOrder(orderID int) error {
+	return s.repo.UpdateOrderStatus(orderID, "Скасовано")
+}
+
+// PurchaseRecommendation is the result of a single ingredient recommendation.
+type PurchaseRecommendation struct {
+	IngredientID   int
+	IngredientName string
+	UnitName       string
+	RecommendedQty float64
+	LastPrice      float64
+}
+
+func roundQty(qty float64) float64 {
+	if qty >= 1000 {
+		return math.Ceil(qty/100) * 100
+	}
+	return math.Ceil(qty/10) * 10
+}
+
+// GetPurchaseRecommendations calculates recommended order quantities for the given supplier's ingredients.
+// cycleDays is the computed (or fallback) supply cycle in days.
+func (s *PurchasesService) GetPurchaseRecommendations(supplierID int, supplierIngredientIDs []int, expectedDelivery time.Time) ([]PurchaseRecommendation, int, error) {
+	if len(supplierIngredientIDs) == 0 {
+		return []PurchaseRecommendation{}, 30, nil
+	}
+
+	// GetNetworkStock is independent — run it in parallel with GetSupplierOrderDates.
+	var stockRows []adminrepo.IngredientStockRow
+	var stockErr error
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		stockRows, stockErr = s.repo.GetNetworkStock()
+	}()
+
+	// Compute supply cycle from historical order dates.
+	cycleDays := 30
+	dates, err := s.repo.GetSupplierOrderDates(supplierID)
+	if err == nil && len(dates) >= 2 {
+		totalDays := 0.0
+		for i := 0; i < len(dates)-1; i++ {
+			totalDays += dates[i].Sub(dates[i+1]).Hours() / 24
+		}
+		if avg := int(totalDays / float64(len(dates)-1)); avg > 0 {
+			cycleDays = avg
+		}
+	}
+
+	// Fetch demand scoped only to supplier ingredients — avoids full-table scans.
+	demandRows, err := s.repo.GetDemandForIngredients(supplierIngredientIDs)
+	if err != nil {
+		wg.Wait()
+		return nil, 0, fmt.Errorf("GetPurchaseRecommendations demand: %w", err)
+	}
+
+	wg.Wait()
+	if stockErr != nil {
+		return nil, 0, fmt.Errorf("GetPurchaseRecommendations stock: %w", stockErr)
+	}
+
+	// Accumulate only stock batches that will still be valid at delivery.
+	validStock := make(map[int]float64, len(stockRows))
+	for _, batch := range stockRows {
+		if !batch.ExpiresAt.Before(expectedDelivery) {
+			validStock[batch.IngredientID] += batch.Qty
+		}
+	}
+
+	daysUntilDelivery := expectedDelivery.Sub(time.Now()).Hours() / 24
+	if daysUntilDelivery < 0 {
+		daysUntilDelivery = 0
+	}
+
+	result := make([]PurchaseRecommendation, 0, len(demandRows))
+	for _, row := range demandRows {
+		// dailyRate is derived from the fixed 30-day window — stable regardless of supply cycle length.
+		dailyRate := row.DemandQty / float64(adminrepo.DemandLookbackDays)
+
+		// How much stock will we have left when the delivery arrives?
+		stockAtDelivery := validStock[row.IngredientID] - dailyRate*daysUntilDelivery
+		if stockAtDelivery < 0 {
+			stockAtDelivery = 0
+		}
+
+		// We need enough for the full next supply cycle.
+		neededForCycle := dailyRate * float64(cycleDays)
+		recommended := neededForCycle - stockAtDelivery
+		if recommended < 0 {
+			recommended = 0
+		}
+
+		// Include all supplier ingredients: demand-based qty or 0 if no history yet.
+		result = append(result, PurchaseRecommendation{
+			IngredientID:   row.IngredientID,
+			IngredientName: row.IngredientName,
+			UnitName:       row.UnitName,
+			RecommendedQty: roundQty(recommended),
+			LastPrice:      row.LastPrice,
+		})
+	}
+
+	return result, cycleDays, nil
 }
