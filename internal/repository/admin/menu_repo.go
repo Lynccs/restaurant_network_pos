@@ -440,6 +440,7 @@ ORDER BY days_left ASC, d.dish_name ASC`
 }
 
 func (r *MenuRepo) GetLatestIngredientPrices(restaurantID int) ([]MenuIngredientCostRow, error) {
+	_ = restaurantID
 	const query = `
 WITH latest AS (
 	SELECT
@@ -453,15 +454,13 @@ WITH latest AS (
 	JOIN ingredient_order_details iod ON iod.ingredient_order_detail_id = pb.ingredient_order_detail_id
 	JOIN ingredient_orders io ON io.ingredient_order_id = iod.ingredient_order_id
 	JOIN ingredient_order_statuses ios ON ios.ingredient_order_status_id = io.ingredient_order_status_id
-	JOIN administrators a ON a.administrator_id = io.administrator_id
 	WHERE ios.ingredient_order_status_name <> 'Створено'
-		AND a.restaurant_id = @restaurantID
 )
 SELECT ingredient_id, detail_purchase_price
 FROM latest
 WHERE rn = 1`
 
-	rows, err := r.db.Query(query, sql.Named("restaurantID", restaurantID))
+	rows, err := r.db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("GetLatestIngredientPrices: %w", err)
 	}
