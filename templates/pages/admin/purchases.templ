@@ -1655,11 +1655,15 @@ templ ReceiveBatchModal(o adminservice.PurchaseOrder) {
 				<div class="space-y-3">
 					for _, item := range o.Items {
 						<div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+							{{ dispOrd := displayQtyUnit(item.Qty, item.Unit) }}
+							{{ dispRec := displayQtyUnit(item.ReceivedQty, item.Unit) }}
+							{{ dispRem := displayQtyUnit(item.Qty - item.ReceivedQty, item.Unit) }}
 							<div class="mb-3">
 								<label class="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Інгредієнт</label>
 								<div class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 font-medium">
-									{ item.Name } ({ item.Unit }) — замовлено: { fmtQty(item.Qty) }
+									{ item.Name } — замовлено { fmtQty(dispOrd.Qty) } { dispOrd.Unit }, прийнято { fmtQty(dispRec.Qty) } { dispRec.Unit }
 								</div>
+								<p class="text-xs text-slate-500 mt-1">Доступно для приймання: { fmtQty(dispRem.Qty) } { dispRem.Unit }</p>
 								<input type="hidden" name="detail_id[]" value={ strconv.Itoa(item.DetailID) }/>
 								<input type="hidden" name="ingredient_id[]" value={ strconv.Itoa(item.IngredientID) }/>
 							</div>
@@ -1690,6 +1694,8 @@ templ ReceiveBatchModal(o adminservice.PurchaseOrder) {
 templ ReceiveItemModal(orderID int, item adminservice.PurchaseItem) {
 	{{ disp := displayQtyUnit(item.Qty, item.Unit) }}
 	{{ remaining := item.Qty - item.ReceivedQty }}
+	{{ dispRec := displayQtyUnit(item.ReceivedQty, item.Unit) }}
+	{{ dispRem := displayQtyUnit(remaining, item.Unit) }}
 	<div class="bg-white rounded-2xl shadow-2xl w-full max-w-md slide-up">
 		<div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
 			<h3 class="font-semibold text-slate-800">Приймання партії</h3>
@@ -1704,8 +1710,9 @@ templ ReceiveItemModal(orderID int, item adminservice.PurchaseItem) {
 				<div>
 					<label class="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Інгредієнт</label>
 					<div class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 font-medium">
-						{ item.Name } — замовлено { fmtQty(disp.Qty) } { disp.Unit }
+						{ item.Name } — замовлено { fmtQty(disp.Qty) } { disp.Unit }, прийнято { fmtQty(dispRec.Qty) } { dispRec.Unit }
 					</div>
+					<p class="text-xs text-slate-500 mt-1">Доступно для приймання: { fmtQty(dispRem.Qty) } { dispRem.Unit }</p>
 				</div>
 				<div class="grid grid-cols-2 gap-3">
 					<div>
@@ -1772,6 +1779,7 @@ templ EditBatchModal(b adminservice.BatchEditData) {
 	{{ ordered := displayQtyUnit(b.OrderQty, b.Unit) }}
 	{{ maxDisplay := displayQtyUnit(b.MaxAllowed, b.Unit) }}
 	{{ current := displayQtyUnit(b.BatchQty, b.Unit) }}
+	{{ totalRec := displayQtyUnit(b.TotalReceived, b.Unit) }}
 	<div class="bg-white rounded-2xl shadow-2xl w-full max-w-md slide-up">
 		<div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
 			<h3 class="font-semibold text-slate-800">Редагування партії</h3>
@@ -1784,9 +1792,9 @@ templ EditBatchModal(b adminservice.BatchEditData) {
 				<div>
 					<label class="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Інгредієнт</label>
 					<div class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 font-medium">
-						{ b.Ingredient } — замовлено { fmtQty(ordered.Qty) } { ordered.Unit }
+						{ b.Ingredient } — замовлено { fmtQty(ordered.Qty) } { ordered.Unit }, прийнято { fmtQty(totalRec.Qty) } { totalRec.Unit }
 					</div>
-					<p class="text-xs text-slate-500 mt-1">Можна змінити до { fmtQty(maxDisplay.Qty) } { maxDisplay.Unit }</p>
+					<p class="text-xs text-slate-500 mt-1">Доступно для приймання: { fmtQty(maxDisplay.Qty) } { maxDisplay.Unit }</p>
 				</div>
 				<div class="grid grid-cols-2 gap-3">
 					<div>

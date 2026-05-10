@@ -27,15 +27,15 @@ func (r *UserRepo) GetUserByPhone(phone string) (*UserRow, error) {
 		SELECT id, full_name, restaurant_id, role, pin_hash FROM (
 			SELECT administrator_id AS id, administrator_full_name AS full_name,
 			       restaurant_id, 'admin' AS role, pin_hash
-			FROM administrators WHERE administrator_phone = @phone
+			FROM administrators WHERE administrator_phone = @phone AND is_deleted = 0
 			UNION ALL
 			SELECT waiter_id, waiter_full_name,
 			       restaurant_id, 'waiter' AS role, pin_hash
-			FROM waiters WHERE waiter_phone = @phone
+			FROM waiters WHERE waiter_phone = @phone AND is_deleted = 0
 			UNION ALL
 			SELECT chef_id, chef_full_name,
 			       restaurant_id, 'chef' AS role, pin_hash
-			FROM chefs WHERE chef_phone = @phone
+			FROM chefs WHERE chef_phone = @phone AND is_deleted = 0
 		) AS u`
 
 	var (

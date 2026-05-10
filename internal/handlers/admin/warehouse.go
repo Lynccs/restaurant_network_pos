@@ -5,10 +5,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/go-chi/chi/v5"
 	adminservice "restaurant_network_pos/internal/service/admin"
 	"restaurant_network_pos/templates/layouts"
 	adminpages "restaurant_network_pos/templates/pages/admin"
+
+	"github.com/go-chi/chi/v5"
 )
 
 func parseWarehousePageFilters(r *http.Request) adminservice.WarehouseFilters {

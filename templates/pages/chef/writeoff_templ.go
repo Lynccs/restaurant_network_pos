@@ -54,7 +54,7 @@ func writeOffPageNums(current, total int) []int {
 }
 
 func formatWriteOffTime(t time.Time) string {
-	return t.Local().Format("02.01.2006 15:04")
+	return t.Format("02.01.2006 15:04")
 }
 
 func formatWriteOffQty(q float64) string {

@@ -236,7 +236,9 @@ func isOverdue(t *KitchenTicket) bool {
 			return false
 		}
 	}
-	return time.Since(t.CreatedAt) > overdueThreshold
+	// GETDATE() зберігає київський локальний час без TZ-мітки; Go-драйвер читає його як UTC,
+	// тому реальний Unix-timestamp на 3 год менший — коригуємо перед порівнянням.
+	return time.Since(t.CreatedAt.Add(-3*time.Hour)) > overdueThreshold
 }
 
 // GetStartCookingData повертає дані для модального вікна "Почати приготування".

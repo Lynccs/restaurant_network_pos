@@ -247,7 +247,7 @@ func (r *MenuRepo) CreateOrder(tableID, waiterID int, items []CartEntryForOrder)
 			(order_number, order_total_amount, order_created_at, order_status_id, table_id, waiter_id)
 		OUTPUT INSERTED.order_id
 		VALUES
-			(@number, @total, GETUTCDATE(),
+			(@number, @total, GETDATE(),
 			 (SELECT order_status_id FROM order_statuses WHERE order_status_name = N'Нове'),
 			 @tableID, @waiterID)`,
 		sql.Named("number", orderNumber),
@@ -476,7 +476,9 @@ func (r *MenuRepo) SyncOrderDraft(params SyncDraftParams) error {
 
 	// ── 9. Recalculate status (single pass via CTE instead of 3 × EXISTS) ──
 	// Scans order_items once; priority: all cancelled → Скасовано,
-	// any new → Нове, any cooking → Готується, else → Готове.
+	// any cooking → Готується, any new → Нове, else → Готове.
+	// "Готується" takes priority over "Нове" so that editing an in-progress order
+	// (adding new items while others are already cooking) keeps the cooking status.
 	// Does not touch orders already in Закрито.
 	if _, err = tx.Exec(`
 		WITH s AS (
@@ -493,8 +495,8 @@ func (r *MenuRepo) SyncOrderDraft(params SyncDraftParams) error {
 		SET order_status_id = (
 			SELECT CASE
 				WHEN s.active_cnt  = 0 THEN (SELECT order_status_id FROM order_statuses WHERE order_status_name = N'Скасовано')
-				WHEN s.new_cnt     > 0 THEN (SELECT order_status_id FROM order_statuses WHERE order_status_name = N'Нове')
 				WHEN s.cooking_cnt > 0 THEN (SELECT order_status_id FROM order_statuses WHERE order_status_name = N'Готується')
+				WHEN s.new_cnt     > 0 THEN (SELECT order_status_id FROM order_statuses WHERE order_status_name = N'Нове')
 				ELSE                        (SELECT order_status_id FROM order_statuses WHERE order_status_name = N'Готове')
 			END
 			FROM s

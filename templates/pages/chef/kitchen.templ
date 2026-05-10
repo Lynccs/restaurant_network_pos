@@ -10,6 +10,12 @@ import (
 	chefservice "restaurant_network_pos/internal/service/chef"
 )
 
+// dbOffset коригує "фальшивий UTC" (локальний київський час, що зберігається без TZ-мітки)
+// до реального Unix-timestamp: Go-драйвер читає datetime з MSSQL як UTC,
+// але GETDATE() записав місцевий час, тому реальний UTC на 3 год менший.
+const dbOffset = 3 * time.Hour
+
+
 // isTaskCookingOverdue повертає true якщо кухар вже готує довше за норму страви.
 func isTaskCookingOverdue(task chefservice.KitchenTaskView) bool {
 	if task.Status != chefservice.TaskStatusCooking || task.StartTime == nil {
@@ -218,7 +224,7 @@ templ TicketCol(ticket chefservice.KitchenTicket, currentChefID int) {
 		data-ticket-status={ ticketDominantStatus(ticket) }
 		data-table={ fmt.Sprintf("%d", ticket.TableNumber) }
 		data-overdue={ fmt.Sprintf("%v", ticket.IsOverdue) }
-		data-created-ms={ fmt.Sprintf("%d", ticket.CreatedAt.UnixMilli()) }
+		data-created-ms={ fmt.Sprintf("%d", ticket.CreatedAt.Add(-dbOffset).UnixMilli()) }
 		class={
 		"w-80 flex-shrink-0 rounded-xl flex flex-col shadow-xl overflow-hidden h-full max-h-full",
 		templ.KV("bg-red-50 ring-2 ring-red-400", ticket.IsOverdue),
@@ -245,7 +251,7 @@ templ TicketCol(ticket chefservice.KitchenTicket, currentChefID int) {
 				templ.KV("bg-red-700 text-white border-red-600", ticket.IsOverdue),
 				templ.KV("bg-slate-800 text-amber-400 border-slate-700", !ticket.IsOverdue),
 			}>
-				{ ticket.CreatedAt.Local().Format("15:04") }
+				{ ticket.CreatedAt.Format("15:04") }
 			</div>
 		</div>
 		<!-- Картки страв -->
@@ -396,7 +402,7 @@ templ readyHistoryTicketCol(ticket chefservice.KitchenTicket) {
 		data-ticket-status="ready"
 		data-table={ fmt.Sprintf("%d", ticket.TableNumber) }
 		data-overdue="false"
-		data-created-ms={ fmt.Sprintf("%d", ticket.CreatedAt.UnixMilli()) }
+		data-created-ms={ fmt.Sprintf("%d", ticket.CreatedAt.Add(-dbOffset).UnixMilli()) }
 		class="w-80 flex-shrink-0 rounded-xl flex flex-col shadow-xl overflow-hidden h-full max-h-full bg-slate-100"
 	>
 		<div class="px-4 py-3 flex items-center justify-between flex-shrink-0 border-b-4 bg-slate-900 border-slate-900">
@@ -407,7 +413,7 @@ templ readyHistoryTicketCol(ticket chefservice.KitchenTicket) {
 				</div>
 			</div>
 			<div class="text-sm font-bold mono px-2 py-1 rounded border bg-slate-800 text-amber-400 border-slate-700">
-				{ ticket.CreatedAt.Local().Format("15:04") }
+				{ ticket.CreatedAt.Format("15:04") }
 			</div>
 		</div>
 		<div class="flex-1 overflow-y-auto space-y-3 p-3 scrollbar-thin">
@@ -483,7 +489,7 @@ templ taskCard(task chefservice.KitchenTaskView, ticketOverdue bool, currentChef
 					templ.KV("bg-red-50 text-red-600 border-red-300 border-2", overdue),
 					templ.KV("bg-slate-100 text-slate-700 border-slate-200", !overdue),
 				}
-				data-start={ fmt.Sprintf("%d", task.StartTime.UnixMilli()) }
+				data-start={ fmt.Sprintf("%d", task.StartTime.Add(-dbOffset).UnixMilli()) }
 				data-limit={ fmt.Sprintf("%d", task.CookingTime) }
 			>
 				00:00

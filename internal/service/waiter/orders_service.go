@@ -74,7 +74,7 @@ func (s *OrdersService) GetActiveOrders(restaurantID int, search, statusName str
 				TableNumber: row.TableNumber,
 				WaiterName:  row.WaiterName,
 				TotalAmount: row.TotalAmount,
-				CreatedAt:   row.CreatedAt.Local().Format("2006-01-02 15:04"),
+				CreatedAt:   row.CreatedAt.Format("2006-01-02 15:04"),
 				StatusName:  row.StatusName,
 				HasIssue:    row.HasIssue,
 			})
@@ -122,7 +122,7 @@ func (s *OrdersService) GetArchiveOrders(restaurantID, waiterID int, search, sta
 				TableNumber: row.TableNumber,
 				WaiterName:  row.WaiterName,
 				TotalAmount: row.TotalAmount,
-				CreatedAt:   row.CreatedAt.Local().Format("2006-01-02 15:04"),
+				CreatedAt:   row.CreatedAt.Format("2006-01-02 15:04"),
 				StatusName:  row.StatusName,
 				HasIssue:    false,
 			})

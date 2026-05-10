@@ -502,7 +502,7 @@ func (s *PurchasesService) GetPurchaseRecommendations(supplierID int, supplierIn
 		}
 	}
 
-	daysUntilDelivery := expectedDelivery.Sub(time.Now()).Hours() / 24
+	daysUntilDelivery := time.Until(expectedDelivery).Hours() / 24
 	if daysUntilDelivery < 0 {
 		daysUntilDelivery = 0
 	}
