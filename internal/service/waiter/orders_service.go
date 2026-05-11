@@ -41,6 +41,7 @@ type ArchivePagination struct {
 type ordersRepoIface interface {
 	GetActiveOrdersList(restaurantID int, f waiterrepo.OrderListFilters) ([]waiterrepo.OrderListRow, error)
 	GetArchiveOrdersList(restaurantID, waiterID int, f waiterrepo.ArchiveFilters, page int) ([]waiterrepo.OrderListRow, int, error)
+	GetArchiveTableNumbers(restaurantID, waiterID int) ([]int, error)
 	CancelOrder(orderID, restaurantID int) error
 	PayOrder(orderID, restaurantID int, paymentMethod string) error
 	RejectPayment(orderID, restaurantID int, paymentMethod string) error
@@ -170,4 +171,8 @@ func (s *OrdersService) PayOrder(orderID, restaurantID int, paymentMethod string
 
 func (s *OrdersService) RejectPayment(orderID, restaurantID int, paymentMethod string) error {
 	return s.repo.RejectPayment(orderID, restaurantID, paymentMethod)
+}
+
+func (s *OrdersService) GetArchiveTableNumbers(restaurantID, waiterID int) ([]int, error) {
+	return s.repo.GetArchiveTableNumbers(restaurantID, waiterID)
 }

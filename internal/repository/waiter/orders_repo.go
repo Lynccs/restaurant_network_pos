@@ -152,6 +152,36 @@ func (r *OrdersRepo) GetActiveOrdersList(restaurantID int, f OrderListFilters) (
 	return result, rows.Err()
 }
 
+// GetArchiveTableNumbers повертає відсортований список унікальних № столів
+// для закритих/скасованих замовлень офіціанта в цьому ресторані.
+func (r *OrdersRepo) GetArchiveTableNumbers(restaurantID, waiterID int) ([]int, error) {
+	rows, err := r.db.Query(`
+		SELECT DISTINCT t.table_number
+		FROM orders o
+		JOIN tables t          ON t.table_id        = o.table_id
+		JOIN order_statuses os ON os.order_status_id = o.order_status_id
+		WHERE t.restaurant_id = @restaurantID
+		  AND o.waiter_id     = @waiterID
+		  AND os.order_status_name IN (N'Закрито', N'Скасовано')
+		ORDER BY t.table_number`,
+		sql.Named("restaurantID", restaurantID),
+		sql.Named("waiterID", waiterID),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("GetArchiveTableNumbers: %w", err)
+	}
+	defer rows.Close()
+	var result []int
+	for rows.Next() {
+		var n int
+		if err := rows.Scan(&n); err != nil {
+			return nil, fmt.Errorf("GetArchiveTableNumbers scan: %w", err)
+		}
+		result = append(result, n)
+	}
+	return result, rows.Err()
+}
+
 type ArchiveFilters struct {
 	Search      string
 	StatusName  string // optional: "Закрито" or "Скасовано"
