@@ -77,8 +77,7 @@ func (r *OrdersRepo) GetActiveOrdersList(restaurantID int, f OrderListFilters) (
 			JOIN waiters w         ON w.waiter_id         = o.waiter_id
 			JOIN order_statuses os ON os.order_status_id = o.order_status_id
 			WHERE t.restaurant_id = @restaurantID
-			  AND os.order_status_name NOT IN (N'Закрито', N'Скасовано')
-			  AND o.order_created_at >= DATEADD(day, -2, GETDATE())`)
+			  AND os.order_status_name NOT IN (N'Закрито', N'Скасовано')`)
 
 	if f.StatusName != "" {
 		args = append(args, sql.Named("statusName", f.StatusName))
