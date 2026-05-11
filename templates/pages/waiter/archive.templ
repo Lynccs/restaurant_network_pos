@@ -7,6 +7,37 @@ import (
 	waiterservice "restaurant_network_pos/internal/service/waiter"
 )
 
+// archivePageNums повертає номери сторінок для навігації; 0 означає "…".
+func archivePageNums(current, total int) []int {
+	if total <= 7 {
+		nums := make([]int, total)
+		for i := range nums {
+			nums[i] = i + 1
+		}
+		return nums
+	}
+	show := map[int]bool{1: true, total: true}
+	for _, p := range []int{current - 1, current, current + 1} {
+		if p >= 1 && p <= total {
+			show[p] = true
+		}
+	}
+	var pages []int
+	for p := 1; p <= total; p++ {
+		if show[p] {
+			pages = append(pages, p)
+		}
+	}
+	var result []int
+	for i, p := range pages {
+		if i > 0 && p-pages[i-1] > 1 {
+			result = append(result, 0)
+		}
+		result = append(result, p)
+	}
+	return result
+}
+
 func archiveStatusBadgeClass(statusName string) string {
 	switch statusName {
 	case "Скасовано":
@@ -26,7 +57,7 @@ func archiveCardHeaderClass(statusName string) string {
 	}
 }
 
-templ ArchiveList(orders []waiterservice.OrderView) {
+templ ArchiveList(orders []waiterservice.OrderView, p waiterservice.ArchivePagination) {
 	if len(orders) == 0 {
 		<div class="text-center py-16 text-slate-400">
 			<svg class="w-12 h-12 mx-auto mb-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -40,7 +71,55 @@ templ ArchiveList(orders []waiterservice.OrderView) {
 				@archiveCard(o)
 			}
 		</div>
+		@archivePaginationControls(p)
 	}
+}
+
+templ archivePaginationControls(p waiterservice.ArchivePagination) {
+	<div class="mt-4 flex items-center justify-between text-sm text-slate-500">
+		<span>
+			if p.TotalPages > 1 {
+				{ fmt.Sprintf("Замовлень: %d · Сторінка %d з %d", p.TotalOrders, p.Page, p.TotalPages) }
+			} else {
+				{ fmt.Sprintf("Замовлень: %d", p.TotalOrders) }
+			}
+		</span>
+		if p.TotalPages > 1 {
+			<div class="flex items-center gap-1">
+				if p.Page > 1 {
+					<button
+						type="button"
+						onclick={ templ.ComponentScript{Call: fmt.Sprintf("archiveGoToPage(%d)", p.Page-1)} }
+						class="px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+					>←</button>
+				} else {
+					<span class="px-3 py-1.5 border border-slate-100 rounded-lg text-slate-300 select-none">←</span>
+				}
+				for _, pn := range archivePageNums(p.Page, p.TotalPages) {
+					if pn == 0 {
+						<span class="px-1 text-slate-300 select-none">…</span>
+					} else if pn == p.Page {
+						<span class="px-3 py-1.5 bg-blue-500 text-white rounded-lg font-medium select-none">{ strconv.Itoa(pn) }</span>
+					} else {
+						<button
+							type="button"
+							onclick={ templ.ComponentScript{Call: fmt.Sprintf("archiveGoToPage(%d)", pn)} }
+							class="px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+						>{ strconv.Itoa(pn) }</button>
+					}
+				}
+				if p.Page < p.TotalPages {
+					<button
+						type="button"
+						onclick={ templ.ComponentScript{Call: fmt.Sprintf("archiveGoToPage(%d)", p.Page+1)} }
+						class="px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+					>→</button>
+				} else {
+					<span class="px-3 py-1.5 border border-slate-100 rounded-lg text-slate-300 select-none">→</span>
+				}
+			</div>
+		}
+	</div>
 }
 
 templ archiveCard(o waiterservice.OrderView) {

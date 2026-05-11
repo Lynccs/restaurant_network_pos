@@ -13,6 +13,8 @@ var ordersRepoLog = log.New(log.Writer(), "[OrdersRepo] ", log.LstdFlags|log.Lsh
 
 const payNumChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
+const ArchivePageSize = 10
+
 func generatePaymentNumber() string {
 	b := make([]byte, 10)
 	for i := range b {
@@ -43,6 +45,7 @@ type OrderListRow struct {
 	ItemQty      int
 	HasIssue     bool // хоч одна позиція замовлення має order_item_has_issue=1
 	ItemHasIssue bool // ця конкретна позиція
+	TotalOrders  int  // загальна кількість замовлень (лише для архівного пагінованого запиту)
 }
 
 type OrdersRepo struct {
@@ -157,9 +160,13 @@ type ArchiveFilters struct {
 	DateTo      string // "YYYY-MM-DDTHH:MM"
 }
 
-func (r *OrdersRepo) GetArchiveOrdersList(restaurantID, waiterID int, f ArchiveFilters) ([]OrderListRow, error) {
-	ordersRepoLog.Printf("GetArchiveOrdersList: restaurantID=%d waiterID=%d search=%q status=%q table=%d",
-		restaurantID, waiterID, f.Search, f.StatusName, f.TableNumber)
+func (r *OrdersRepo) GetArchiveOrdersList(restaurantID, waiterID int, f ArchiveFilters, page int) ([]OrderListRow, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	offset := (page - 1) * ArchivePageSize
+	ordersRepoLog.Printf("GetArchiveOrdersList: restaurantID=%d waiterID=%d search=%q status=%q table=%d page=%d",
+		restaurantID, waiterID, f.Search, f.StatusName, f.TableNumber, page)
 
 	args := []any{
 		sql.Named("restaurantID", restaurantID),
@@ -168,6 +175,7 @@ func (r *OrdersRepo) GetArchiveOrdersList(restaurantID, waiterID int, f ArchiveF
 		sql.Named("dateTo", f.DateTo),
 	}
 
+	// CTE FilteredOrders нумерує замовлення та рахує загальну кількість в одному запиті.
 	var sb strings.Builder
 	sb.WriteString(`
 		WITH FilteredOrders AS (
@@ -177,7 +185,9 @@ func (r *OrdersRepo) GetArchiveOrdersList(restaurantID, waiterID int, f ArchiveF
 				w.waiter_full_name,
 				o.order_total_amount,
 				o.order_created_at,
-				os.order_status_name
+				os.order_status_name,
+				ROW_NUMBER() OVER (ORDER BY o.order_created_at DESC) AS rn,
+				COUNT(*)     OVER ()                                  AS total_orders
 			FROM orders o
 			JOIN tables t          ON t.table_id         = o.table_id
 			JOIN waiters w         ON w.waiter_id         = o.waiter_id
@@ -201,6 +211,8 @@ func (r *OrdersRepo) GetArchiveOrdersList(restaurantID, waiterID int, f ArchiveF
 		sb.WriteString("\n\t\t  AND RIGHT(o.order_number, CHARINDEX('-', REVERSE(o.order_number)) - 1) LIKE '%' + @search + '%'")
 	}
 
+	args = append(args, sql.Named("offset", offset), sql.Named("pageSize", ArchivePageSize))
+
 	sb.WriteString(`
 		)
 		SELECT
@@ -213,20 +225,23 @@ func (r *OrdersRepo) GetArchiveOrdersList(restaurantID, waiterID int, f ArchiveF
 			oi.order_item_id,
 			d.dish_name,
 			d.dish_price,
-			oi.order_item_quantity
+			oi.order_item_quantity,
+			fo.total_orders
 		FROM FilteredOrders fo
 		JOIN order_items oi ON oi.order_id = fo.order_id
 		                   AND oi.order_item_quantity > oi.cancelled_quantity
 		JOIN dishes d       ON d.dish_id   = oi.dish_id
-		ORDER BY fo.order_created_at DESC, oi.order_item_id ASC`)
+		WHERE fo.rn > @offset AND fo.rn <= @offset + @pageSize
+		ORDER BY fo.rn, oi.order_item_id ASC`)
 
 	rows, err := r.db.Query(sb.String(), args...)
 	if err != nil {
-		return nil, fmt.Errorf("GetArchiveOrdersList query: %w", err)
+		return nil, 0, fmt.Errorf("GetArchiveOrdersList query: %w", err)
 	}
 	defer rows.Close()
 
 	var result []OrderListRow
+	var totalOrders int
 	for rows.Next() {
 		var row OrderListRow
 		if err := rows.Scan(
@@ -240,12 +255,13 @@ func (r *OrdersRepo) GetArchiveOrdersList(restaurantID, waiterID int, f ArchiveF
 			&row.DishName,
 			&row.DishPrice,
 			&row.ItemQty,
+			&totalOrders,
 		); err != nil {
-			return nil, fmt.Errorf("GetArchiveOrdersList scan: %w", err)
+			return nil, 0, fmt.Errorf("GetArchiveOrdersList scan: %w", err)
 		}
 		result = append(result, row)
 	}
-	return result, rows.Err()
+	return result, totalOrders, rows.Err()
 }
 
 func (r *OrdersRepo) CancelOrder(orderID, restaurantID int) error {

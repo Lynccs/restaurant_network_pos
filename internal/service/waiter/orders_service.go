@@ -31,9 +31,16 @@ type OrderView struct {
 	Items       []OrderItemView
 }
 
+// ArchivePagination містить дані про поточну сторінку для UI-компонента пагінації.
+type ArchivePagination struct {
+	Page        int
+	TotalOrders int
+	TotalPages  int
+}
+
 type ordersRepoIface interface {
 	GetActiveOrdersList(restaurantID int, f waiterrepo.OrderListFilters) ([]waiterrepo.OrderListRow, error)
-	GetArchiveOrdersList(restaurantID, waiterID int, f waiterrepo.ArchiveFilters) ([]waiterrepo.OrderListRow, error)
+	GetArchiveOrdersList(restaurantID, waiterID int, f waiterrepo.ArchiveFilters, page int) ([]waiterrepo.OrderListRow, int, error)
 	CancelOrder(orderID, restaurantID int) error
 	PayOrder(orderID, restaurantID int, paymentMethod string) error
 	RejectPayment(orderID, restaurantID int, paymentMethod string) error
@@ -96,16 +103,16 @@ func (s *OrdersService) GetActiveOrders(restaurantID int, search, statusName str
 	return orders, nil
 }
 
-func (s *OrdersService) GetArchiveOrders(restaurantID, waiterID int, search, statusName string, tableNumber int, dateFrom, dateTo string) ([]OrderView, error) {
-	rows, err := s.repo.GetArchiveOrdersList(restaurantID, waiterID, waiterrepo.ArchiveFilters{
+func (s *OrdersService) GetArchiveOrders(restaurantID, waiterID int, search, statusName string, tableNumber int, dateFrom, dateTo string, page int) ([]OrderView, ArchivePagination, error) {
+	rows, total, err := s.repo.GetArchiveOrdersList(restaurantID, waiterID, waiterrepo.ArchiveFilters{
 		Search:      search,
 		StatusName:  statusName,
 		TableNumber: tableNumber,
 		DateFrom:    dateFrom,
 		DateTo:      dateTo,
-	})
+	}, page)
 	if err != nil {
-		return nil, fmt.Errorf("GetArchiveOrders: %w", err)
+		return nil, ArchivePagination{}, fmt.Errorf("GetArchiveOrders: %w", err)
 	}
 
 	var orders []OrderView
@@ -137,8 +144,20 @@ func (s *OrdersService) GetArchiveOrders(restaurantID, waiterID int, search, sta
 		})
 	}
 
-	ordersSvcLog.Printf("GetArchiveOrders: restaurantID=%d waiterID=%d returned %d orders", restaurantID, waiterID, len(orders))
-	return orders, nil
+	totalPages := (total + waiterrepo.ArchivePageSize - 1) / waiterrepo.ArchivePageSize
+	if totalPages == 0 {
+		totalPages = 1
+	}
+	if page < 1 {
+		page = 1
+	}
+	if page > totalPages {
+		page = totalPages
+	}
+	p := ArchivePagination{Page: page, TotalOrders: total, TotalPages: totalPages}
+
+	ordersSvcLog.Printf("GetArchiveOrders: restaurantID=%d waiterID=%d returned %d orders page=%d/%d", restaurantID, waiterID, len(orders), page, totalPages)
+	return orders, p, nil
 }
 
 func (s *OrdersService) CancelOrder(orderID, restaurantID int) error {

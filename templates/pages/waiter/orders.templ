@@ -60,7 +60,7 @@ func orderCardHeaderClass(statusName string, hasIssue bool) string {
 }
 
 
-templ OrdersPage(activeOrders []waiterservice.OrderView, archiveOrders []waiterservice.OrderView, dateFrom, dateTo string) {
+templ OrdersPage(activeOrders []waiterservice.OrderView, archiveOrders []waiterservice.OrderView, archivePagination waiterservice.ArchivePagination, dateFrom, dateTo string) {
 	<div class="p-6 max-w-5xl mx-auto fade-in">
 		<style>
 			.accordion-body { max-height: 0; overflow: hidden; transition: max-height 0.28s ease; }
@@ -173,8 +173,10 @@ templ OrdersPage(activeOrders []waiterservice.OrderView, archiveOrders []waiters
 				hx-swap="innerHTML"
 				class="w-full flex gap-3 mb-5 flex-wrap items-center"
 			>
+				<input type="hidden" name="page" id="archive-page-input" value="1"/>
 				<select
 					name="status"
+					onchange="archiveResetPage()"
 					class="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600 bg-white focus:outline-none focus:border-blue-400"
 				>
 					<option value="">Всі статуси</option>
@@ -183,6 +185,7 @@ templ OrdersPage(activeOrders []waiterservice.OrderView, archiveOrders []waiters
 				</select>
 				<select
 					name="table_number"
+					onchange="archiveResetPage()"
 					class="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600 bg-white focus:outline-none focus:border-blue-400"
 				>
 					<option value="0">Всі столики</option>
@@ -198,6 +201,7 @@ templ OrdersPage(activeOrders []waiterservice.OrderView, archiveOrders []waiters
 						value={ dateFrom }
 						placeholder="дд.мм.рррр гг:хх"
 						readonly="readonly"
+						onchange="archiveResetPage()"
 						class="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-blue-400 cursor-pointer w-44"
 					/>
 					<span class="text-slate-400 text-sm">—</span>
@@ -208,6 +212,7 @@ templ OrdersPage(activeOrders []waiterservice.OrderView, archiveOrders []waiters
 						value={ dateTo }
 						placeholder="дд.мм.рррр гг:хх"
 						readonly="readonly"
+						onchange="archiveResetPage()"
 						class="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-blue-400 cursor-pointer w-44"
 					/>
 				</div>
@@ -216,14 +221,14 @@ templ OrdersPage(activeOrders []waiterservice.OrderView, archiveOrders []waiters
 					name="search"
 					min="1"
 					placeholder="№ замовлення..."
-					oninput="this.value=this.value.replace(/[^0-9]/g,''); if(this.value<1&&this.value!='') this.value='';"
+					oninput="this.value=this.value.replace(/[^0-9]/g,''); if(this.value<1&&this.value!='') this.value=''; archiveResetPage();"
 					onkeydown="if(event.key==='Enter'){event.preventDefault(); htmx.trigger(this.form, 'change');}"
 					class="flex-1 min-w-36 border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-blue-400"
 				/>
 			</form>
 			<!-- List -->
 			<div id="archive-list-wrapper">
-				@ArchiveList(archiveOrders)
+				@ArchiveList(archiveOrders, archivePagination)
 			</div>
 		</div>
 		<!-- Payment modal -->
@@ -369,6 +374,15 @@ templ OrdersPage(activeOrders []waiterservice.OrderView, archiveOrders []waiters
 				var chevron = document.getElementById('arc-chevron-' + id);
 				body.classList.toggle('open');
 				chevron.classList.toggle('rotated');
+			}
+
+			function archiveGoToPage(n) {
+				document.getElementById('archive-page-input').value = n;
+				htmx.trigger(document.getElementById('archive-filter-form'), 'change');
+			}
+			function archiveResetPage() {
+				var el = document.getElementById('archive-page-input');
+				if (el) el.value = '1';
 			}
 
 			var _pendingPayOrderID = null;
