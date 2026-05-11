@@ -217,11 +217,14 @@ func renderYieldAlertsBody(alerts []adminservice.YieldAlert) string {
 		}
 		seen[a.DishID] = true
 
-		daysLabel := fmt.Sprintf("%d дн.", a.DaysLeft)
-		if a.DaysLeft == 0 {
+		var daysLabel string
+		switch a.DaysLeft {
+		case 0:
 			daysLabel = "сьогодні"
-		} else if a.DaysLeft == 1 {
+		case 1:
 			daysLabel = "1 день"
+		default:
+			daysLabel = fmt.Sprintf("%d дн.", a.DaysLeft)
 		}
 
 		b.WriteString(`<div class="bg-slate-50 border border-slate-200 rounded-xl p-4">`)

@@ -230,8 +230,8 @@ func buildOrders(rows []adminrepo.PurchaseOrderRow) []PurchaseOrder {
 	return result
 }
 
-func buildPagination(total, page int) PurchasesPagination {
-	totalPages := (total + adminrepo.PurchasesPageSize - 1) / adminrepo.PurchasesPageSize
+func buildPagination(total, page, pageSize int) PurchasesPagination {
+	totalPages := (total + pageSize - 1) / pageSize
 	if totalPages == 0 {
 		totalPages = 1
 	}
@@ -271,7 +271,7 @@ func (s *PurchasesService) GetPurchasesPage(restaurantID, adminID int, f Purchas
 
 	return &PurchasesPageView{
 		Orders:     buildOrders(rows),
-		Pagination: buildPagination(total, f.Page),
+		Pagination: buildPagination(total, f.Page, adminrepo.PurchasesPageSize),
 		Filters:    f,
 		Suppliers:  supplierOpts,
 		Statuses:   statusOpts,
@@ -286,7 +286,7 @@ func (s *PurchasesService) GetPurchasesList(restaurantID, adminID int, f Purchas
 	}
 	return &PurchasesPageView{
 		Orders:     buildOrders(rows),
-		Pagination: buildPagination(total, f.Page),
+		Pagination: buildPagination(total, f.Page, adminrepo.PurchasesPageSize),
 		Filters:    f,
 		AdminID:    adminID,
 	}, nil

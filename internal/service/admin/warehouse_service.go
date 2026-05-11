@@ -197,7 +197,7 @@ func (s *PurchasesService) GetWarehousePage(restaurantID int, f WarehouseFilters
 		IngredientOptions:        ingredientOptions,
 		RestaurantOptions:        restaurantOptions,
 		WriteOffReasons:          writeOffReasons,
-		Pagination:               buildPagination(total, f.Page),
+		Pagination:               buildPagination(total, f.Page, adminrepo.WarehousePageSize),
 	}, nil
 }
 
