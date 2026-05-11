@@ -192,7 +192,7 @@ func (h *KitchenHandler) ReadyBoardFragment(w http.ResponseWriter, r *http.Reque
 	chefpages.ReadyHistoryBoard(tickets, allChefs, dateStr).Render(r.Context(), w)
 }
 
-// StartCookingModal — GET /chef/kitchen/tasks/{id}/start-modal.
+// StartCookingModal — GET /chef/kitchen/tasks/{id}/start-modal?order_id={orderID}.
 // Повертає HTML модального вікна з рецептом страви та всіма інгредієнтами.
 func (h *KitchenHandler) StartCookingModal(w http.ResponseWriter, r *http.Request) {
 	restaurantID, _, _, err := h.sessionData(r)
@@ -205,13 +205,14 @@ func (h *KitchenHandler) StartCookingModal(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
+	orderID, _ := strconv.Atoi(r.URL.Query().Get("order_id"))
 	data, err := h.Svc.GetStartCookingData(orderItemID, restaurantID)
 	if err != nil {
 		kitchenHandlerLog.Printf("StartCookingModal: %v", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	chefpages.StartCookingModal(*data).Render(r.Context(), w)
+	chefpages.StartCookingModal(*data, orderID).Render(r.Context(), w)
 }
 
 // StartCooking — POST /chef/kitchen/tasks/{id}/start.
@@ -288,7 +289,7 @@ func (h *KitchenHandler) FinishCooking(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// IssueModal — GET /chef/kitchen/tasks/{id}/issue-modal.
+// IssueModal — GET /chef/kitchen/tasks/{id}/issue-modal?order_id={orderID}.
 func (h *KitchenHandler) IssueModal(w http.ResponseWriter, r *http.Request) {
 	_, _, _, err := h.sessionData(r)
 	if err != nil {
@@ -302,6 +303,8 @@ func (h *KitchenHandler) IssueModal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	orderID, _ := strconv.Atoi(r.URL.Query().Get("order_id"))
+
 	dishName, qty, err := h.Svc.GetOrderItemInfo(actionID)
 	if err != nil {
 		kitchenHandlerLog.Printf("IssueModal: GetOrderItemInfo id=%d error: %v", actionID, err)
@@ -309,12 +312,14 @@ func (h *KitchenHandler) IssueModal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	chefpages.IssueModal(actionID, dishName, qty).Render(r.Context(), w)
+	chefpages.IssueModal(actionID, dishName, qty, orderID).Render(r.Context(), w)
 }
 
 // ReportIssue — POST /chef/kitchen/tasks/{id}/report-issue.
+// Тікет видаляється з DOM на стороні клієнта через hx-swap="delete";
+// повертати HTML дошки не потрібно — достатньо 200 OK.
 func (h *KitchenHandler) ReportIssue(w http.ResponseWriter, r *http.Request) {
-	restaurantID, chefID, _, err := h.sessionData(r)
+	restaurantID, _, _, err := h.sessionData(r)
 	if err != nil {
 		http.Error(w, "session error", http.StatusInternalServerError)
 		return
@@ -334,17 +339,39 @@ func (h *KitchenHandler) ReportIssue(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.Broadcaster.NotifyIssue(restaurantID, payload) // сповіщає офіціантів
-	h.Broadcaster.Notify(restaurantID)               // оновлює KDS (позиція зникла)
+	h.Broadcaster.Notify(restaurantID)               // оновлює KDS у інших кухарів
+	w.WriteHeader(http.StatusOK)
+}
+
+// TicketFragment — GET /chef/kitchen/tickets/{id}.
+// Повертає HTML одного тікета (#ticket-{id}) після власної дії кухаря,
+// щоб уникнути перезавантаження всієї дошки через SSE.
+func (h *KitchenHandler) TicketFragment(w http.ResponseWriter, r *http.Request) {
+	restaurantID, chefID, _, err := h.sessionData(r)
+	if err != nil {
+		http.Error(w, "session error", http.StatusInternalServerError)
+		return
+	}
+
+	orderID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
 
 	tickets, err := h.Svc.GetKitchenBoard(restaurantID, chefID)
 	if err != nil {
+		kitchenHandlerLog.Printf("TicketFragment: %v", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	allChefs, err := h.Svc.GetAllChefs(restaurantID)
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
+
+	for _, t := range tickets {
+		if t.OrderID == orderID {
+			chefpages.TicketCol(t, chefID).Render(r.Context(), w)
+			return
+		}
 	}
-	chefpages.KitchenBoard(tickets, chefID, allChefs).Render(r.Context(), w)
+	// Тікет не знайдено — повертаємо пустий 200 (HTMX outerHTML замінить на нічого)
+	w.WriteHeader(http.StatusOK)
 }

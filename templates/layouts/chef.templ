@@ -232,6 +232,7 @@ templ ChefLayout(name string, activePage string, content templ.Component) {
 					};
 					es.onmessage = function() {
 						if (window.kdsFilters && window.kdsFilters.status === 'ready') return;
+						if (window._kdsActionTime && Date.now() - window._kdsActionTime < 2000) return;
 						var board = document.getElementById('kitchen-board');
 						if (board) htmx.trigger(board, 'sse-refresh');
 					};

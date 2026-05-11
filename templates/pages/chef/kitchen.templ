@@ -504,7 +504,7 @@ templ taskCard(task chefservice.KitchenTaskView, ticketOverdue bool, currentChef
 		<!-- Кнопки дій -->
 		if task.Status == chefservice.TaskStatusNew {
 			<button
-				hx-get={ fmt.Sprintf("/chef/kitchen/tasks/%d/start-modal", task.OrderItemID) }
+				hx-get={ fmt.Sprintf("/chef/kitchen/tasks/%d/start-modal?order_id=%d", task.OrderItemID, orderID) }
 				hx-target="#chef-modal"
 				hx-swap="innerHTML"
 				class="w-full bg-amber-400 hover:bg-amber-500 text-amber-900 text-sm font-bold uppercase tracking-wide py-2.5 rounded-lg transition-all shadow-sm border border-amber-500 mb-2"
@@ -512,7 +512,7 @@ templ taskCard(task chefservice.KitchenTaskView, ticketOverdue bool, currentChef
 				ПОЧАТИ ПРИГОТУВАННЯ
 			</button>
 			<button
-				hx-get={ fmt.Sprintf("/chef/kitchen/tasks/%d/issue-modal", task.OrderItemID) }
+				hx-get={ fmt.Sprintf("/chef/kitchen/tasks/%d/issue-modal?order_id=%d", task.OrderItemID, orderID) }
 				hx-target="#chef-modal"
 				hx-swap="innerHTML"
 				class="w-full bg-red-100 hover:bg-red-200 text-red-700 text-sm font-bold uppercase tracking-wide py-2.5 rounded-lg transition-all border border-red-300"
@@ -546,7 +546,7 @@ func fmtQty(v float64) string {
 
 // StartCookingModal — модальне вікно з рецептом страви перед стартом приготування.
 // Завантажується в #chef-modal через HTMX GET.
-templ StartCookingModal(data chefservice.StartCookingView) {
+templ StartCookingModal(data chefservice.StartCookingView, orderID int) {
 	<div
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
 		onclick="if(event.target===this)this.closest('#chef-modal').innerHTML=''"
@@ -570,7 +570,9 @@ templ StartCookingModal(data chefservice.StartCookingView) {
 			<!-- Форма -->
 			<form
 				hx-post={ fmt.Sprintf("/chef/kitchen/tasks/%d/start", data.OrderItemID) }
-				hx-on--after-request="if(event.detail.successful)document.getElementById('chef-modal').innerHTML=''"
+				hx-swap="none"
+				hx-on--before-request="window._kdsActionTime=Date.now()"
+				hx-on--after-request={ fmt.Sprintf("if(event.detail.successful){document.getElementById('chef-modal').innerHTML='';htmx.ajax('GET','/chef/kitchen/tickets/%d',{target:'#ticket-%d',swap:'outerHTML'})}", orderID, orderID) }
 				class="flex-1 overflow-hidden flex flex-col min-h-0"
 				onsubmit="var errs=document.querySelectorAll('#kds-ing-list [id$=-err]');for(var i=0;i<errs.length;i++){if(errs[i].textContent.trim()){alert('Виправте помилки перед збереженням.');return false;}}"
 			>
@@ -737,7 +739,7 @@ templ kdsIngRow(ing chefservice.IngredientView, checked bool) {
 
 // IssueModal — модальне вікно підтвердження нестачі продуктів.
 // Завантажується в #chef-modal через HTMX GET.
-templ IssueModal(taskID int, dishName string, qty int) {
+templ IssueModal(taskID int, dishName string, qty int, orderID int) {
 	<div
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
 		onclick="if(event.target===this)this.closest('#chef-modal').innerHTML=''"
@@ -765,8 +767,9 @@ templ IssueModal(taskID int, dishName string, qty int) {
 			<div class="px-6 py-4 border-t border-slate-100 bg-slate-50 flex gap-3">
 				<button
 					hx-post={ fmt.Sprintf("/chef/kitchen/tasks/%d/report-issue", taskID) }
-					hx-target="#kitchen-board"
-					hx-swap="outerHTML"
+					hx-target={ fmt.Sprintf("#ticket-%d", orderID) }
+					hx-swap="delete"
+					hx-on--before-request="window._kdsActionTime=Date.now()"
 					hx-on--after-request="document.getElementById('chef-modal').innerHTML=''"
 					class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold uppercase tracking-wide py-2.5 rounded-lg border border-red-700 transition-all"
 				>
