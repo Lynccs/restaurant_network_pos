@@ -639,6 +639,52 @@ templ PurchasesPage(view *adminservice.PurchasesPageView) {
 			closeDeleteBatchConfirm();
 		}
 
+
+
+		// ── Відкладене видалення позицій замовлення ──────────────────────────────
+		var _pendingDeletes = [];
+		function markItemForDelete(e, detailId) {
+			e.stopPropagation();
+			var row = document.getElementById('item-row-' + detailId);
+			if (!row) return;
+			row.style.display = 'none';
+			if (_pendingDeletes.indexOf(detailId) === -1) _pendingDeletes.push(detailId);
+			_recalcOrderTotal();
+		}
+		function _recalcOrderTotal() {
+			var total = 0;
+			var rows = document.querySelectorAll('#order-items-tbody tr[data-item-total]');
+			rows.forEach(function(row) {
+				if (row.style.display !== 'none') total += parseFloat(row.dataset.itemTotal) || 0;
+			});
+			var amountEl = document.getElementById('order-total-amount');
+			var block = document.getElementById('order-total-block');
+			if (amountEl) amountEl.textContent = total.toFixed(2) + ' ₴';
+			if (block) block.style.display = total > 0 ? '' : 'none';
+		}
+		function saveOrderWithDeletes(orderID) {
+			if (_pendingDeletes.length === 0) {
+				adminCloseModal();
+				var f = document.getElementById('purchases-filter-form');
+				if (f) htmx.trigger(f, 'submit');
+				return;
+			}
+			var ids = _pendingDeletes.slice();
+			var done = 0;
+			ids.forEach(function(detailId) {
+				fetch('/admin/purchases/' + orderID + '/items/' + detailId, {method: 'DELETE'})
+					.finally(function() {
+						done++;
+						if (done === ids.length) {
+							_pendingDeletes = [];
+							adminCloseModal();
+							var f = document.getElementById('purchases-filter-form');
+							if (f) htmx.trigger(f, 'submit');
+						}
+					});
+			});
+		}
+
 		document.addEventListener('DOMContentLoaded', function() {
 			document.getElementById('purchases-filter-btn').addEventListener('click', openFilterModal);
 		});
@@ -1528,7 +1574,7 @@ templ OrderDetailsModal(o adminservice.PurchaseOrder, ingredients []adminservice
 								}
 							</tr>
 						</thead>
-						<tbody class="divide-y divide-slate-100">
+						<tbody id="order-items-tbody" class="divide-y divide-slate-100">
 							if len(o.Items) == 0 {
 								<tr>
 									<td colspan="5" class="py-6 text-center text-slate-400 text-sm">Позицій немає. Додайте інгредієнти.</td>
@@ -1537,12 +1583,15 @@ templ OrderDetailsModal(o adminservice.PurchaseOrder, ingredients []adminservice
 								for _, item := range o.Items {
 								{{ display := displayQtyPrice(item.Qty, item.Price, item.Unit) }}
 									if o.Status == "Створено" && o.AdminID == adminID {
-										<tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50 cursor-pointer"
+										<tr
+											id={ "item-row-" + strconv.Itoa(item.DetailID) }
+											class="border-b border-slate-100 last:border-0 hover:bg-slate-50 cursor-pointer"
 											data-detail-id={ strconv.Itoa(item.DetailID) }
 											data-ingredient-id={ strconv.Itoa(item.IngredientID) }
 											data-qty={ fmtQty(display.Qty) }
 											data-price={ fmtMoney(display.Price) }
 											data-unit={ display.Unit }
+											data-item-total={ fmt.Sprintf("%.4f", display.Qty * display.Price) }
 											onclick="startOrderItemEdit(this)"
 										>
 											<td class="py-3 px-5 text-sm text-slate-700 font-medium w-full">{ item.Name } <span class="text-slate-400">({ display.Unit })</span></td>
@@ -1552,11 +1601,7 @@ templ OrderDetailsModal(o adminservice.PurchaseOrder, ingredients []adminservice
 											<td class="py-3 px-3 text-right">
 												<button
 													class="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors"
-													onclick="event.stopPropagation()"
-													hx-delete={ "/admin/purchases/" + strconv.Itoa(o.ID) + "/items/" + strconv.Itoa(item.DetailID) }
-													hx-target="#admin-modal-content"
-													hx-swap="innerHTML"
-													hx-confirm="Видалити цю позицію?"
+													onclick={ templ.ComponentScript{Call: fmt.Sprintf("markItemForDelete(event,%d)", item.DetailID)} }
 												>
 													<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
 												</button>
@@ -1577,12 +1622,10 @@ templ OrderDetailsModal(o adminservice.PurchaseOrder, ingredients []adminservice
 				</div>
 			</div>
 
-			if o.Total > 0 {
-				<div class="flex justify-between items-center p-4 bg-slate-100 rounded-xl border border-slate-200 shadow-sm mt-auto">
-					<span class="text-sm font-bold text-slate-600 uppercase tracking-wider">Загальна вартість:</span>
-					<span class="text-2xl font-bold mono text-slate-900">{ fmtMoney(o.Total) } ₴</span>
-				</div>
-			}
+			<div id="order-total-block" class="flex justify-between items-center p-4 bg-slate-100 rounded-xl border border-slate-200 shadow-sm mt-auto" style={ templ.SafeCSS(func() string { if o.Total > 0 { return "" } else { return "display:none" } }()) }>
+				<span class="text-sm font-bold text-slate-600 uppercase tracking-wider">Загальна вартість:</span>
+				<span id="order-total-amount" class="text-2xl font-bold mono text-slate-900">{ fmtMoney(o.Total) } ₴</span>
+			</div>
 		</div>
 
 		<!-- Action buttons -->
@@ -1595,7 +1638,7 @@ templ OrderDetailsModal(o adminservice.PurchaseOrder, ingredients []adminservice
 					} else {
 						<button
 							type="button"
-							onclick="adminCloseModal(); var f = document.getElementById('purchases-filter-form'); if (f) htmx.trigger(f, 'submit');"
+							onclick={ templ.ComponentScript{Call: fmt.Sprintf("saveOrderWithDeletes(%d)", o.ID)} }
 							class="w-full bg-slate-800 hover:bg-slate-900 text-white text-sm py-2.5 rounded-lg font-bold transition-colors"
 						>
 							Зберегти
