@@ -54,6 +54,13 @@ func buildOrders(rows []chefrepo.WriteOffRow) []WriteOffOrder {
 	var orderNums []string
 	orderMap := make(map[string]*WriteOffOrder)
 
+	// dishIngredientKeys: orderNum -> dishIndex -> ingredientName -> ingredientIndex
+	type dishKey struct {
+		orderNum string
+		dishIdx  int
+	}
+	ingredientIdx := make(map[dishKey]map[string]int)
+
 	for _, row := range rows {
 		order, exists := orderMap[row.OrderNumber]
 		if !exists {
@@ -70,22 +77,32 @@ func buildOrders(rows []chefrepo.WriteOffRow) []WriteOffOrder {
 			order.EventTime = row.UsageTime
 		}
 
-		var dish *WriteOffDish
+		dishIdx := -1
 		for i := range order.Dishes {
 			if order.Dishes[i].DishName == row.DishName && order.Dishes[i].Qty == row.EffectiveQty {
-				dish = &order.Dishes[i]
+				dishIdx = i
 				break
 			}
 		}
-		if dish == nil {
+		if dishIdx == -1 {
 			order.Dishes = append(order.Dishes, WriteOffDish{DishName: row.DishName, Qty: row.EffectiveQty})
-			dish = &order.Dishes[len(order.Dishes)-1]
+			dishIdx = len(order.Dishes) - 1
 		}
-		dish.Ingredients = append(dish.Ingredients, WriteOffIngredientRow{
-			Name: row.IngredientName,
-			Qty:  row.IngredientQty,
-			Unit: row.IngredientUnit,
-		})
+
+		dk := dishKey{orderNum: row.OrderNumber, dishIdx: dishIdx}
+		if ingredientIdx[dk] == nil {
+			ingredientIdx[dk] = make(map[string]int)
+		}
+		if idx, found := ingredientIdx[dk][row.IngredientName]; found {
+			order.Dishes[dishIdx].Ingredients[idx].Qty += row.IngredientQty
+		} else {
+			ingredientIdx[dk][row.IngredientName] = len(order.Dishes[dishIdx].Ingredients)
+			order.Dishes[dishIdx].Ingredients = append(order.Dishes[dishIdx].Ingredients, WriteOffIngredientRow{
+				Name: row.IngredientName,
+				Qty:  row.IngredientQty,
+				Unit: row.IngredientUnit,
+			})
+		}
 	}
 
 	result := make([]WriteOffOrder, 0, len(orderNums))

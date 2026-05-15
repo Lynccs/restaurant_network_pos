@@ -443,6 +443,9 @@ templ readyHistoryTaskCard(task chefservice.KitchenTaskView) {
 		if task.ChefName != "" {
 			<div class="text-[11px] text-slate-500 mb-2">
 				Кухар: <span class="font-semibold text-slate-700">{ task.ChefName }</span>
+				if task.ChefWorkshop != "" {
+					<span class="text-slate-400"> · { task.ChefWorkshop }</span>
+				}
 			</div>
 		}
 		<div class="w-full text-sm font-bold text-center py-2 rounded-lg bg-green-100 text-green-700">
@@ -479,6 +482,9 @@ templ taskCard(task chefservice.KitchenTaskView, ticketOverdue bool, currentChef
 		if (task.Status == chefservice.TaskStatusCooking || task.Status == chefservice.TaskStatusReady) && task.ChefName != "" {
 			<div class="text-[11px] text-slate-500 mb-2">
 				Кухар: <span class="font-semibold text-slate-700">{ task.ChefName }</span>
+				if task.ChefWorkshop != "" {
+					<span class="text-slate-400"> · { task.ChefWorkshop }</span>
+				}
 			</div>
 		}
 		<!-- Таймер (якщо готується) -->

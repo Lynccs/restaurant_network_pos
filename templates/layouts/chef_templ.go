@@ -8,7 +8,7 @@ package layouts
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-func ChefLayout(name string, activePage string, content templ.Component) templ.Component {
+func ChefLayout(name string, workshop string, activePage string, content templ.Component) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -57,51 +57,70 @@ func ChefLayout(name string, activePage string, content templ.Component) templ.C
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</p><p class=\"text-slate-400 text-xs\">Кухар</p></div></div></div><!-- Nav --><nav class=\"flex-1 px-2 py-3 space-y-0.5\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</p><p class=\"text-slate-400 text-xs\">Кухар ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var4 = []any{"sidebar-item w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-slate-400 hover:text-white text-xs", templ.KV("active text-white", activePage == "kitchen")}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var4...)
+		if workshop != "" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "· ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var4 string
+			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(workshop)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/layouts/chef.templ`, Line: 274, Col: 21}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</p></div></div></div><!-- Nav --><nav class=\"flex-1 px-2 py-3 space-y-0.5\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<a href=\"/chef/kitchen\" class=\"")
+		var templ_7745c5c3_Var5 = []any{"sidebar-item w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-slate-400 hover:text-white text-xs", templ.KV("active text-white", activePage == "kitchen")}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var5...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var5 string
-		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var4).String())
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<a href=\"/chef/kitchen\" class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var6 string
+		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var5).String())
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/layouts/chef.templ`, Line: 1, Col: 0}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\"><svg class=\"w-4 h-4 flex-shrink-0\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4\"></path></svg> Монітор кухні</a> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\"><svg class=\"w-4 h-4 flex-shrink-0\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4\"></path></svg> Монітор кухні</a> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var6 = []any{"sidebar-item w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-slate-400 hover:text-white text-xs", templ.KV("active text-white", activePage == "writeoff")}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var6...)
+		var templ_7745c5c3_Var7 = []any{"sidebar-item w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-slate-400 hover:text-white text-xs", templ.KV("active text-white", activePage == "writeoff")}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var7...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<a href=\"/chef/writeoff\" class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<a href=\"/chef/writeoff\" class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var7 string
-		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var6).String())
+		var templ_7745c5c3_Var8 string
+		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var7).String())
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/layouts/chef.templ`, Line: 1, Col: 0}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\"><svg class=\"w-4 h-4 flex-shrink-0\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V19a2 2 0 01-2 2z\"></path></svg> Списані інгредієнти</a></nav><!-- Logout --><div class=\"px-2 py-3 border-t border-slate-700/50\"><form method=\"POST\" action=\"/logout\"><button type=\"submit\" class=\"sidebar-item w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-slate-400 hover:text-white text-xs\"><svg class=\"w-4 h-4 flex-shrink-0\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1\"></path></svg> Вийти</button></form></div></div><!-- Content area: flex-1, overflow-hidden — KDS сам керує скролом --><div class=\"flex-1 overflow-hidden flex flex-col\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\"><svg class=\"w-4 h-4 flex-shrink-0\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V19a2 2 0 01-2 2z\"></path></svg> Списані інгредієнти</a></nav><!-- Logout --><div class=\"px-2 py-3 border-t border-slate-700/50\"><form method=\"POST\" action=\"/logout\"><button type=\"submit\" class=\"sidebar-item w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-slate-400 hover:text-white text-xs\"><svg class=\"w-4 h-4 flex-shrink-0\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1\"></path></svg> Вийти</button></form></div></div><!-- Content area: flex-1, overflow-hidden — KDS сам керує скролом --><div class=\"flex-1 overflow-hidden flex flex-col\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -109,7 +128,7 @@ func ChefLayout(name string, activePage string, content templ.Component) templ.C
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div><!-- Контейнер для модальних вікон (завантажуються через HTMX) --><div id=\"chef-modal\"></div><!-- Прихований тригер для повернення до живої дошки з архівного режиму --><div id=\"kds-live-reload\" style=\"display:none;\" hx-get=\"/chef/kitchen/board\" hx-target=\"#kitchen-board\" hx-swap=\"outerHTML\" hx-trigger=\"reload\"></div><div id=\"chef-error-toast\" style=\"position:fixed;bottom:1.25rem;right:1.5rem;z-index:9999;background:#ef4444;color:#fff;padding:.6rem 1.25rem;border-radius:.5rem;font-size:.85rem;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.35);opacity:0;transform:translateY(120%);transition:transform .3s ease,opacity .3s ease;pointer-events:none;\">⚠ <span id=\"chef-error-toast-msg\"></span></div><div id=\"toast-429\" style=\"position:fixed;top:1.25rem;left:50%;transform:translateX(-50%) translateY(-120%);transition:transform .3s ease,opacity .3s ease;opacity:0;z-index:9999;background:#ea580c;color:#fff;padding:.6rem 1.25rem;border-radius:.5rem;font-size:.85rem;white-space:nowrap;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.35);\">⚠ Забагато запитів — спробуйте пізніше</div><script>\n\t\t(function() {\n\t\t\tvar _toastTimer;\n\t\t\tfunction showToast429() {\n\t\t\t\tvar t = document.getElementById('toast-429');\n\t\t\t\tif (!t) return;\n\t\t\t\tclearTimeout(_toastTimer);\n\t\t\t\tt.style.opacity = '1';\n\t\t\t\tt.style.transform = 'translateX(-50%) translateY(0)';\n\t\t\t\t_toastTimer = setTimeout(function() {\n\t\t\t\t\tt.style.opacity = '0';\n\t\t\t\t\tt.style.transform = 'translateX(-50%) translateY(-120%)';\n\t\t\t\t}, 3000);\n\t\t\t}\n\t\t\tvar _chefErrTimer;\n\t\t\tfunction showChefErrorToast(msg) {\n\t\t\t\tvar t = document.getElementById('chef-error-toast');\n\t\t\t\tvar m = document.getElementById('chef-error-toast-msg');\n\t\t\t\tif (!t || !m) return;\n\t\t\t\tm.textContent = msg;\n\t\t\t\tclearTimeout(_chefErrTimer);\n\t\t\t\tt.style.opacity = '1';\n\t\t\t\tt.style.transform = 'translateY(0)';\n\t\t\t\t_chefErrTimer = setTimeout(function() {\n\t\t\t\t\tt.style.opacity = '0';\n\t\t\t\t\tt.style.transform = 'translateY(120%)';\n\t\t\t\t}, 3000);\n\t\t\t}\n\t\t\tdocument.body.addEventListener('htmx:responseError', function(e) {\n\t\t\t\tvar status = e.detail.xhr.status;\n\t\t\t\tif (status === 429) {\n\t\t\t\t\te.preventDefault();\n\t\t\t\t\tshowToast429();\n\t\t\t\t} else {\n\t\t\t\t\tshowChefErrorToast('Помилка сервера (' + status + '). Спробуйте ще раз.');\n\t\t\t\t}\n\t\t\t});\n\t\t})();\n\t</script></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</div><!-- Контейнер для модальних вікон (завантажуються через HTMX) --><div id=\"chef-modal\"></div><!-- Прихований тригер для повернення до живої дошки з архівного режиму --><div id=\"kds-live-reload\" style=\"display:none;\" hx-get=\"/chef/kitchen/board\" hx-target=\"#kitchen-board\" hx-swap=\"outerHTML\" hx-trigger=\"reload\"></div><div id=\"chef-error-toast\" style=\"position:fixed;bottom:1.25rem;right:1.5rem;z-index:9999;background:#ef4444;color:#fff;padding:.6rem 1.25rem;border-radius:.5rem;font-size:.85rem;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.35);opacity:0;transform:translateY(120%);transition:transform .3s ease,opacity .3s ease;pointer-events:none;\">⚠ <span id=\"chef-error-toast-msg\"></span></div><div id=\"toast-429\" style=\"position:fixed;top:1.25rem;left:50%;transform:translateX(-50%) translateY(-120%);transition:transform .3s ease,opacity .3s ease;opacity:0;z-index:9999;background:#ea580c;color:#fff;padding:.6rem 1.25rem;border-radius:.5rem;font-size:.85rem;white-space:nowrap;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.35);\">⚠ Забагато запитів — спробуйте пізніше</div><script>\n\t\t(function() {\n\t\t\tvar _toastTimer;\n\t\t\tfunction showToast429() {\n\t\t\t\tvar t = document.getElementById('toast-429');\n\t\t\t\tif (!t) return;\n\t\t\t\tclearTimeout(_toastTimer);\n\t\t\t\tt.style.opacity = '1';\n\t\t\t\tt.style.transform = 'translateX(-50%) translateY(0)';\n\t\t\t\t_toastTimer = setTimeout(function() {\n\t\t\t\t\tt.style.opacity = '0';\n\t\t\t\t\tt.style.transform = 'translateX(-50%) translateY(-120%)';\n\t\t\t\t}, 3000);\n\t\t\t}\n\t\t\tvar _chefErrTimer;\n\t\t\tfunction showChefErrorToast(msg) {\n\t\t\t\tvar t = document.getElementById('chef-error-toast');\n\t\t\t\tvar m = document.getElementById('chef-error-toast-msg');\n\t\t\t\tif (!t || !m) return;\n\t\t\t\tm.textContent = msg;\n\t\t\t\tclearTimeout(_chefErrTimer);\n\t\t\t\tt.style.opacity = '1';\n\t\t\t\tt.style.transform = 'translateY(0)';\n\t\t\t\t_chefErrTimer = setTimeout(function() {\n\t\t\t\t\tt.style.opacity = '0';\n\t\t\t\t\tt.style.transform = 'translateY(120%)';\n\t\t\t\t}, 3000);\n\t\t\t}\n\t\t\tdocument.body.addEventListener('htmx:responseError', function(e) {\n\t\t\t\tvar status = e.detail.xhr.status;\n\t\t\t\tif (status === 429) {\n\t\t\t\t\te.preventDefault();\n\t\t\t\t\tshowToast429();\n\t\t\t\t} else {\n\t\t\t\t\tshowChefErrorToast('Помилка сервера (' + status + '). Спробуйте ще раз.');\n\t\t\t\t}\n\t\t\t});\n\t\t})();\n\t</script></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

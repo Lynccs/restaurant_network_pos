@@ -27,10 +27,11 @@ type KitchenTaskRow struct {
 	CookingTime   int // dish_cooking_time у хвилинах
 	EffectiveQty  int // order_item_quantity - cancelled_quantity
 
-	StartTime sql.NullTime   // cooking_task_start_time; Not Valid → статус "new"
-	EndTime   sql.NullTime   // cooking_task_end_time;   Valid     → статус "ready"
-	ChefID    sql.NullInt64  // NULL поки завдання ще не взято кухарем
-	ChefName  sql.NullString // NULL поки завдання ще не взято кухарем
+	StartTime    sql.NullTime   // cooking_task_start_time; Not Valid → статус "new"
+	EndTime      sql.NullTime   // cooking_task_end_time;   Valid     → статус "ready"
+	ChefID       sql.NullInt64  // NULL поки завдання ще не взято кухарем
+	ChefName     sql.NullString // NULL поки завдання ще не взято кухарем
+	ChefWorkshop sql.NullString // спеціалізація кухаря (цех)
 }
 
 type KitchenRepo struct {
@@ -82,7 +83,8 @@ func (r *KitchenRepo) GetActiveKitchenTasks(restaurantID int) ([]KitchenTaskRow,
 			ct.cooking_task_start_time,
 			ct.cooking_task_end_time,
 			ct.chef_id,
-			c.chef_full_name
+			c.chef_full_name,
+			cs.chef_specialization_name
 		FROM ActiveOrders ao
 		JOIN order_items    oi ON oi.order_id           = ao.order_id
 		                      AND oi.order_item_quantity > oi.cancelled_quantity
@@ -91,6 +93,7 @@ func (r *KitchenRepo) GetActiveKitchenTasks(restaurantID int) ([]KitchenTaskRow,
 		JOIN dishes          d  ON d.dish_id            = oi.dish_id
 		JOIN dish_categories dc ON dc.dish_category_id  = d.dish_category_id
 		LEFT JOIN chefs      c  ON c.chef_id            = ct.chef_id
+		LEFT JOIN chef_specializations cs ON cs.chef_specialization_id = c.chef_specialization_id
 		ORDER BY ao.order_created_at ASC, oi.order_item_id ASC
 		OPTION (FORCE ORDER)`
 
@@ -119,6 +122,7 @@ func (r *KitchenRepo) GetActiveKitchenTasks(restaurantID int) ([]KitchenTaskRow,
 			&row.EndTime,
 			&row.ChefID,
 			&row.ChefName,
+			&row.ChefWorkshop,
 		); err != nil {
 			return nil, fmt.Errorf("GetActiveKitchenTasks scan: %w", err)
 		}
@@ -155,7 +159,8 @@ func (r *KitchenRepo) GetReadyTasksByDate(restaurantID int, date time.Time) ([]K
 			ct.cooking_task_start_time,
 			ct.cooking_task_end_time,
 			ct.chef_id,
-			c.chef_full_name
+			c.chef_full_name,
+			cs.chef_specialization_name
 		FROM cooking_tasks    ct
 		JOIN order_items    oi ON oi.order_item_id      = ct.order_item_id
 		JOIN orders          o ON o.order_id             = oi.order_id
@@ -164,6 +169,7 @@ func (r *KitchenRepo) GetReadyTasksByDate(restaurantID int, date time.Time) ([]K
 		JOIN dishes          d ON d.dish_id               = oi.dish_id
 		JOIN dish_categories dc ON dc.dish_category_id   = d.dish_category_id
 		JOIN chefs           c ON c.chef_id               = ct.chef_id
+		LEFT JOIN chef_specializations cs ON cs.chef_specialization_id = c.chef_specialization_id
 		WHERE t.restaurant_id            = @restaurantID
 		  AND ct.cooking_task_end_time  IS NOT NULL
 		  AND CONVERT(DATE, ct.cooking_task_end_time) = @date
@@ -197,6 +203,7 @@ func (r *KitchenRepo) GetReadyTasksByDate(restaurantID int, date time.Time) ([]K
 			&row.EndTime,
 			&row.ChefID,
 			&row.ChefName,
+			&row.ChefWorkshop,
 		); err != nil {
 			return nil, fmt.Errorf("GetReadyTasksByDate scan: %w", err)
 		}
@@ -212,17 +219,19 @@ func (r *KitchenRepo) GetReadyTasksByDate(restaurantID int, date time.Time) ([]K
 
 // ChefRow — рядок кухаря для фільтра KDS.
 type ChefRow struct {
-	ID   int
-	Name string
+	ID       int
+	Name     string
+	Workshop string
 }
 
 // GetAllChefs повертає всіх кухарів ресторану для фільтра KDS.
 func (r *KitchenRepo) GetAllChefs(restaurantID int) ([]ChefRow, error) {
 	rows, err := r.db.Query(`
-		SELECT chef_id, chef_full_name
-		FROM chefs
-		WHERE restaurant_id = @restaurantID
-		ORDER BY chef_full_name ASC`,
+		SELECT c.chef_id, c.chef_full_name, COALESCE(cs.chef_specialization_name, '')
+		FROM chefs c
+		LEFT JOIN chef_specializations cs ON cs.chef_specialization_id = c.chef_specialization_id
+		WHERE c.restaurant_id = @restaurantID AND c.is_deleted = 0
+		ORDER BY c.chef_full_name ASC`,
 		sql.Named("restaurantID", restaurantID),
 	)
 	if err != nil {
@@ -232,7 +241,7 @@ func (r *KitchenRepo) GetAllChefs(restaurantID int) ([]ChefRow, error) {
 	var result []ChefRow
 	for rows.Next() {
 		var c ChefRow
-		if err := rows.Scan(&c.ID, &c.Name); err != nil {
+		if err := rows.Scan(&c.ID, &c.Name, &c.Workshop); err != nil {
 			return nil, fmt.Errorf("GetAllChefs scan: %w", err)
 		}
 		result = append(result, c)

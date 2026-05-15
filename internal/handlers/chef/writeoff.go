@@ -47,7 +47,7 @@ func parseWriteOffPage(r *http.Request) int {
 
 // WriteOffPage — повна сторінка (GET /chef/writeoff).
 func (h *KitchenHandler) WriteOffPage(w http.ResponseWriter, r *http.Request) {
-	restaurantID, _, name, err := h.sessionData(r)
+	restaurantID, chefID, name, err := h.sessionData(r)
 	if err != nil {
 		writeOffHandlerLog.Printf("WriteOffPage: session error: %v", err)
 		http.Error(w, "session error", http.StatusInternalServerError)
@@ -62,8 +62,18 @@ func (h *KitchenHandler) WriteOffPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	workshop := ""
+	if allChefs, chefErr := h.Svc.GetAllChefs(restaurantID); chefErr == nil {
+		for _, c := range allChefs {
+			if c.ID == chefID {
+				workshop = c.Workshop
+				break
+			}
+		}
+	}
+
 	writeOffHandlerLog.Printf("WriteOffPage: restaurantID=%d orders=%d", restaurantID, len(view.Orders))
-	layouts.ChefLayout(name, "writeoff", chefpages.WriteOffPage(view)).Render(r.Context(), w)
+	layouts.ChefLayout(name, workshop, "writeoff", chefpages.WriteOffPage(view)).Render(r.Context(), w)
 }
 
 // WriteOffList — HTMX-фрагмент (GET /chef/writeoff/list).

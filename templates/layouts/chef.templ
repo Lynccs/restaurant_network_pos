@@ -1,6 +1,6 @@
 package layouts
 
-templ ChefLayout(name string, activePage string, content templ.Component) {
+templ ChefLayout(name string, workshop string, activePage string, content templ.Component) {
 	<!DOCTYPE html>
 	<html lang="uk">
 	<head>
@@ -269,7 +269,11 @@ templ ChefLayout(name string, activePage string, content templ.Component) {
 					</div>
 					<div class="min-w-0">
 						<p class="text-white text-xs font-medium truncate">{ name }</p>
-						<p class="text-slate-400 text-xs">Кухар</p>
+						<p class="text-slate-400 text-xs">Кухар
+							if workshop != "" {
+								· { workshop }
+							}
+						</p>
 					</div>
 				</div>
 			</div>

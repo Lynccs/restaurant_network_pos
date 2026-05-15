@@ -77,8 +77,16 @@ func (h *KitchenHandler) KitchenBoardPage(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	workshop := ""
+	for _, c := range allChefs {
+		if c.ID == chefID {
+			workshop = c.Workshop
+			break
+		}
+	}
+
 	kitchenHandlerLog.Printf("KitchenBoardPage: restaurantID=%d tickets=%d", restaurantID, len(tickets))
-	layouts.ChefLayout(name, "kitchen", chefpages.KitchenBoard(tickets, chefID, allChefs)).Render(r.Context(), w)
+	layouts.ChefLayout(name, workshop, "kitchen", chefpages.KitchenBoard(tickets, chefID, allChefs)).Render(r.Context(), w)
 }
 
 // BoardFragment — тільки дошка без layout, для HTMX-запиту після SSE-події (GET /chef/kitchen/board).

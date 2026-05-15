@@ -45,8 +45,9 @@ type StartCookingView struct {
 
 // ChefInfo — кухар для фільтра KDS.
 type ChefInfo struct {
-	ID   int
-	Name string
+	ID       int
+	Name     string
+	Workshop string
 }
 
 // KitchenTaskView — одне завдання на приготування, підготовлене для рендеру в Templ.
@@ -62,6 +63,7 @@ type KitchenTaskView struct {
 	EndTime       *time.Time // не nil тільки для TaskStatusReady (архівний перегляд)
 	ChefID        int        // 0 якщо статус "new"
 	ChefName      string     // порожній якщо статус "new"
+	ChefWorkshop  string     // спеціалізація кухаря (цех)
 }
 
 // KitchenTicket — один тікет-замовлення (колонка KDS) зі всіма його завданнями.
@@ -214,6 +216,7 @@ func mapTaskView(row chefrepo.KitchenTaskRow) KitchenTaskView {
 		EndTime:       endTime,
 		ChefID:        int(row.ChefID.Int64),
 		ChefName:      row.ChefName.String,
+		ChefWorkshop:  row.ChefWorkshop.String,
 	}
 }
 
@@ -242,6 +245,7 @@ func isOverdue(t *KitchenTicket) bool {
 }
 
 // GetStartCookingData повертає дані для модального вікна "Почати приготування".
+// Інгредієнти з нульовим або повністю простроченим запасом відфільтровуються.
 func (s *KitchenService) GetStartCookingData(orderItemID, restaurantID int) (*StartCookingView, error) {
 	dishName, qty, recipe, others, err := s.repo.GetStartCookingData(orderItemID, restaurantID)
 	if err != nil {
@@ -251,14 +255,18 @@ func (s *KitchenService) GetStartCookingData(orderItemID, restaurantID int) (*St
 		OrderItemID: orderItemID,
 		DishName:    dishName,
 		Qty:         qty,
-		Recipe:      make([]IngredientView, len(recipe)),
-		Others:      make([]IngredientView, len(others)),
 	}
-	for i, r := range recipe {
-		view.Recipe[i] = IngredientView{ID: r.IngredientID, Name: r.Name, Unit: r.Unit, RecipeQty: r.RecipeQty, StockQty: r.StockQty}
+	for _, r := range recipe {
+		if r.StockQty <= 0 {
+			continue
+		}
+		view.Recipe = append(view.Recipe, IngredientView{ID: r.IngredientID, Name: r.Name, Unit: r.Unit, RecipeQty: r.RecipeQty, StockQty: r.StockQty})
 	}
-	for i, r := range others {
-		view.Others[i] = IngredientView{ID: r.IngredientID, Name: r.Name, Unit: r.Unit, RecipeQty: 0, StockQty: r.StockQty}
+	for _, r := range others {
+		if r.StockQty <= 0 {
+			continue
+		}
+		view.Others = append(view.Others, IngredientView{ID: r.IngredientID, Name: r.Name, Unit: r.Unit, RecipeQty: 0, StockQty: r.StockQty})
 	}
 	return view, nil
 }
@@ -279,7 +287,7 @@ func (s *KitchenService) GetAllChefs(restaurantID int) ([]ChefInfo, error) {
 	}
 	chefs := make([]ChefInfo, len(rows))
 	for i, r := range rows {
-		chefs[i] = ChefInfo{ID: r.ID, Name: r.Name}
+		chefs[i] = ChefInfo{ID: r.ID, Name: r.Name, Workshop: r.Workshop}
 	}
 	return chefs, nil
 }
