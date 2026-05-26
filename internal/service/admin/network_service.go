@@ -136,6 +136,12 @@ func (s *NetworkService) GetNetworkPage(currentRestaurantID int) (*NetworkPageVi
 			Phone:   r.Phone,
 		})
 	}
+	for i, r := range view.Restaurants {
+		if r.ID == currentRestaurantID && i > 0 {
+			view.Restaurants[0], view.Restaurants[i] = view.Restaurants[i], view.Restaurants[0]
+			break
+		}
+	}
 	for _, t := range tables {
 		view.Tables = append(view.Tables, NetworkTable{
 			ID:           t.ID,

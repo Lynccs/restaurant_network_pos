@@ -66,6 +66,7 @@ type BatchEditRow struct {
 	Ingredient    string
 	Unit          string
 	TotalReceived float64
+	StockQty      float64
 }
 
 type DetailBatchRow struct {
@@ -721,12 +722,14 @@ SELECT
     iod.detail_quantity,
     i.ingredient_name,
     iu.ingredient_unit_name,
-    ISNULL(SUM(pb2.product_batch_accepted_quantity), 0) AS total_received
+    ISNULL(SUM(pb2.product_batch_accepted_quantity), 0) AS total_received,
+    ISNULL(si.stock_ingredient_quantity, 0) AS stock_qty
 FROM product_batches pb
 JOIN ingredient_order_details iod ON iod.ingredient_order_detail_id = pb.ingredient_order_detail_id
 JOIN ingredients i ON i.ingredient_id = iod.ingredient_id
 JOIN ingredient_units iu ON iu.ingredient_unit_id = i.ingredient_unit_id
 LEFT JOIN product_batches pb2 ON pb2.ingredient_order_detail_id = iod.ingredient_order_detail_id
+LEFT JOIN stock_ingredients si ON si.stock_ingredient_id = pb.stock_ingredient_id
 WHERE pb.product_batch_id = @batchID
 GROUP BY
     pb.product_batch_id,
@@ -737,7 +740,8 @@ GROUP BY
     iod.ingredient_id,
     iod.detail_quantity,
     i.ingredient_name,
-    iu.ingredient_unit_name`
+    iu.ingredient_unit_name,
+    si.stock_ingredient_quantity`
 
 	var row BatchEditRow
 	if err := r.db.QueryRow(query, sql.Named("batchID", batchID)).Scan(
@@ -751,6 +755,7 @@ GROUP BY
 		&row.Ingredient,
 		&row.Unit,
 		&row.TotalReceived,
+		&row.StockQty,
 	); err != nil {
 		return BatchEditRow{}, fmt.Errorf("GetBatchEditData: %w", err)
 	}

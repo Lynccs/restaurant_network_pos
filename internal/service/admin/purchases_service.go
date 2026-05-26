@@ -38,6 +38,7 @@ type BatchEditData struct {
 	TotalReceived float64
 	AdminID       int
 	MaxAllowed    float64
+	UsedQty       float64
 }
 
 type PurchaseItem struct {
@@ -410,6 +411,10 @@ func (s *PurchasesService) GetBatchEditData(batchID int) (BatchEditData, error) 
 	if err != nil {
 		return BatchEditData{}, err
 	}
+	usedQty := row.BatchQty - row.StockQty
+	if usedQty < 0 {
+		usedQty = 0
+	}
 	return BatchEditData{
 		BatchID:       row.BatchID,
 		DetailID:      row.DetailID,
@@ -421,6 +426,7 @@ func (s *PurchasesService) GetBatchEditData(batchID int) (BatchEditData, error) 
 		OrderQty:      row.OrderQty,
 		TotalReceived: row.TotalReceived,
 		AdminID:       row.BatchAdminID,
+		UsedQty:       usedQty,
 	}, nil
 }
 

@@ -1815,6 +1815,7 @@ templ EditBatchModal(b adminservice.BatchEditData) {
 	{{ maxDisplay := displayQtyUnit(b.MaxAllowed, b.Unit) }}
 	{{ current := displayQtyUnit(b.BatchQty, b.Unit) }}
 	{{ totalRec := displayQtyUnit(b.TotalReceived, b.Unit) }}
+	{{ used := displayQtyUnit(b.UsedQty, b.Unit) }}
 	<div class="bg-white rounded-2xl shadow-2xl w-full max-w-md slide-up">
 		<div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
 			<h3 class="font-semibold text-slate-800">Редагування партії</h3>
@@ -1830,11 +1831,14 @@ templ EditBatchModal(b adminservice.BatchEditData) {
 						{ b.Ingredient } — замовлено { fmtQty(ordered.Qty) } { ordered.Unit }, прийнято { fmtQty(totalRec.Qty) } { totalRec.Unit }
 					</div>
 					<p class="text-xs text-slate-500 mt-1">Доступно для приймання: { fmtQty(maxDisplay.Qty) } { maxDisplay.Unit }</p>
+					if b.UsedQty > 0 {
+						<p class="text-xs text-amber-600 mt-1">Вже використано при приготуванні: { fmtQty(used.Qty) } { used.Unit }</p>
+					}
 				</div>
 				<div class="grid grid-cols-2 gap-3">
 					<div>
 						<label class="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Кількість</label>
-						<input type="number" id="edit-batch-qty" name="qty" step="0.001" min="0.001" max={ fmt.Sprintf("%.3f", b.MaxAllowed) } data-remaining={ fmt.Sprintf("%.3f", b.MaxAllowed) } required class="input-field w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm mono bg-white" onkeydown="if (event.key === '+' || event.key === '-') event.preventDefault();" value={ fmtQty(current.Qty) }/>
+						<input type="number" id="edit-batch-qty" name="qty" step="0.001" min="0.001" max={ fmt.Sprintf("%.3f", b.MaxAllowed) } data-remaining={ fmt.Sprintf("%.3f", b.MaxAllowed) } data-used-raw={ fmt.Sprintf("%.3f", b.UsedQty) } required class="input-field w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm mono bg-white" onkeydown="if (event.key === '+' || event.key === '-') event.preventDefault();" value={ fmtQty(current.Qty) }/>
 					</div>
 					<div>
 						<label class="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Одиниці виміру</label>
@@ -1870,6 +1874,22 @@ templ EditBatchModal(b adminservice.BatchEditData) {
 				if (displayUnit === 'кг' || displayUnit === 'л') {
 					unitSel.value = '1000';
 				}
+				var qtyInput = document.getElementById('edit-batch-qty');
+				if (qtyInput) {
+					var usedRaw = parseFloat(qtyInput.getAttribute('data-used-raw')) || 0;
+					if (usedRaw > 0) {
+						var multiplier = unitSel.disabled ? 1 : (parseFloat(unitSel.value) || 1);
+						qtyInput.min = (usedRaw / multiplier).toFixed(3);
+					}
+				}
+				unitSel.addEventListener('change', function() {
+					if (!qtyInput) return;
+					var usedRaw = parseFloat(qtyInput.getAttribute('data-used-raw')) || 0;
+					if (usedRaw > 0) {
+						var m = unitSel.disabled ? 1 : (parseFloat(unitSel.value) || 1);
+						qtyInput.min = (usedRaw / m).toFixed(3);
+					}
+				});
 			})();
 			function prepareEditBatchSubmit() {
 				var qtyInput = document.getElementById('edit-batch-qty');
@@ -1879,11 +1899,20 @@ templ EditBatchModal(b adminservice.BatchEditData) {
 					var raw = parseFloat(qtyInput.value) || 0;
 					var qty = raw * multiplier;
 					var remaining = parseFloat(qtyInput.getAttribute('data-remaining')) || 0;
-					if (remaining > 0 && qty-remaining > 1e-9) {
+					if (remaining > 0 && qty - remaining > 1e-9) {
 						if (typeof showAdminToast === 'function') {
 							showAdminToast('Перевищено залишок до редагування', 'error');
 						} else {
 							alert('Перевищено залишок до редагування');
+						}
+						return false;
+					}
+					var usedRaw = parseFloat(qtyInput.getAttribute('data-used-raw')) || 0;
+					if (usedRaw > 0 && usedRaw - qty > 1e-9) {
+						if (typeof showAdminToast === 'function') {
+							showAdminToast('Не можна вказати менше ніж вже використано при приготуванні', 'error');
+						} else {
+							alert('Не можна вказати менше ніж вже використано при приготуванні');
 						}
 						return false;
 					}

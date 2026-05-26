@@ -531,6 +531,7 @@ templ taskCard(task chefservice.KitchenTaskView, ticketOverdue bool, currentChef
 				hx-post={ fmt.Sprintf("/chef/kitchen/tasks/%d/finish", task.CookingTaskID) }
 				hx-disable-elt="this"
 				hx-indicator="this"
+				hx-on--after-request={ fmt.Sprintf("if(event.detail.successful){htmx.ajax('GET','/chef/kitchen/tickets/%d',{target:'#ticket-%d',swap:'outerHTML'})}", orderID, orderID) }
 				class="w-full bg-green-500 hover:bg-green-600 text-white text-sm font-bold uppercase tracking-wide py-2.5 rounded-lg transition-all shadow-sm border border-green-600 disabled:opacity-60"
 			>
 				ГОТОВО

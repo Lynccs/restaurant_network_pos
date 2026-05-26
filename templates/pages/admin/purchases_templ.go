@@ -2681,6 +2681,7 @@ func EditBatchModal(b adminservice.BatchEditData) templ.Component {
 		maxDisplay := displayQtyUnit(b.MaxAllowed, b.Unit)
 		current := displayQtyUnit(b.BatchQty, b.Unit)
 		totalRec := displayQtyUnit(b.TotalReceived, b.Unit)
+		used := displayQtyUnit(b.UsedQty, b.Unit)
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 225, "<div class=\"bg-white rounded-2xl shadow-2xl w-full max-w-md slide-up\"><div class=\"flex items-center justify-between px-6 py-4 border-b border-slate-100\"><h3 class=\"font-semibold text-slate-800\">Редагування партії</h3><button type=\"button\" onclick=\"adminCloseModal()\" class=\"text-slate-400 hover:text-slate-600\"><svg class=\"w-5 h-5\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M6 18L18 6M6 6l12 12\"></path></svg></button></div><form hx-post=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -2688,7 +2689,7 @@ func EditBatchModal(b adminservice.BatchEditData) templ.Component {
 		var templ_7745c5c3_Var147 string
 		templ_7745c5c3_Var147, templ_7745c5c3_Err = templ.JoinStringErrs("/admin/purchases/batches/" + strconv.Itoa(b.BatchID) + "/update")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1825, Col: 83}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1826, Col: 83}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var147))
 		if templ_7745c5c3_Err != nil {
@@ -2701,7 +2702,7 @@ func EditBatchModal(b adminservice.BatchEditData) templ.Component {
 		var templ_7745c5c3_Var148 string
 		templ_7745c5c3_Var148, templ_7745c5c3_Err = templ.JoinStringErrs(b.Ingredient)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1830, Col: 20}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1831, Col: 20}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var148))
 		if templ_7745c5c3_Err != nil {
@@ -2714,7 +2715,7 @@ func EditBatchModal(b adminservice.BatchEditData) templ.Component {
 		var templ_7745c5c3_Var149 string
 		templ_7745c5c3_Var149, templ_7745c5c3_Err = templ.JoinStringErrs(fmtQty(ordered.Qty))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1830, Col: 67}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1831, Col: 67}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var149))
 		if templ_7745c5c3_Err != nil {
@@ -2727,7 +2728,7 @@ func EditBatchModal(b adminservice.BatchEditData) templ.Component {
 		var templ_7745c5c3_Var150 string
 		templ_7745c5c3_Var150, templ_7745c5c3_Err = templ.JoinStringErrs(ordered.Unit)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1830, Col: 84}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1831, Col: 84}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var150))
 		if templ_7745c5c3_Err != nil {
@@ -2740,7 +2741,7 @@ func EditBatchModal(b adminservice.BatchEditData) templ.Component {
 		var templ_7745c5c3_Var151 string
 		templ_7745c5c3_Var151, templ_7745c5c3_Err = templ.JoinStringErrs(fmtQty(totalRec.Qty))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1830, Col: 127}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1831, Col: 127}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var151))
 		if templ_7745c5c3_Err != nil {
@@ -2753,7 +2754,7 @@ func EditBatchModal(b adminservice.BatchEditData) templ.Component {
 		var templ_7745c5c3_Var152 string
 		templ_7745c5c3_Var152, templ_7745c5c3_Err = templ.JoinStringErrs(totalRec.Unit)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1830, Col: 145}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1831, Col: 145}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var152))
 		if templ_7745c5c3_Err != nil {
@@ -2766,7 +2767,7 @@ func EditBatchModal(b adminservice.BatchEditData) templ.Component {
 		var templ_7745c5c3_Var153 string
 		templ_7745c5c3_Var153, templ_7745c5c3_Err = templ.JoinStringErrs(fmtQty(maxDisplay.Qty))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1832, Col: 112}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1833, Col: 112}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var153))
 		if templ_7745c5c3_Err != nil {
@@ -2779,91 +2780,140 @@ func EditBatchModal(b adminservice.BatchEditData) templ.Component {
 		var templ_7745c5c3_Var154 string
 		templ_7745c5c3_Var154, templ_7745c5c3_Err = templ.JoinStringErrs(maxDisplay.Unit)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1832, Col: 132}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1833, Col: 132}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var154))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 233, "</p></div><div class=\"grid grid-cols-2 gap-3\"><div><label class=\"text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5\">Кількість</label> <input type=\"number\" id=\"edit-batch-qty\" name=\"qty\" step=\"0.001\" min=\"0.001\" max=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 233, "</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var155 string
-		templ_7745c5c3_Var155, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.3f", b.MaxAllowed))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1837, Col: 122}
+		if b.UsedQty > 0 {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 234, "<p class=\"text-xs text-amber-600 mt-1\">Вже використано при приготуванні: ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var155 string
+			templ_7745c5c3_Var155, templ_7745c5c3_Err = templ.JoinStringErrs(fmtQty(used.Qty))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1835, Col: 126}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var155))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 235, " ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var156 string
+			templ_7745c5c3_Var156, templ_7745c5c3_Err = templ.JoinStringErrs(used.Unit)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1835, Col: 140}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var156))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 236, "</p>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var155))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 234, "\" data-remaining=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var156 string
-		templ_7745c5c3_Var156, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.3f", b.MaxAllowed))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1837, Col: 175}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var156))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 235, "\" required class=\"input-field w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm mono bg-white\" onkeydown=\"if (event.key === '+' || event.key === '-') event.preventDefault();\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 237, "</div><div class=\"grid grid-cols-2 gap-3\"><div><label class=\"text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5\">Кількість</label> <input type=\"number\" id=\"edit-batch-qty\" name=\"qty\" step=\"0.001\" min=\"0.001\" max=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var157 string
-		templ_7745c5c3_Var157, templ_7745c5c3_Err = templ.JoinStringErrs(fmtQty(current.Qty))
+		templ_7745c5c3_Var157, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.3f", b.MaxAllowed))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1837, Col: 390}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1841, Col: 122}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var157))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 236, "\"></div><div><label class=\"text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5\">Одиниці виміру</label> <select id=\"edit-batch-unit\" data-unit=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 238, "\" data-remaining=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var158 string
-		templ_7745c5c3_Var158, templ_7745c5c3_Err = templ.JoinStringErrs(b.Unit)
+		templ_7745c5c3_Var158, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.3f", b.MaxAllowed))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1841, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1841, Col: 175}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var158))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 237, "\" data-display-unit=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 239, "\" data-used-raw=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var159 string
-		templ_7745c5c3_Var159, templ_7745c5c3_Err = templ.JoinStringErrs(current.Unit)
+		templ_7745c5c3_Var159, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.3f", b.UsedQty))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1841, Col: 88}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1841, Col: 224}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var159))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 238, "\" class=\"input-field w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white\"></select></div></div><div><label class=\"text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5\">Термін придатності</label> <input type=\"date\" name=\"exp_date\" required class=\"input-field w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 240, "\" required class=\"input-field w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm mono bg-white\" onkeydown=\"if (event.key === '+' || event.key === '-') event.preventDefault();\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var160 string
-		templ_7745c5c3_Var160, templ_7745c5c3_Err = templ.JoinStringErrs(b.ExpDate.Format("2006-01-02"))
+		templ_7745c5c3_Var160, templ_7745c5c3_Err = templ.JoinStringErrs(fmtQty(current.Qty))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1846, Col: 178}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1841, Col: 439}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var160))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 239, "\"></div></div><div class=\"px-6 py-4 border-t border-slate-100 flex gap-3\"><button type=\"submit\" onclick=\"return prepareEditBatchSubmit()\" class=\"btn-primary flex-1 bg-green-600 hover:bg-green-700 text-white text-sm py-2.5 rounded-lg font-bold shadow-sm\">Зберегти зміни</button> <button type=\"button\" onclick=\"adminCloseModal()\" class=\"flex-1 border border-slate-200 text-slate-600 text-sm py-2.5 rounded-lg font-medium hover:bg-slate-50\">Скасувати</button></div></form><script>\n\t\t\t(function initEditBatchUnits() {\n\t\t\t\tvar unitSel = document.getElementById('edit-batch-unit');\n\t\t\t\tif (!unitSel) return;\n\t\t\t\tvar u = (unitSel.getAttribute('data-unit') || '').toLowerCase();\n\t\t\t\tif (u === 'г' || u.indexOf('грам') >= 0) {\n\t\t\t\t\tunitSel.innerHTML = '<option value=\"1\">г</option><option value=\"1000\">кг</option>';\n\t\t\t\t} else if (u === 'мл' || u.indexOf('мілі') >= 0 || u.indexOf('літр') >= 0) {\n\t\t\t\t\tunitSel.innerHTML = '<option value=\"1\">мл</option><option value=\"1000\">л</option>';\n\t\t\t\t} else {\n\t\t\t\t\tunitSel.innerHTML = '<option value=\"1\">шт</option>';\n\t\t\t\t\tunitSel.disabled = true;\n\t\t\t\t}\n\t\t\t\tvar displayUnit = (unitSel.getAttribute('data-display-unit') || '').toLowerCase();\n\t\t\t\tif (displayUnit === 'кг' || displayUnit === 'л') {\n\t\t\t\t\tunitSel.value = '1000';\n\t\t\t\t}\n\t\t\t})();\n\t\t\tfunction prepareEditBatchSubmit() {\n\t\t\t\tvar qtyInput = document.getElementById('edit-batch-qty');\n\t\t\t\tvar unitSel = document.getElementById('edit-batch-unit');\n\t\t\t\tif (qtyInput && unitSel) {\n\t\t\t\t\tvar multiplier = unitSel.disabled ? 1 : (parseFloat(unitSel.value) || 1);\n\t\t\t\t\tvar raw = parseFloat(qtyInput.value) || 0;\n\t\t\t\t\tvar qty = raw * multiplier;\n\t\t\t\t\tvar remaining = parseFloat(qtyInput.getAttribute('data-remaining')) || 0;\n\t\t\t\t\tif (remaining > 0 && qty-remaining > 1e-9) {\n\t\t\t\t\t\tif (typeof showAdminToast === 'function') {\n\t\t\t\t\t\t\tshowAdminToast('Перевищено залишок до редагування', 'error');\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\talert('Перевищено залишок до редагування');\n\t\t\t\t\t\t}\n\t\t\t\t\t\treturn false;\n\t\t\t\t\t}\n\t\t\t\t\tqtyInput.value = qty.toString();\n\t\t\t\t}\n\t\t\t\treturn true;\n\t\t\t}\n\t\t</script></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 241, "\"></div><div><label class=\"text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5\">Одиниці виміру</label> <select id=\"edit-batch-unit\" data-unit=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var161 string
+		templ_7745c5c3_Var161, templ_7745c5c3_Err = templ.JoinStringErrs(b.Unit)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1845, Col: 53}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var161))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 242, "\" data-display-unit=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var162 string
+		templ_7745c5c3_Var162, templ_7745c5c3_Err = templ.JoinStringErrs(current.Unit)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1845, Col: 88}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var162))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 243, "\" class=\"input-field w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white\"></select></div></div><div><label class=\"text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5\">Термін придатності</label> <input type=\"date\" name=\"exp_date\" required class=\"input-field w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var163 string
+		templ_7745c5c3_Var163, templ_7745c5c3_Err = templ.JoinStringErrs(b.ExpDate.Format("2006-01-02"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/admin/purchases.templ`, Line: 1850, Col: 178}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var163))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 244, "\"></div></div><div class=\"px-6 py-4 border-t border-slate-100 flex gap-3\"><button type=\"submit\" onclick=\"return prepareEditBatchSubmit()\" class=\"btn-primary flex-1 bg-green-600 hover:bg-green-700 text-white text-sm py-2.5 rounded-lg font-bold shadow-sm\">Зберегти зміни</button> <button type=\"button\" onclick=\"adminCloseModal()\" class=\"flex-1 border border-slate-200 text-slate-600 text-sm py-2.5 rounded-lg font-medium hover:bg-slate-50\">Скасувати</button></div></form><script>\n\t\t\t(function initEditBatchUnits() {\n\t\t\t\tvar unitSel = document.getElementById('edit-batch-unit');\n\t\t\t\tif (!unitSel) return;\n\t\t\t\tvar u = (unitSel.getAttribute('data-unit') || '').toLowerCase();\n\t\t\t\tif (u === 'г' || u.indexOf('грам') >= 0) {\n\t\t\t\t\tunitSel.innerHTML = '<option value=\"1\">г</option><option value=\"1000\">кг</option>';\n\t\t\t\t} else if (u === 'мл' || u.indexOf('мілі') >= 0 || u.indexOf('літр') >= 0) {\n\t\t\t\t\tunitSel.innerHTML = '<option value=\"1\">мл</option><option value=\"1000\">л</option>';\n\t\t\t\t} else {\n\t\t\t\t\tunitSel.innerHTML = '<option value=\"1\">шт</option>';\n\t\t\t\t\tunitSel.disabled = true;\n\t\t\t\t}\n\t\t\t\tvar displayUnit = (unitSel.getAttribute('data-display-unit') || '').toLowerCase();\n\t\t\t\tif (displayUnit === 'кг' || displayUnit === 'л') {\n\t\t\t\t\tunitSel.value = '1000';\n\t\t\t\t}\n\t\t\t\tvar qtyInput = document.getElementById('edit-batch-qty');\n\t\t\t\tif (qtyInput) {\n\t\t\t\t\tvar usedRaw = parseFloat(qtyInput.getAttribute('data-used-raw')) || 0;\n\t\t\t\t\tif (usedRaw > 0) {\n\t\t\t\t\t\tvar multiplier = unitSel.disabled ? 1 : (parseFloat(unitSel.value) || 1);\n\t\t\t\t\t\tqtyInput.min = (usedRaw / multiplier).toFixed(3);\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t\tunitSel.addEventListener('change', function() {\n\t\t\t\t\tif (!qtyInput) return;\n\t\t\t\t\tvar usedRaw = parseFloat(qtyInput.getAttribute('data-used-raw')) || 0;\n\t\t\t\t\tif (usedRaw > 0) {\n\t\t\t\t\t\tvar m = unitSel.disabled ? 1 : (parseFloat(unitSel.value) || 1);\n\t\t\t\t\t\tqtyInput.min = (usedRaw / m).toFixed(3);\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t})();\n\t\t\tfunction prepareEditBatchSubmit() {\n\t\t\t\tvar qtyInput = document.getElementById('edit-batch-qty');\n\t\t\t\tvar unitSel = document.getElementById('edit-batch-unit');\n\t\t\t\tif (qtyInput && unitSel) {\n\t\t\t\t\tvar multiplier = unitSel.disabled ? 1 : (parseFloat(unitSel.value) || 1);\n\t\t\t\t\tvar raw = parseFloat(qtyInput.value) || 0;\n\t\t\t\t\tvar qty = raw * multiplier;\n\t\t\t\t\tvar remaining = parseFloat(qtyInput.getAttribute('data-remaining')) || 0;\n\t\t\t\t\tif (remaining > 0 && qty - remaining > 1e-9) {\n\t\t\t\t\t\tif (typeof showAdminToast === 'function') {\n\t\t\t\t\t\t\tshowAdminToast('Перевищено залишок до редагування', 'error');\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\talert('Перевищено залишок до редагування');\n\t\t\t\t\t\t}\n\t\t\t\t\t\treturn false;\n\t\t\t\t\t}\n\t\t\t\t\tvar usedRaw = parseFloat(qtyInput.getAttribute('data-used-raw')) || 0;\n\t\t\t\t\tif (usedRaw > 0 && usedRaw - qty > 1e-9) {\n\t\t\t\t\t\tif (typeof showAdminToast === 'function') {\n\t\t\t\t\t\t\tshowAdminToast('Не можна вказати менше ніж вже використано при приготуванні', 'error');\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\talert('Не можна вказати менше ніж вже використано при приготуванні');\n\t\t\t\t\t\t}\n\t\t\t\t\t\treturn false;\n\t\t\t\t\t}\n\t\t\t\t\tqtyInput.value = qty.toString();\n\t\t\t\t}\n\t\t\t\treturn true;\n\t\t\t}\n\t\t</script></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

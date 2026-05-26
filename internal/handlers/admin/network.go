@@ -149,10 +149,10 @@ func restaurantAdminStepModalBody(resName, resAddress, resPhone, adminName, admi
     <label class="block text-xs font-semibold text-slate-600">ПІБ Адміністратора</label>
     <input name="admin_name" value="%s" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Іван Іванов" required />
     
-    <label class="block text-xs font-semibold text-slate-600">Телефон (буде логіном)</label>
+    <label class="block text-xs font-semibold text-slate-600">Телефон</label>
     <input name="admin_phone" value="%s" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="+380..." required />
     
-    <label class="block text-xs font-semibold text-slate-600">PIN-код (пароль)</label>
+    <label class="block text-xs font-semibold text-slate-600">PIN-код</label>
     <input name="admin_pin" value="%s" type="password" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="1234" required />
   </div>
 

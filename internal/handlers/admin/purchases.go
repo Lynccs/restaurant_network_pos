@@ -774,6 +774,10 @@ func (h *Handler) UpdateBatch(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "qty exceeds remaining", http.StatusBadRequest)
 		return
 	}
+	if data.UsedQty > 0 && qty < data.UsedQty-1e-9 {
+		http.Error(w, "qty below used amount", http.StatusBadRequest)
+		return
+	}
 
 	if err := h.Svc.UpdateBatch(adminID, batchID, qty, expDate); err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
