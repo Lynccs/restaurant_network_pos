@@ -27,7 +27,8 @@ type OrderView struct {
 	TotalAmount float64
 	CreatedAt   string // formatted "2006-01-02 15:04"
 	StatusName  string
-	HasIssue    bool // placeholder: always false — wired to kitchen notifications later
+	HasIssue    bool
+	TotalQty    int
 	Items       []OrderItemView
 }
 
@@ -40,6 +41,7 @@ type ArchivePagination struct {
 
 type ordersRepoIface interface {
 	GetActiveOrdersList(restaurantID int, f waiterrepo.OrderListFilters) ([]waiterrepo.OrderListRow, error)
+	GetOrderItems(orderID, restaurantID int) ([]waiterrepo.OrderListRow, error)
 	GetArchiveOrdersList(restaurantID, waiterID int, f waiterrepo.ArchiveFilters, page int) ([]waiterrepo.OrderListRow, int, error)
 	GetArchiveTableNumbers(restaurantID, waiterID int) ([]int, error)
 	CancelOrder(orderID, restaurantID int) error
@@ -67,31 +69,36 @@ func (s *OrdersService) GetActiveOrders(restaurantID int, search, statusName str
 		return nil, fmt.Errorf("GetActiveOrders: %w", err)
 	}
 
-	var orders []OrderView
-	seen := make(map[int]int) // orderID → index in orders slice
-
+	orders := make([]OrderView, 0, len(rows))
 	for _, row := range rows {
-		idx, exists := seen[row.OrderID]
-		if !exists {
-			parts := strings.Split(row.OrderNumber, "-")
-			n, _ := strconv.Atoi(parts[len(parts)-1])
-			shortNum := strconv.Itoa(n)
-			orders = append(orders, OrderView{
-				OrderID:     row.OrderID,
-				OrderNumber: shortNum,
-				TableNumber: row.TableNumber,
-				WaiterName:  row.WaiterName,
-				TotalAmount: row.TotalAmount,
-				CreatedAt:   row.CreatedAt.Format("2006-01-02 15:04"),
-				StatusName:  row.StatusName,
-				HasIssue:    row.HasIssue,
-			})
-			idx = len(orders) - 1
-			seen[row.OrderID] = idx
-		} else if row.HasIssue {
-			orders[idx].HasIssue = true
-		}
-		orders[idx].Items = append(orders[idx].Items, OrderItemView{
+		parts := strings.Split(row.OrderNumber, "-")
+		n, _ := strconv.Atoi(parts[len(parts)-1])
+		orders = append(orders, OrderView{
+			OrderID:     row.OrderID,
+			OrderNumber: strconv.Itoa(n),
+			TableNumber: row.TableNumber,
+			WaiterName:  row.WaiterName,
+			TotalAmount: row.TotalAmount,
+			CreatedAt:   row.CreatedAt.Format("2006-01-02 15:04"),
+			StatusName:  row.StatusName,
+			HasIssue:    row.HasIssue,
+			TotalQty:    row.TotalQty,
+		})
+	}
+
+	ordersSvcLog.Printf("GetActiveOrders: restaurantID=%d returned %d orders", restaurantID, len(orders))
+	return orders, nil
+}
+
+func (s *OrdersService) GetOrderItems(orderID, restaurantID int) ([]OrderItemView, error) {
+	rows, err := s.repo.GetOrderItems(orderID, restaurantID)
+	if err != nil {
+		return nil, fmt.Errorf("GetOrderItems: %w", err)
+	}
+
+	items := make([]OrderItemView, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, OrderItemView{
 			DishName:  row.DishName,
 			DishPrice: row.DishPrice,
 			Qty:       row.ItemQty,
@@ -99,9 +106,7 @@ func (s *OrdersService) GetActiveOrders(restaurantID int, search, statusName str
 			HasIssue:  row.ItemHasIssue,
 		})
 	}
-
-	ordersSvcLog.Printf("GetActiveOrders: restaurantID=%d returned %d orders", restaurantID, len(orders))
-	return orders, nil
+	return items, nil
 }
 
 func (s *OrdersService) GetArchiveOrders(restaurantID, waiterID int, search, statusName string, tableNumber int, dateFrom, dateTo string, page int) ([]OrderView, ArchivePagination, error) {

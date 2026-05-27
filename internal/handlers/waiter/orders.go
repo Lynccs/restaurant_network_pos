@@ -30,6 +30,7 @@ var ordersHandlerLog = log.New(log.Writer(), "[OrdersHandler] ", log.LstdFlags|l
 
 type OrdersServicer interface {
 	GetActiveOrders(restaurantID int, search, statusName string, tableNumber int, timeFrom, timeTo string) ([]waiterservice.OrderView, error)
+	GetOrderItems(orderID, restaurantID int) ([]waiterservice.OrderItemView, error)
 	GetArchiveOrders(restaurantID, waiterID int, search, statusName string, tableNumber int, dateFrom, dateTo string, page int) ([]waiterservice.OrderView, waiterservice.ArchivePagination, error)
 	GetArchiveTableNumbers(restaurantID, waiterID int) ([]int, error)
 	CancelOrder(orderID, restaurantID int) error
@@ -69,7 +70,7 @@ func (h *OrdersHandler) sessionData(r *http.Request) (restaurantID, waiterID int
 }
 
 func (h *OrdersHandler) OrdersPage(w http.ResponseWriter, r *http.Request) {
-	restaurantID, waiterID, name, err := h.sessionData(r)
+	restaurantID, _, name, err := h.sessionData(r)
 	if err != nil {
 		ordersHandlerLog.Printf("OrdersPage: session error: %v", err)
 		http.Error(w, "session error", http.StatusInternalServerError)
@@ -87,21 +88,6 @@ func (h *OrdersHandler) OrdersPage(w http.ResponseWriter, r *http.Request) {
 	dateFromDisplay := today + "T00:00"
 	dateToDisplay := today + "T23:59"
 
-	archiveOrders, archivePagination, err := h.svc.GetArchiveOrders(restaurantID, waiterID, "", "", 0,
-		toSQLDatetime(dateFromDisplay), toSQLDatetime(dateToDisplay), 1)
-	if err != nil {
-		ordersHandlerLog.Printf("OrdersPage: GetArchiveOrders error: %v", err)
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-
-	archiveTableNums, err := h.svc.GetArchiveTableNumbers(restaurantID, waiterID)
-	if err != nil {
-		ordersHandlerLog.Printf("OrdersPage: GetArchiveTableNumbers error: %v", err)
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-
 	hasAnyIssue := false
 	for _, o := range activeOrders {
 		if o.HasIssue {
@@ -109,7 +95,7 @@ func (h *OrdersHandler) OrdersPage(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-	layouts.WaiterLayout(name, "orders", hasAnyIssue, waiterpages.OrdersPage(activeOrders, archiveOrders, archivePagination, dateFromDisplay, dateToDisplay, archiveTableNums)).Render(r.Context(), w)
+	layouts.WaiterLayout(name, "orders", hasAnyIssue, waiterpages.OrdersPage(activeOrders, dateFromDisplay, dateToDisplay)).Render(r.Context(), w)
 }
 
 func (h *OrdersHandler) OrdersList(w http.ResponseWriter, r *http.Request) {
@@ -236,6 +222,29 @@ func (h *OrdersHandler) RejectPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	waiterpages.OrdersList(orders).Render(r.Context(), w)
+}
+
+func (h *OrdersHandler) OrderItems(w http.ResponseWriter, r *http.Request) {
+	restaurantID, _, err := h.sessionRestaurant(r)
+	if err != nil {
+		http.Error(w, "session error", http.StatusInternalServerError)
+		return
+	}
+
+	orderID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "invalid order id", http.StatusBadRequest)
+		return
+	}
+
+	items, err := h.svc.GetOrderItems(orderID, restaurantID)
+	if err != nil {
+		ordersHandlerLog.Printf("OrderItems: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	waiterpages.OrderItems(items).Render(r.Context(), w)
 }
 
 func (h *OrdersHandler) ArchiveList(w http.ResponseWriter, r *http.Request) {

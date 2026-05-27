@@ -39,11 +39,12 @@ type OrderListRow struct {
 	TotalAmount  float64
 	CreatedAt    time.Time
 	StatusName   string
+	TotalQty     int  // сума кількостей активних позицій (тільки для GetActiveOrdersList)
+	HasIssue     bool // хоч одна позиція замовлення має order_item_has_issue=1
 	ItemID       int
 	DishName     string
 	DishPrice    float64
 	ItemQty      int
-	HasIssue     bool // хоч одна позиція замовлення має order_item_has_issue=1
 	ItemHasIssue bool // ця конкретна позиція
 	TotalOrders  int  // загальна кількість замовлень (лише для архівного пагінованого запиту)
 }
@@ -64,20 +65,23 @@ func (r *OrdersRepo) GetActiveOrdersList(restaurantID int, f OrderListFilters) (
 
 	var sb strings.Builder
 	sb.WriteString(`
-		WITH FilteredOrders AS (
-			SELECT
-				o.order_id, o.order_number,
-				t.table_number,
-				w.waiter_full_name,
-				o.order_total_amount,
-				o.order_created_at,
-				os.order_status_name
-			FROM orders o
-			JOIN tables t          ON t.table_id         = o.table_id
-			JOIN waiters w         ON w.waiter_id         = o.waiter_id
-			JOIN order_statuses os ON os.order_status_id = o.order_status_id
-			WHERE t.restaurant_id = @restaurantID
-			  AND os.order_status_name NOT IN (N'Закрито', N'Скасовано')`)
+		SELECT
+			o.order_id, o.order_number,
+			t.table_number,
+			w.waiter_full_name,
+			o.order_total_amount,
+			o.order_created_at,
+			os.order_status_name,
+			COALESCE(SUM(oi.order_item_quantity), 0) AS total_qty,
+			CAST(COALESCE(MAX(CAST(oi.order_item_has_issue AS INT)), 0) AS BIT) AS has_issue
+		FROM orders o
+		JOIN tables t          ON t.table_id         = o.table_id
+		JOIN waiters w         ON w.waiter_id         = o.waiter_id
+		JOIN order_statuses os ON os.order_status_id = o.order_status_id
+		LEFT JOIN order_items oi ON oi.order_id = o.order_id
+		                        AND oi.order_item_quantity > oi.cancelled_quantity
+		WHERE t.restaurant_id = @restaurantID
+		  AND os.order_status_name NOT IN (N'Закрито', N'Скасовано')`)
 
 	if f.StatusName != "" {
 		args = append(args, sql.Named("statusName", f.StatusName))
@@ -101,25 +105,9 @@ func (r *OrdersRepo) GetActiveOrdersList(restaurantID int, f OrderListFilters) (
 	}
 
 	sb.WriteString(`
-		)
-		SELECT
-			fo.order_id, fo.order_number,
-			fo.table_number,
-			fo.waiter_full_name,
-			fo.order_total_amount,
-			fo.order_created_at,
-			fo.order_status_name,
-			oi.order_item_id,
-			d.dish_name,
-			d.dish_price,
-			oi.order_item_quantity,
-			CAST(MAX(CAST(oi.order_item_has_issue AS INT)) OVER (PARTITION BY fo.order_id) AS BIT) AS order_has_issue,
-			oi.order_item_has_issue
-		FROM FilteredOrders fo
-		JOIN order_items oi ON oi.order_id = fo.order_id
-		                   AND oi.order_item_quantity > oi.cancelled_quantity
-		JOIN dishes d       ON d.dish_id   = oi.dish_id
-		ORDER BY fo.order_created_at DESC, oi.order_item_id ASC`)
+		GROUP BY o.order_id, o.order_number, t.table_number, w.waiter_full_name,
+		         o.order_total_amount, o.order_created_at, os.order_status_name
+		ORDER BY o.order_created_at DESC`)
 
 	rows, err := r.db.Query(sb.String(), args...)
 	if err != nil {
@@ -137,14 +125,51 @@ func (r *OrdersRepo) GetActiveOrdersList(restaurantID int, f OrderListFilters) (
 			&row.TotalAmount,
 			&row.CreatedAt,
 			&row.StatusName,
+			&row.TotalQty,
+			&row.HasIssue,
+		); err != nil {
+			return nil, fmt.Errorf("GetActiveOrdersList scan: %w", err)
+		}
+		result = append(result, row)
+	}
+	return result, rows.Err()
+}
+
+func (r *OrdersRepo) GetOrderItems(orderID, restaurantID int) ([]OrderListRow, error) {
+	rows, err := r.db.Query(`
+		SELECT
+			oi.order_item_id,
+			d.dish_name,
+			d.dish_price,
+			oi.order_item_quantity,
+			oi.order_item_has_issue
+		FROM order_items oi
+		JOIN dishes d  ON d.dish_id  = oi.dish_id
+		JOIN orders o  ON o.order_id = oi.order_id
+		JOIN tables t  ON t.table_id = o.table_id
+		WHERE oi.order_id = @orderID
+		  AND t.restaurant_id = @restaurantID
+		  AND oi.order_item_quantity > oi.cancelled_quantity
+		ORDER BY oi.order_item_id ASC`,
+		sql.Named("orderID", orderID),
+		sql.Named("restaurantID", restaurantID),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("GetOrderItems query: %w", err)
+	}
+	defer rows.Close()
+
+	var result []OrderListRow
+	for rows.Next() {
+		var row OrderListRow
+		if err := rows.Scan(
 			&row.ItemID,
 			&row.DishName,
 			&row.DishPrice,
 			&row.ItemQty,
-			&row.HasIssue,
 			&row.ItemHasIssue,
 		); err != nil {
-			return nil, fmt.Errorf("GetActiveOrdersList scan: %w", err)
+			return nil, fmt.Errorf("GetOrderItems scan: %w", err)
 		}
 		result = append(result, row)
 	}

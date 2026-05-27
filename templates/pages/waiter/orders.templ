@@ -60,7 +60,7 @@ func orderCardHeaderClass(statusName string, hasIssue bool) string {
 }
 
 
-templ OrdersPage(activeOrders []waiterservice.OrderView, archiveOrders []waiterservice.OrderView, archivePagination waiterservice.ArchivePagination, dateFrom, dateTo string, archiveTableNums []int) {
+templ OrdersPage(activeOrders []waiterservice.OrderView, dateFrom, dateTo string) {
 	<div class="p-6 max-w-5xl mx-auto fade-in">
 		<style>
 			.accordion-body { max-height: 0; overflow: hidden; transition: max-height 0.28s ease; }
@@ -189,9 +189,6 @@ templ OrdersPage(activeOrders []waiterservice.OrderView, archiveOrders []waiters
 					class="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600 bg-white focus:outline-none focus:border-blue-400"
 				>
 					<option value="0">Всі столики</option>
-					for _, t := range archiveTableNums {
-						<option value={ strconv.Itoa(t) }>Стіл №{ strconv.Itoa(t) }</option>
-					}
 				</select>
 				<div class="flex items-center gap-2">
 					<input
@@ -226,10 +223,8 @@ templ OrdersPage(activeOrders []waiterservice.OrderView, archiveOrders []waiters
 					class="flex-1 min-w-36 border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-blue-400"
 				/>
 			</form>
-			<!-- List -->
-			<div id="archive-list-wrapper">
-				@ArchiveList(archiveOrders, archivePagination)
-			</div>
+			<!-- List — завантажується при першому відкритті вкладки -->
+			<div id="archive-list-wrapper"></div>
 		</div>
 		<!-- Payment modal -->
 		<div id="pay-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
@@ -360,13 +355,30 @@ templ OrdersPage(activeOrders []waiterservice.OrderView, archiveOrders []waiters
 				btnArchive.className = isActive
 					? 'px-4 py-2.5 text-sm font-medium text-slate-500 border-b-2 border-transparent -mb-px hover:text-slate-700 transition-colors'
 					: 'px-4 py-2.5 text-sm font-medium text-blue-600 border-b-2 border-blue-600 -mb-px transition-colors';
+				if (!isActive) {
+					var wrapper = document.getElementById('archive-list-wrapper');
+					if (!wrapper.dataset.loaded) {
+						wrapper.dataset.loaded = '1';
+						htmx.ajax('GET', '/waiter/orders/archive/list', {
+							target: '#archive-list-wrapper',
+							swap: 'innerHTML'
+						});
+					}
+				}
 			}
 
 			function toggleAccordion(id) {
 				var body    = document.getElementById('body-'    + id);
 				var chevron = document.getElementById('chevron-' + id);
+				var opening = !body.classList.contains('open');
 				body.classList.toggle('open');
 				chevron.classList.toggle('rotated');
+				if (opening) {
+					htmx.ajax('GET', '/waiter/orders/' + id + '/items', {
+						target: '#items-' + id,
+						swap: 'innerHTML'
+					});
+				}
 			}
 
 			function toggleArchiveAccordion(id) {
@@ -492,6 +504,26 @@ templ OrdersPage(activeOrders []waiterservice.OrderView, archiveOrders []waiters
 	</div>
 }
 
+templ OrderItems(items []waiterservice.OrderItemView) {
+	for _, item := range items {
+		<div class={
+			"flex justify-between items-center text-sm py-1 border-b last:border-0 px-1 rounded",
+			templ.KV("border-red-100 bg-red-50", item.HasIssue),
+			templ.KV("border-slate-50", !item.HasIssue),
+		}>
+			<div class="flex items-center gap-2">
+				<span class={ "text-slate-700", templ.KV("text-red-700 font-medium", item.HasIssue) }>{ item.DishName }</span>
+				if item.HasIssue {
+					<span class="text-xs text-red-500">— немає інгредієнтів</span>
+				}
+			</div>
+			<span class="text-slate-500 mono text-[13px]">
+				{ strconv.Itoa(item.Qty) } × { fmt.Sprintf("%.2f", item.DishPrice) } ₴ = <span class="font-semibold text-slate-700">{ fmt.Sprintf("%.2f ₴", item.Subtotal) }</span>
+			</span>
+		</div>
+	}
+}
+
 templ OrdersList(orders []waiterservice.OrderView) {
 	if len(orders) == 0 {
 		<div class="text-center py-16 text-slate-400">
@@ -521,7 +553,7 @@ templ orderCard(o waiterservice.OrderView) {
 		>
 			<!-- Total qty badge -->
 			<div class="w-9 h-9 bg-slate-100 rounded-lg flex items-center justify-center mono font-bold text-slate-600 text-sm flex-shrink-0">
-				{ strconv.Itoa(totalOrderQty(o.Items)) }
+				{ strconv.Itoa(o.TotalQty) }
 			</div>
 			<!-- Order info -->
 			<div class="flex-1 min-w-0">
@@ -558,26 +590,8 @@ templ orderCard(o waiterservice.OrderView) {
 		<!-- Accordion body -->
 		<div id={ fmt.Sprintf("body-%d", o.OrderID) } class="accordion-body">
 			<div class="px-5 pt-1 pb-5 border-t border-slate-100">
-				<!-- Items list -->
-				<div class="space-y-1.5 mb-4 mt-3">
-					for _, item := range o.Items {
-						<div class={
-							"flex justify-between items-center text-sm py-1 border-b last:border-0 px-1 rounded",
-							templ.KV("border-red-100 bg-red-50", item.HasIssue),
-							templ.KV("border-slate-50", !item.HasIssue),
-						}>
-							<div class="flex items-center gap-2">
-								<span class={ "text-slate-700", templ.KV("text-red-700 font-medium", item.HasIssue) }>{ item.DishName }</span>
-								if item.HasIssue {
-									<span class="text-xs text-red-500">— немає інгредієнтів</span>
-								}
-							</div>
-							<span class="text-slate-500 mono text-[13px]">
-								{ strconv.Itoa(item.Qty) } × { fmt.Sprintf("%.2f", item.DishPrice) } ₴ = <span class="font-semibold text-slate-700">{ fmt.Sprintf("%.2f ₴", item.Subtotal) }</span>
-							</span>
-						</div>
-					}
-				</div>
+				<!-- Items list — завантажується при відкритті акордеону -->
+				<div id={ fmt.Sprintf("items-%d", o.OrderID) } class="space-y-1.5 mb-4 mt-3"></div>
 				<!-- Footer: total + actions -->
 				<div class="flex items-center justify-between pt-3 border-t border-slate-100">
 					<div class="text-sm text-slate-600">

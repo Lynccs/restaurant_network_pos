@@ -54,9 +54,13 @@ templ ChefLayout(name string, workshop string, activePage string, content templ.
 					if (!start) return;
 					var diff = Math.floor((Date.now() - start) / 1000);
 					if (diff < 0) diff = 0;
-					var mins = Math.floor(diff / 60);
+					var hrs  = Math.floor(diff / 3600);
+					var mins = Math.floor((diff % 3600) / 60);
 					var secs = diff % 60;
-					el.textContent = String(mins).padStart(2,'0') + ':' + String(secs).padStart(2,'0');
+					var pad  = function(n){ return String(n).padStart(2,'0'); };
+					el.textContent = hrs > 0
+						? hrs + ':' + pad(mins) + ':' + pad(secs)
+						: pad(mins) + ':' + pad(secs);
 					var card = el.closest('.dish-card-kds');
 					if (card && mins >= limit && !card.dataset.timerOverdue) {
 						card.dataset.timerOverdue = '1';
